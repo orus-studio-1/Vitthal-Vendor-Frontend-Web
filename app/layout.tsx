@@ -3,6 +3,8 @@ import { Outfit, Montserrat } from "next/font/google";
 import "./globals.css";
 import { VendorHeader } from "@/components/ui/VendorHeader";
 import { VendorFooter } from "@/components/ui/VendorFooter";
+import { Toaster } from "@/components/ui/sonner";
+import { cn } from "@/lib/utils";
 
 const outfit = Outfit({
   variable: "--font-heading",
@@ -27,9 +29,10 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${outfit.variable} ${montserrat.variable} h-full antialiased`}
+      className={cn("h-full", "antialiased", outfit.variable, montserrat.variable, "font-sans")}
     >
       <body className="min-h-full flex flex-col">
+        <Toaster position="top-right" richColors />
         <VendorHeader />
         <main className="flex-1">{children}</main>
         <VendorFooter />
