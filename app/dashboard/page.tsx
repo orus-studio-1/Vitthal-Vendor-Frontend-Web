@@ -9,7 +9,8 @@ import {
   Users,
   ArrowUpRight,
   ArrowDownRight,
-  MoreHorizontal
+  MoreHorizontal,
+  Download
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -151,6 +152,63 @@ const formatDate = (dateStr: string): string => {
 
 const formatOrderId = (id: string): string => {
   return `#${id.slice(0, 8).toUpperCase()}`;
+};
+
+const convertToCSV = (data: DashboardData): string => {
+  const lines: string[] = [];
+  
+  // Header
+  lines.push('Dashboard Report');
+  lines.push(`Generated on: ${new Date().toLocaleString()}`);
+  lines.push('');
+  
+  // Stats Section
+  lines.push('SUMMARY STATISTICS');
+  lines.push('Metric,Value');
+  lines.push(`Total Revenue,${data.stats.totalRevenue}`);
+  lines.push(`Total Orders,${data.stats.totalOrders}`);
+  lines.push(`Active Products,${data.stats.activeProducts}`);
+  lines.push(`Total Customers,${data.stats.totalCustomers}`);
+  lines.push('');
+  
+  // Revenue Chart Section
+  lines.push('REVENUE CHART DATA');
+  lines.push('Period,Revenue');
+  data.revenueChart.labels.forEach((label, idx) => {
+    lines.push(`${label},${data.revenueChart.data[idx] || 0}`);
+  });
+  lines.push('');
+  
+  // Recent Orders Section
+  lines.push('RECENT ORDERS');
+  lines.push('Order ID,Customer Name,Product,Date,Amount,Status');
+  data.recentOrders.forEach(order => {
+    const formattedDate = new Date(order.date).toISOString().split('T')[0];
+    lines.push(`${order.orderId},${order.customerName},${order.productName},${formattedDate},${order.amount},${order.status}`);
+  });
+  lines.push('');
+  
+  // Top Products Section
+  lines.push('TOP PRODUCTS');
+  lines.push('Product Name,Sales Count,Revenue');
+  data.topProducts.forEach(product => {
+    lines.push(`${product.name},${product.sales},${product.revenue}`);
+  });
+  
+  return lines.join('\n');
+};
+
+const downloadCSV = (csvContent: string, filename: string): void => {
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  
+  link.setAttribute('href', url);
+  link.setAttribute('download', filename);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 };
 
 const getStatusLabel = (status: string): string => {
@@ -313,7 +371,18 @@ const DashboardPage = () => {
             <p className="text-gray-500 mt-1.5 font-medium">Welcome back! Here's what's happening with your store today.</p>
           </div>
           <div className="flex items-center gap-3">
-            <button className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all text-sm font-semibold shadow-sm focus:ring-2 focus:ring-gray-200 outline-none">
+            <button 
+              onClick={() => {
+                if (dashboardData) {
+                  const csv = convertToCSV(dashboardData);
+                  const timestamp = new Date().toISOString().split('T')[0];
+                  downloadCSV(csv, `dashboard-report-${timestamp}.csv`);
+                }
+              }}
+              disabled={!dashboardData || isLoadingDashboard}
+              className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all text-sm font-semibold shadow-sm focus:ring-2 focus:ring-gray-200 outline-none disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              <Download className="w-4 h-4" />
               Export Report
             </button>
             <button className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all text-sm font-semibold shadow-sm shadow-emerald-200 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 outline-none flex items-center gap-2">
