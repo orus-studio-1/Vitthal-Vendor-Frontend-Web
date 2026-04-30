@@ -8,6 +8,11 @@ import { useAuthStore } from "@/store/authStore";
 
 type SetupStep = "company" | "address";
 
+const validateGST = (gst: string): boolean => {
+  const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
+  return gstRegex.test(gst);
+};
+
 export default function SetupProfile() {
   const router = useRouter();
   const { user } = useAuthStore();
@@ -20,7 +25,13 @@ export default function SetupProfile() {
   // Company details
   const [companyName, setCompanyName] = useState("");
   const [phone, setPhone] = useState("");
-  const [gstNumber, setGstNumber] = useState("");
+  
+  // GST parts - split into 5 components
+  const [gstState, setGstState] = useState("");      // 2 digits
+  const [gstPan, setGstPan] = useState("");          // 10 chars
+  const [gstEntity, setGstEntity] = useState("");  // 1 digit
+  const [gstCheck, setGstCheck] = useState("");     // 1 letter
+  const [gstZ, setGstZ] = useState("Z");             // 1 letter (usually Z)
 
   // Address details
   const [address, setAddress] = useState("");
@@ -82,10 +93,22 @@ export default function SetupProfile() {
     );
   };
 
+  const gstNumber = gstState + gstPan + gstEntity + gstZ + gstCheck;
+
   const handleCompanySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!companyName || !phone || !gstNumber) {
+    if (!companyName || !phone) {
       toast.error("Please fill all company details");
+      return;
+    }
+
+    if (gstState.length !== 2 || gstPan.length !== 10 || gstEntity.length !== 1 || gstCheck.length !== 1 || gstZ.length !== 1) {
+      toast.error("Please complete all GST fields");
+      return;
+    }
+
+    if (!validateGST(gstNumber)) {
+      toast.error("Please enter valid GST details");
       return;
     }
 
@@ -314,27 +337,142 @@ export default function SetupProfile() {
                   </div>
 
                   <div>
-                    <label
-                      htmlFor="gstNumber"
-                      className="mb-2 block text-sm font-medium text-zinc-800"
-                    >
+                    <label className="mb-2 block text-sm font-medium text-zinc-800">
                       GST Number
                     </label>
-                    <div className="relative">
-                      <FileText className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400" />
+                    <div className="flex items-center gap-1.5">
+                      {/* State Code - 2 digits */}
                       <input
-                        id="gstNumber"
+                        id="gst-state"
                         type="text"
                         required
-                        value={gstNumber}
-                        onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
-                        placeholder="22AAAAA0000A1Z5"
-                        className="h-11 w-full rounded-md border border-zinc-300 pl-10 pr-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-blue-600 focus:ring-1 focus:ring-blue-600/30"
+                        maxLength={2}
+                        value={gstState}
+                        onChange={(e) => {
+                          const rawVal = e.target.value;
+                          const val = rawVal.replace(/\D/g, "").slice(0, 2);
+                          setGstState(val);
+                          // Only auto-focus forward when adding chars (not on backspace/delete)
+                          if (val.length === 2 && rawVal.length >= gstState.length) {
+                            document.getElementById("gst-pan")?.focus();
+                          }
+                        }}
+                        placeholder="22"
+                        className="h-11 w-14 rounded-md border border-zinc-300 px-2 text-center text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-blue-600 focus:ring-1 focus:ring-blue-600/30"
+                      />
+                      <span className="text-zinc-400">-</span>
+                      {/* PAN - 5 letters + 4 digits + 1 letter */}
+                      <input
+                        id="gst-pan"
+                        type="text"
+                        required
+                        maxLength={10}
+                        value={gstPan}
+                        onChange={(e) => {
+                          const rawVal = e.target.value;
+                          const val = rawVal.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10);
+                          setGstPan(val);
+                          if (val.length === 10 && rawVal.length >= gstPan.length) {
+                            document.getElementById("gst-entity")?.focus();
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Backspace" && !gstPan) {
+                            e.preventDefault();
+                            document.getElementById("gst-state")?.focus();
+                          }
+                        }}
+                        placeholder="AAAAA0000A"
+                        className="h-11 w-32 rounded-md border border-zinc-300 px-2 text-center text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-blue-600 focus:ring-1 focus:ring-blue-600/30"
+                      />
+                      <span className="text-zinc-400">-</span>
+                      {/* Entity - 1 char */}
+                      <input
+                        id="gst-entity"
+                        type="text"
+                        required
+                        maxLength={1}
+                        value={gstEntity}
+                        onChange={(e) => {
+                          const rawVal = e.target.value;
+                          const val = rawVal.toUpperCase().replace(/[^0-9A-Z]/g, "").slice(0, 1);
+                          setGstEntity(val);
+                          if (val.length === 1 && rawVal.length >= gstEntity.length) {
+                            document.getElementById("gst-z")?.focus();
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Backspace" && !gstEntity) {
+                            e.preventDefault();
+                            document.getElementById("gst-pan")?.focus();
+                          }
+                        }}
+                        placeholder="1"
+                        className="h-11 w-10 rounded-md border border-zinc-300 px-1 text-center text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-blue-600 focus:ring-1 focus:ring-blue-600/30"
+                      />
+                      <span className="text-zinc-400">-</span>
+                      {/* Z - 1 letter (usually Z) */}
+                      <input
+                        id="gst-z"
+                        type="text"
+                        required
+                        maxLength={1}
+                        value={gstZ}
+                        onChange={(e) => {
+                          const rawVal = e.target.value;
+                          const val = rawVal.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 1);
+                          const newVal = val || "Z";
+                          setGstZ(newVal);
+                          if (val && rawVal.length >= gstZ.length) {
+                            document.getElementById("gst-check")?.focus();
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Backspace" && gstZ === "Z") {
+                            e.preventDefault();
+                            document.getElementById("gst-entity")?.focus();
+                          }
+                        }}
+                        placeholder="Z"
+                        className="h-11 w-10 rounded-md border border-zinc-300 px-1 text-center text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-blue-600 focus:ring-1 focus:ring-blue-600/30"
+                      />
+                      <span className="text-zinc-400">-</span>
+                      {/* Check Digit - 1 char */}
+                      <input
+                        id="gst-check"
+                        type="text"
+                        required
+                        maxLength={1}
+                        value={gstCheck}
+                        onChange={(e) => {
+                          const val = e.target.value.toUpperCase().replace(/[^0-9A-Z]/g, "").slice(0, 1);
+                          setGstCheck(val);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Backspace" && !gstCheck) {
+                            e.preventDefault();
+                            document.getElementById("gst-z")?.focus();
+                          }
+                        }}
+                        placeholder="5"
+                        className="h-11 w-10 rounded-md border border-zinc-300 px-1 text-center text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-blue-600 focus:ring-1 focus:ring-blue-600/30"
                       />
                     </div>
-                    <p className="mt-1.5 text-xs text-zinc-500">
-                      Enter your 15-character GSTIN
-                    </p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <p className="text-xs text-zinc-500">
+                        {gstState.length === 2 && gstPan.length === 10 && gstEntity.length === 1 && gstCheck.length === 1 && gstZ.length === 1 ? (
+                          validateGST(gstNumber) ? (
+                            <span className="flex items-center gap-1 text-green-600">
+                              <CheckCircle className="h-3 w-3" /> Valid GST: {gstNumber}
+                            </span>
+                          ) : (
+                            <span className="text-red-500">Invalid GST format</span>
+                          )
+                        ) : (
+                          "Format: 2 State + 10 PAN + 1 Entity + Z + 1 Check"
+                        )}
+                      </p>
+                    </div>
                   </div>
 
                   <button

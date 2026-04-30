@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
+import Image from "next/image";
 
 export function VendorHeader() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -51,7 +52,7 @@ export function VendorHeader() {
         <div className="mx-auto flex h-9 w-full max-w-7xl items-center justify-between px-4 text-xs text-zinc-600 sm:px-6 lg:px-8">
           <p className="font-medium text-emerald-700">Vendor Portal</p>
           <div className="hidden sm:flex items-center gap-4">
-            <span>support@vitthal.com</span>
+            <span>support@MTWO.com</span>
             <span className="text-zinc-300">|</span>
             <span>+91 98765 43210</span>
           </div>
@@ -61,7 +62,14 @@ export function VendorHeader() {
       {/* Main header */}
       <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/" className="flex items-center gap-2">
-          <span className="text-xl font-semibold tracking-tight text-zinc-900">Vitthal</span>
+        <Image
+          src="/logo.jpeg"
+          alt="MTWO Groups"
+          width={32}
+          height={32}
+          unoptimized
+        />
+          <span className="text-xl font-semibold tracking-tight text-zinc-900">MTWO Groups</span>
           <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
             Vendor
           </span>
@@ -206,7 +214,14 @@ export function VendorHeader() {
         {/* Sidebar Header */}
         <div className="flex items-center justify-between px-4 py-4 border-b border-zinc-200">
           <div className="flex items-center gap-2">
-            <span className="text-lg font-semibold text-zinc-900">Vitthal</span>
+            <Image
+              src="/logo.jpeg"
+              alt="MTWO Groups"
+              width={32}
+              height={32}
+              unoptimized
+            />
+            <span className="text-lg font-semibold text-zinc-900">MTWO Groups</span>
             <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
               Vendor
             </span>

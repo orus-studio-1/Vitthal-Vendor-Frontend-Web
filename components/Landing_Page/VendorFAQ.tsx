@@ -105,7 +105,7 @@ export function VendorFAQ() {
             Frequently Asked Questions
           </h2>
           <p className="mt-3 text-base text-zinc-600">
-            Everything you need to know about selling on Vitthal
+            Everything you need to know about selling on MTWO Groups
           </p>
         </div>
 

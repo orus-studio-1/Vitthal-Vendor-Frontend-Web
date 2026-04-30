@@ -12,7 +12,7 @@ export function VendorFooter() {
           {/* Brand Column */}
           <div className="lg:col-span-2">
             <div className="flex items-center gap-2 mb-4">
-              <span className="text-lg font-semibold text-white">Vitthal</span>
+              <span className="text-lg font-semibold text-white">MTWO Groups</span>
               <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-medium text-emerald-400">
                 Vendor
               </span>
@@ -22,9 +22,9 @@ export function VendorFooter() {
               Grow your business with verified buyers and seamless order management.
             </p>
             <div className="mt-6 space-y-2">
-              <a href="mailto:vendors@vitthal.com" className="flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition-colors">
+              <a href="mailto:vendors@MTWO.com" className="flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition-colors">
                 <Mail size={16} />
-                vendors@vitthal.com
+                vendors@MTWO.com
               </a>
               <a href="tel:+919876543210" className="flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition-colors">
                 <Phone size={16} />
@@ -138,7 +138,7 @@ export function VendorFooter() {
         <div className="mt-10 border-t border-zinc-800 pt-8">
           <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
             <p className="text-sm text-zinc-500">
-              &copy; {currentYear} Vitthal Vendor Portal. All rights reserved.
+              &copy; {currentYear} MTWO Groups Vendor Portal. All rights reserved.
             </p>
             <div className="flex flex-wrap justify-center gap-6 text-sm text-zinc-500">
               <a href="/privacy" className="hover:text-white transition-colors">

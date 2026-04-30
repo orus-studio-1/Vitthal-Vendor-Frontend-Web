@@ -7,7 +7,7 @@ const testimonials = [
     name: "Rajesh Kumar",
     company: "Kumar Industries",
     location: "Ahmedabad, Gujarat",
-    quote: "Since joining Vitthal, our order volume has increased by 60%. The platform connects us with genuine buyers who pay on time.",
+    quote: "Since joining MTWO Groups, our order volume has increased by 60%. The platform connects us with genuine buyers who pay on time.",
     rating: 5,
     category: "Plastic Granules Supplier",
   },
@@ -23,7 +23,7 @@ const testimonials = [
     name: "Mohammed Ali",
     company: "Ali Trading Co.",
     location: "Hyderabad, Telangana",
-    quote: "We were skeptical at first, but Vitthal's verified buyer system ensures we only deal with serious businesses. No time wasters.",
+    quote: "We were skeptical at first, but MTWO Groups's verified buyer system ensures we only deal with serious businesses. No time wasters.",
     rating: 5,
     category: "Steel Products Supplier",
   },
@@ -38,7 +38,7 @@ export function VendorTestimonials() {
             Success Stories from Our Vendors
           </h2>
           <p className="mt-3 text-base text-zinc-600 max-w-2xl mx-auto">
-            Hear from suppliers who have grown their business with Vitthal
+            Hear from suppliers who have grown their business with MTWO Groups
           </p>
         </div>
 
@@ -73,7 +73,7 @@ export function VendorTestimonials() {
         <div className="mt-12 text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2">
             <span className="text-lg font-bold text-emerald-700">2,300+</span>
-            <span className="text-sm text-emerald-700">Active Vendors Trust Vitthal</span>
+            <span className="text-sm text-emerald-700">Active Vendors Trust MTWO Groups</span>
           </div>
         </div>
       </div>

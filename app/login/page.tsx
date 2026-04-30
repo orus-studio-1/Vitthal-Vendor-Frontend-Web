@@ -134,7 +134,7 @@ export default function LoginPage() {
 
               width="100"
 
-              alt="Vitthal Logo"
+              alt="MTWO Logo"
 
             />
 
@@ -288,7 +288,7 @@ export default function LoginPage() {
 
           <p className="mt-6 text-center text-sm text-zinc-600">
 
-            New to Vitthal?{" "}
+            New to MTWO Groups?{" "}
 
             <Link href="/register" className="font-medium text-[#1d4ed8] hover:text-[#1e40af]">
 

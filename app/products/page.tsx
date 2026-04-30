@@ -21,6 +21,7 @@ const ProductsPage = () => {
     const [loading, setLoading] = useState(true);
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     // Filters
     const [searchQuery, setSearchQuery] = useState("");
@@ -70,11 +71,30 @@ const ProductsPage = () => {
         setDeleteModalOpen(true);
     };
 
-    // Note: Delete logic should ideally call a backend endpoint to deactivate or remove the vendor_product connection
-    const confirmDelete = () => {
-        // Implement delete logic here
-        setDeleteModalOpen(false);
-        setSelectedProductId(null);
+    const confirmDelete = async () => {
+        if (!selectedProductId) return;
+        setIsDeleting(true);
+        try {
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9000';
+            const response = await fetch(`${apiUrl}/api/vendors/product/${selectedProductId}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                setProducts(products.filter(p => p.product_id !== selectedProductId));
+                setDeleteModalOpen(false);
+                setSelectedProductId(null);
+            } else {
+                alert(data.message || "Failed to delete product");
+            }
+        } catch (error) {
+            console.error("Error deleting product:", error);
+            alert("Failed to delete product");
+        } finally {
+            setIsDeleting(false);
+        }
     };
 
     return (
@@ -222,12 +242,20 @@ const ProductsPage = () => {
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
-                                                <button className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-all" title="View">
+                                                <Link
+                                                    href={`/products/view/${product.product_id}`}
+                                                    className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-all"
+                                                    title="View"
+                                                >
                                                     <Eye className="w-4 h-4" />
-                                                </button>
-                                                <button className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-all" title="Edit">
+                                                </Link>
+                                                <Link
+                                                    href={`/products/edit/${product.product_id}`}
+                                                    className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-all"
+                                                    title="Edit"
+                                                >
                                                     <Edit className="w-4 h-4" />
-                                                </button>
+                                                </Link>
                                                 <button
                                                     onClick={() => handleDeleteClick(product.product_id)}
                                                     className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all"
@@ -289,9 +317,10 @@ const ProductsPage = () => {
                                 </button>
                                 <button
                                     onClick={confirmDelete}
-                                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-medium text-sm shadow-sm"
+                                    disabled={isDeleting}
+                                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-medium text-sm shadow-sm disabled:opacity-50"
                                 >
-                                    Delete
+                                    {isDeleting ? "Removing..." : "Delete"}
                                 </button>
                             </div>
                         </div>

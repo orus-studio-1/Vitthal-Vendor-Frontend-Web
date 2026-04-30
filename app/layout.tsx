@@ -17,8 +17,8 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
-  title: "Vitthal Vendor Frontend",
-  description: "Vitthal Vendor Frontend",
+  title: "MTWO Groups Vendor Portal",
+  description: "MTWO Groups Vendor Portal",
 };
 
 export default function RootLayout({

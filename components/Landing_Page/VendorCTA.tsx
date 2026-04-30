@@ -9,7 +9,7 @@ export function VendorCTA() {
             Ready to grow your business?
           </h3>
           <p className="mt-2 max-w-lg text-sm text-emerald-100">
-            Join thousands of suppliers already selling on Vitthal. 
+            Join thousands of suppliers already selling on MTWO Groups. 
             Registration is free and takes only 10 minutes.
           </p>
         </div>
