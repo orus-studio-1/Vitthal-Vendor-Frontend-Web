@@ -10,7 +10,6 @@ import {
   Building2,
   LogOut,
   ChevronRight,
-  Package,
   Edit2,
   Camera,
   X,
@@ -27,7 +26,7 @@ import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
 
 type Address = {
-  id: number;
+  id: string | number;
   address: string;
   city: string;
   state: string;
@@ -53,6 +52,8 @@ type VendorDetails = {
   vendor_longitude?: number;
 };
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9000";
+
 export default function ProfilePage() {
   const { user, fetchUser, logout } = useAuthStore();
   const router = useRouter();
@@ -71,7 +72,7 @@ export default function ProfilePage() {
   // Address management
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [isAddingAddress, setIsAddingAddress] = useState(false);
-  const [editingAddressId, setEditingAddressId] = useState<number | null>(null);
+  const [editingAddressId, setEditingAddressId] = useState<string | number | null>(null);
   const [addressForm, setAddressForm] = useState({
     address: "",
     city: "",
@@ -90,7 +91,7 @@ export default function ProfilePage() {
       try {
         // First check setup status
         const setupRes = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/vendors/checkSetupStatus`,
+          `${API_BASE}/api/vendors/checkSetupStatus`,
           {
             credentials: "include",
           }
@@ -103,7 +104,7 @@ export default function ProfilePage() {
 
         // Then fetch vendor details
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/vendors/getVendorDetails`,
+          `${API_BASE}/api/vendors/getVendorDetails`,
           {
             credentials: "include",
           }
@@ -140,13 +141,6 @@ export default function ProfilePage() {
     fetchVendorDetails();
   }, []);
 
-  useEffect(() => {
-    if (user) {
-      setEditName(user.username);
-      setEditEmail(user.email);
-    }
-  }, [user]);
-
   async function handleLogout() {
     await logout();
     toast.success("Logged out successfully");
@@ -154,6 +148,10 @@ export default function ProfilePage() {
   }
 
   function handleEdit() {
+    setEditName(user?.username || "");
+    setEditEmail(user?.email || "");
+    setEditPhone(vendorDetails?.vendor_phone || "");
+    setEditCompany(vendorDetails?.vendor_company_name || "");
     setIsEditing(true);
   }
 
@@ -185,7 +183,7 @@ export default function ProfilePage() {
   async function handleAddAddress() {
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/vendor/addVendorDetails`,
+        `${API_BASE}/api/vendors/createVendorAddress`,
         {
           method: "POST",
           headers: {
@@ -203,7 +201,7 @@ export default function ProfilePage() {
       if (response.ok) {
         toast.success("Address added successfully");
         const data = await response.json();
-        setAddresses((prev) => [...prev, data.address]);
+        setAddresses((prev) => [...prev, data.vendorAddress]);
         resetAddressForm();
       } else {
         const error = await response.json();
@@ -219,9 +217,9 @@ export default function ProfilePage() {
 
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/vendor/updateVendorAddress/${editingAddressId}`,
+        `${API_BASE}/api/vendors/updateVendorAddress`,
         {
-          method: "PATCH",
+          method: "PUT",
           headers: {
             "Content-Type": "application/json",
           },
@@ -238,7 +236,7 @@ export default function ProfilePage() {
         toast.success("Address updated successfully");
         const data = await response.json();
         setAddresses((prev) =>
-          prev.map((addr) => (addr.id === editingAddressId ? data.address : addr))
+          prev.map((addr) => (addr.id === editingAddressId ? data.vendorAddress : addr))
         );
         resetAddressForm();
       } else {
@@ -249,25 +247,8 @@ export default function ProfilePage() {
     }
   }
 
-  async function handleDeleteAddress(addressId: number) {
-    try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/vendor/deleteAddress/${addressId}`,
-        {
-          method: "DELETE",
-          credentials: "include",
-        }
-      );
-
-      if (response.ok) {
-        toast.success("Address deleted successfully");
-        setAddresses((prev) => prev.filter((addr) => addr.id !== addressId));
-      } else {
-        toast.error("Failed to delete address");
-      }
-    } catch (error) {
-      toast.error("Something went wrong");
-    }
+  async function handleDeleteAddress(addressId: string | number) {
+    toast.error("Address deletion is not available yet.");
   }
 
   function startEditAddress(address: Address) {
