@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 type TokenType = "access" | "refresh";
-type JwtPayload = { exp?: number; iat?: number;[key: string]: any };
+type JwtPayload = { exp?: number; iat?: number; [key: string]: unknown };
 
 type TokenPayload = JwtPayload & {
     userId: string;
@@ -27,7 +27,7 @@ function decodeJwt(token: string): TokenPayload | null {
                 .join("")
         );
         return JSON.parse(jsonPayload) as TokenPayload;
-    } catch (e) {
+    } catch {
         return null;
     }
 }

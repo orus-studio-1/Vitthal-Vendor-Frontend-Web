@@ -15,6 +15,7 @@ type ProductResult = {
 };
 
 export default function AddProductPage() {
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9000";
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<ProductResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -39,7 +40,7 @@ export default function AddProductPage() {
       setIsSearching(true);
       const timer = setTimeout(async () => {
         try {
-          const res = await fetch(`http://localhost:9000/api/products/getProductByName?name=${encodeURIComponent(searchQuery)}`, {
+          const res = await fetch(`${apiBase}/api/products/getProductByName?name=${encodeURIComponent(searchQuery)}`, {
             credentials: 'include'
           });
           const data = await res.json();
@@ -98,7 +99,7 @@ export default function AddProductPage() {
           return;
         }
 
-        const prodRes = await fetch("http://localhost:9000/api/products/addProduct", {
+        const prodRes = await fetch(`${apiBase}/api/products/addProduct`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
@@ -117,7 +118,7 @@ export default function AddProductPage() {
       }
 
       // 2. Add vendor product link (pricing & stock)
-      const vendorRes = await fetch("http://localhost:9000/api/products/addVendorProduct", {
+      const vendorRes = await fetch(`${apiBase}/api/products/addVendorProduct`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -132,7 +133,7 @@ export default function AddProductPage() {
       const vendorData = await vendorRes.json();
       if (!vendorRes.ok) throw new Error(vendorData.message || "Failed to save vendor details");
 
-      toast.success("Product published successfully!");
+      toast.success(isCreatingNew ? "Product submitted successfully. It will appear after admin approval." : "Vendor listing saved successfully!");
       window.location.href = "/products"; // redirect to products list
       
     } catch (error: any) {

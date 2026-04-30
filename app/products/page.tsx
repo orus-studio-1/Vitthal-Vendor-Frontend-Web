@@ -14,6 +14,8 @@ type VendorProduct = {
     status: boolean;
     price: number;
     stock_quantity: number;
+    approval_status?: string;
+    approval_notes?: string | null;
 };
 
 const ProductsPage = () => {
@@ -213,12 +215,26 @@ const ProductsPage = () => {
                                             {new Date(product.created_date).toLocaleDateString()}
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${product.status
+                                            <div className="flex flex-col items-start gap-2">
+                                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${product.status
                                                 ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                                 : 'bg-gray-50 text-gray-700 border-gray-200'
                                                 }`}>
-                                                {product.status ? 'Active' : 'Inactive'}
-                                            </span>
+                                                    {product.status ? 'Active' : 'Inactive'}
+                                                </span>
+                                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
+                                                    product.approval_status === 'approved'
+                                                        ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                                        : product.approval_status === 'rejected'
+                                                            ? 'bg-red-50 text-red-700 border-red-200'
+                                                            : 'bg-amber-50 text-amber-700 border-amber-200'
+                                                }`}>
+                                                    {product.approval_status || 'pending'}
+                                                </span>
+                                                {product.approval_notes ? (
+                                                    <p className="max-w-[220px] text-xs text-gray-500">{product.approval_notes}</p>
+                                                ) : null}
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">

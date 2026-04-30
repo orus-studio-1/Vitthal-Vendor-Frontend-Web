@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Mail, Phone, MapPin } from "lucide-react";
 
 export function VendorFooter() {
@@ -42,29 +43,19 @@ export function VendorFooter() {
             <h4 className="text-sm font-semibold text-white">Seller Tools</h4>
             <ul className="mt-4 space-y-3 text-sm text-zinc-400">
               <li>
-                <a href="/dashboard" className="hover:text-white transition-colors">
-                  Dashboard
-                </a>
+                <Link href="/dashboard" className="hover:text-white transition-colors">Dashboard</Link>
               </li>
               <li>
-                <a href="/products" className="hover:text-white transition-colors">
-                  Product Management
-                </a>
+                <Link href="/products" className="hover:text-white transition-colors">Product Management</Link>
               </li>
               <li>
-                <a href="/orders" className="hover:text-white transition-colors">
-                  Order Management
-                </a>
+                <Link href="/orders" className="hover:text-white transition-colors">Order Management</Link>
               </li>
               <li>
-                <a href="/analytics" className="hover:text-white transition-colors">
-                  Sales Analytics
-                </a>
+                <Link href="/analytics" className="hover:text-white transition-colors">Sales Analytics</Link>
               </li>
               <li>
-                <a href="/inventory" className="hover:text-white transition-colors">
-                  Inventory Tracking
-                </a>
+                <Link href="/inventory" className="hover:text-white transition-colors">Inventory Tracking</Link>
               </li>
             </ul>
           </div>
@@ -74,29 +65,19 @@ export function VendorFooter() {
             <h4 className="text-sm font-semibold text-white">Payments & Finance</h4>
             <ul className="mt-4 space-y-3 text-sm text-zinc-400">
               <li>
-                <a href="/payments" className="hover:text-white transition-colors">
-                  Payment Overview
-                </a>
+                <Link href="/payments" className="hover:text-white transition-colors">Payment Overview</Link>
               </li>
               <li>
-                <a href="/invoices" className="hover:text-white transition-colors">
-                  Invoices
-                </a>
+                <Link href="/invoices" className="hover:text-white transition-colors">Invoices</Link>
               </li>
               <li>
-                <a href="/statements" className="hover:text-white transition-colors">
-                  Account Statements
-                </a>
+                <Link href="/statements" className="hover:text-white transition-colors">Account Statements</Link>
               </li>
               <li>
-                <a href="/bank-details" className="hover:text-white transition-colors">
-                  Bank Account Settings
-                </a>
+                <Link href="/bank-details" className="hover:text-white transition-colors">Bank Account Settings</Link>
               </li>
               <li>
-                <a href="/tax-documents" className="hover:text-white transition-colors">
-                  Tax Documents (GST)
-                </a>
+                <Link href="/tax-documents" className="hover:text-white transition-colors">Tax Documents (GST)</Link>
               </li>
             </ul>
           </div>
@@ -106,29 +87,19 @@ export function VendorFooter() {
             <h4 className="text-sm font-semibold text-white">Support & Resources</h4>
             <ul className="mt-4 space-y-3 text-sm text-zinc-400">
               <li>
-                <a href="/help" className="hover:text-white transition-colors">
-                  Help Center
-                </a>
+                <Link href="/help" className="hover:text-white transition-colors">Help Center</Link>
               </li>
               <li>
-                <a href="/seller-guide" className="hover:text-white transition-colors">
-                  Seller Guidelines
-                </a>
+                <Link href="/seller-guide" className="hover:text-white transition-colors">Seller Guidelines</Link>
               </li>
               <li>
-                <a href="/pricing" className="hover:text-white transition-colors">
-                  Commission & Fees
-                </a>
+                <Link href="/pricing" className="hover:text-white transition-colors">Commission & Fees</Link>
               </li>
               <li>
-                <a href="/training" className="hover:text-white transition-colors">
-                  Training Resources
-                </a>
+                <Link href="/training" className="hover:text-white transition-colors">Training Resources</Link>
               </li>
               <li>
-                <a href="/disputes" className="hover:text-white transition-colors">
-                  Raise a Dispute
-                </a>
+                <Link href="/disputes" className="hover:text-white transition-colors">Raise a Dispute</Link>
               </li>
             </ul>
           </div>
@@ -141,18 +112,10 @@ export function VendorFooter() {
               &copy; {currentYear} Vitthal Vendor Portal. All rights reserved.
             </p>
             <div className="flex flex-wrap justify-center gap-6 text-sm text-zinc-500">
-              <a href="/privacy" className="hover:text-white transition-colors">
-                Privacy Policy
-              </a>
-              <a href="/terms" className="hover:text-white transition-colors">
-                Terms of Service
-              </a>
-              <a href="/seller-agreement" className="hover:text-white transition-colors">
-                Seller Agreement
-              </a>
-              <a href="/cookies" className="hover:text-white transition-colors">
-                Cookie Policy
-              </a>
+              <Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
+              <Link href="/terms" className="hover:text-white transition-colors">Terms of Service</Link>
+              <Link href="/seller-agreement" className="hover:text-white transition-colors">Seller Agreement</Link>
+              <Link href="/cookies" className="hover:text-white transition-colors">Cookie Policy</Link>
             </div>
           </div>
         </div>

@@ -7,10 +7,11 @@ import { MapPin, Loader2, Building2, Phone, FileText, CheckCircle } from "lucide
 import { useAuthStore } from "@/store/authStore";
 
 type SetupStep = "company" | "address";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9000";
 
 export default function SetupProfile() {
   const router = useRouter();
-  const { user } = useAuthStore();
+  useAuthStore();
   const [step, setStep] = useState<SetupStep>("company");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
@@ -31,14 +32,10 @@ export default function SetupProfile() {
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
 
-  useEffect(() => {
-    checkSetupStatus();
-  }, []);
-
-  const checkSetupStatus = async () => {
+  async function checkSetupStatus() {
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/vendors/checkSetupStatus`,
+        `${API_BASE}/api/vendors/checkSetupStatus`,
         {
           credentials: "include",
         }
@@ -53,7 +50,15 @@ export default function SetupProfile() {
     } finally {
       setIsCheckingSetup(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void checkSetupStatus();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const getCurrentLocation = () => {
     if (!navigator.geolocation) {
@@ -110,7 +115,7 @@ export default function SetupProfile() {
     try {
       // First, create/update vendor details
       const vendorRes = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/vendors/createVendor`,
+        `${API_BASE}/api/vendors/createVendor`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -127,9 +132,14 @@ export default function SetupProfile() {
 
       if (!vendorRes.ok) {
         // If vendor already exists, try updating
-        if (vendorData.message?.includes("already exists") || vendorData.message?.includes("duplicate")) {
+        const vendorMessage = String(vendorData.message || "").toLowerCase();
+        if (
+          vendorMessage.includes("already exists") ||
+          vendorMessage.includes("duplicate") ||
+          vendorMessage.includes("already in use")
+        ) {
           const updateRes = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL}/api/vendors/updateVendorBasicDetails`,
+            `${API_BASE}/api/vendors/updateVendorBasicDetails`,
             {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
@@ -157,7 +167,7 @@ export default function SetupProfile() {
 
       // Then, create/update address
       const addressRes = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/vendors/createVendorAddress`,
+        `${API_BASE}/api/vendors/createVendorAddress`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -178,9 +188,10 @@ export default function SetupProfile() {
 
       if (!addressRes.ok) {
         // If address already exists, try updating
-        if (addressData.message?.includes("already exists")) {
+        const addressMessage = String(addressData.message || "").toLowerCase();
+        if (addressMessage.includes("already exists")) {
           const updateAddressRes = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL}/api/vendors/updateVendorAddress`,
+            `${API_BASE}/api/vendors/updateVendorAddress`,
             {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
