@@ -29,6 +29,7 @@ export async function fetchVendorIdStatusServer(): Promise<VendorIdStatusRespons
         "x-request-from": "vendor",
         Cookie: cookieHeader,
       },
+      credentials: "include",
     });
 
     if (!response.ok) {
