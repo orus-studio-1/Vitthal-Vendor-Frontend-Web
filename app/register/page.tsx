@@ -183,6 +183,15 @@ const BUSINESS_TYPES = [
   "Other",
 ];
 
+const DESIGNATION_OPTIONS = [
+  "Manager",
+  "Owner",
+  "Director",
+  "Partner",
+  "Proprietor",
+  "Sales Head",
+  "Other",
+];
 function validateGST(gst: string) {
   const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
   return gstRegex.test(gst);
@@ -205,6 +214,7 @@ export default function RegisterPage() {
   const [isVerifyingOTP, setIsVerifyingOTP] = useState(false);
   const [isResendingOTP, setIsResendingOTP] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
+  const [isFetchingPincode, setIsFetchingPincode] = useState(false);
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -234,6 +244,7 @@ export default function RegisterPage() {
   const [phone, setPhone] = useState("");
   const [alternatePhone, setAlternatePhone] = useState("");
   const [designation, setDesignation] = useState("");
+  const [customDesignation, setCustomDesignation] = useState("");
   const [businessDescription, setBusinessDescription] = useState("");
   const [creditCycle, setCreditCycle] = useState("");
   const [customCreditCycle, setCustomCreditCycle] = useState("");
@@ -288,6 +299,34 @@ export default function RegisterPage() {
 
       return [...current, code];
     });
+  }
+
+  async function fetchCityAndStateFromPincode(pincodeValue: string) {
+    if (pincodeValue.length !== 6) {
+      return;
+    }
+
+    setIsFetchingPincode(true);
+    try {
+      const response = await fetch(`https://api.postalpincode.in/pincode/${pincodeValue}`);
+      const data = await response.json();
+
+      if (data && data.length > 0 && data[0].Status === "Success") {
+        const postOffice = data[0].PostOffice[0];
+        if (postOffice) {
+          setState(postOffice.State || "");
+          setCity(postOffice.District || "");
+          toast.success(`City and state auto-filled for ${pincodeValue}`);
+        }
+      } else {
+        toast.error("Invalid pincode. Please check and try again.");
+      }
+    } catch (error) {
+      console.error("Error fetching pincode data:", error);
+      toast.error("Failed to fetch city and state. Please enter manually.");
+    } finally {
+      setIsFetchingPincode(false);
+    }
   }
 
   function captureCurrentLocation() {
@@ -402,6 +441,8 @@ export default function RegisterPage() {
 
     const normalizedCreditCycle =
       creditCycle === "custom" ? customCreditCycle.trim() : creditCycle.trim();
+    const effectiveDesignation =
+      designation === "other" ? customDesignation.trim() : designation.trim();
 
     if (
       !address.trim() ||
@@ -409,7 +450,7 @@ export default function RegisterPage() {
       !state ||
       !pincode.trim() ||
       !phone.trim() ||
-      !designation.trim() ||
+      !effectiveDesignation ||
       !businessDescription.trim() ||
       !creditCycle.trim() ||
       (creditCycle === "custom" && !customCreditCycle.trim()) ||
@@ -573,7 +614,8 @@ export default function RegisterPage() {
           ),
           phone: phone.trim(),
           alternativeNumber: alternatePhone.trim(),
-          designation: designation.trim(),
+            designation:
+              designation === "other" ? customDesignation.trim() : designation.trim(),
           businessDescription: businessDescription.trim(),
           vendorCategories: selectedCategories,
           address: address.trim(),
@@ -1068,20 +1110,15 @@ export default function RegisterPage() {
                   >
                     State
                   </label>
-                  <select
+                  <input
                     id="state"
+                    type="text"
                     required
                     value={state}
-                    onChange={(event) => setState(event.target.value)}
-                    className="h-11 w-full appearance-none rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-[#1d4ed8] focus:ring-1 focus:ring-[#1d4ed8]/30"
-                  >
-                    <option value="">Select state</option>
-                    {INDIAN_STATES.map((item) => (
-                      <option key={item} value={item}>
-                        {item}
-                      </option>
-                    ))}
-                  </select>
+                    readOnly
+                    placeholder="Enter pincode to auto-fill state"
+                    className="h-11 w-full rounded-md border border-zinc-300 bg-zinc-100 px-3 text-sm text-zinc-700 outline-none placeholder:text-zinc-500"
+                  />
                 </div>
 
                 <div>
@@ -1091,20 +1128,15 @@ export default function RegisterPage() {
                   >
                     City
                   </label>
-                  <select
+                  <input
                     id="city"
+                    type="text"
                     required
                     value={city}
-                    onChange={(event) => setCity(event.target.value)}
-                    className="h-11 w-full appearance-none rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-[#1d4ed8] focus:ring-1 focus:ring-[#1d4ed8]/30"
-                  >
-                    <option value="">Select city</option>
-                    {INDIAN_CITIES.map((item) => (
-                      <option key={item} value={item}>
-                        {item}
-                      </option>
-                    ))}
-                  </select>
+                    readOnly
+                    placeholder="Enter pincode to auto-fill city"
+                    className="h-11 w-full rounded-md border border-zinc-300 bg-zinc-100 px-3 text-sm text-zinc-700 outline-none placeholder:text-zinc-500"
+                  />
                 </div>
 
                 <div>
@@ -1130,18 +1162,25 @@ export default function RegisterPage() {
                   >
                     Pincode
                   </label>
-                  <input
-                    id="pincode"
-                    type="text"
-                    required
-                    maxLength={6}
-                    value={pincode}
-                    onChange={(event) =>
-                      setPincode(event.target.value.replace(/\D/g, ""))
-                    }
-                    placeholder="400001"
-                    className="h-11 w-full rounded-md border border-zinc-300 px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-[#1d4ed8] focus:ring-1 focus:ring-[#1d4ed8]/30"
-                  />
+                  <div className="relative">
+                    <input
+                      id="pincode"
+                      type="text"
+                      required
+                      maxLength={6}
+                      value={pincode}
+                      onChange={(event) => {
+                        const newPincode = event.target.value.replace(/\D/g, "");
+                        setPincode(newPincode);
+                        fetchCityAndStateFromPincode(newPincode);
+                      }}
+                      placeholder="400001"
+                      className="h-11 w-full rounded-md border border-zinc-300 px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-[#1d4ed8] focus:ring-1 focus:ring-[#1d4ed8]/30"
+                    />
+                    {isFetchingPincode && (
+                      <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-zinc-400" />
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -1256,16 +1295,48 @@ export default function RegisterPage() {
                   </label>
                   <div className="relative">
                     <Briefcase className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400" />
-                    <input
+                    <select
                       id="designation"
-                      type="text"
                       required
                       value={designation}
-                      onChange={(event) => setDesignation(event.target.value)}
-                      placeholder="e.g., Manager, Owner, Director"
-                      className="h-11 w-full rounded-md border border-zinc-300 pl-10 pr-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-[#1d4ed8] focus:ring-1 focus:ring-[#1d4ed8]/30"
-                    />
+                      onChange={(event) => {
+                        setDesignation(event.target.value);
+                        if (event.target.value !== "other") {
+                          setCustomDesignation("");
+                        }
+                      }}
+                      className="h-11 w-full appearance-none rounded-md border border-zinc-300 bg-white pl-10 pr-3 text-sm text-zinc-900 outline-none focus:border-[#1d4ed8] focus:ring-1 focus:ring-[#1d4ed8]/30"
+                    >
+                      <option value="">Select designation</option>
+                      {DESIGNATION_OPTIONS.map((d) => (
+                        <option key={d} value={d === "Other" ? "other" : d}>
+                          {d}
+                        </option>
+                      ))}
+                    </select>
                   </div>
+
+                  {designation === "other" && (
+                    <div className="mt-3">
+                      <label
+                        htmlFor="customDesignation"
+                        className="mb-1.5 block text-sm font-medium text-zinc-800"
+                      >
+                        Custom designation
+                      </label>
+                      <input
+                        id="customDesignation"
+                        type="text"
+                        required
+                        value={customDesignation}
+                        onChange={(event) =>
+                          setCustomDesignation(event.target.value)
+                        }
+                        placeholder="e.g., Chief Procurement Officer"
+                        className="h-11 w-full rounded-md border border-zinc-300 px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-[#1d4ed8] focus:ring-1 focus:ring-[#1d4ed8]/30"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 

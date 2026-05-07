@@ -140,51 +140,55 @@ const ProductsPage = () => {
         </Link>
       </div>
 
-      {/* Filters & Search */}
-      <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6 flex flex-col md:flex-row gap-4 items-center justify-between shadow-sm">
-        <div className="relative w-full md:w-96">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search products by name..."
-            className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 transition-colors"
-          />
-        </div>
+      {/* Search and Filter Bar */}
+      <div className="sticky top-24 z-40 bg-white border border-gray-200 rounded-lg p-4 mb-6 shadow-sm">
+        <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+          {/* Search Bar */}
+          <div className="relative w-full sm:w-96">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search products by name..."
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
+            />
+          </div>
 
-        <div className="flex flex-wrap gap-3 w-full md:w-auto">
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="border border-gray-200 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-gray-900 text-gray-700 min-w-[140px] transition-colors"
-          >
-            <option value="">All Categories</option>
-            <option value="plastic">Plastic</option>
-            <option value="metal">Metal</option>
-          </select>
+          {/* Filter Controls */}
+          <div className="flex flex-wrap gap-3 w-full sm:w-auto">
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="border border-gray-300 rounded-lg px-4 py-2.5 bg-gray-50 hover:bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-gray-700 min-w-[140px] transition-all duration-200"
+            >
+              <option value="">All Categories</option>
+              <option value="plastic">Plastic</option>
+              <option value="metal">Metal</option>
+            </select>
 
-          <select
-            value={productType}
-            onChange={(e) => setProductType(e.target.value)}
-            className="border border-gray-200 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-gray-900 text-gray-700 min-w-[140px] transition-colors"
-          >
-            <option value="">Product Type</option>
-            <option value="hdpe">HDPE</option>
-            <option value="pet">PET</option>
-            <option value="aluminum">Aluminum</option>
-            <option value="steel">Steel</option>
-          </select>
+            <select
+              value={productType}
+              onChange={(e) => setProductType(e.target.value)}
+              className="border border-gray-300 rounded-lg px-4 py-2.5 bg-gray-50 hover:bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-gray-700 min-w-[140px] transition-all duration-200"
+            >
+              <option value="">Product Type</option>
+              <option value="hdpe">HDPE</option>
+              <option value="pet">PET</option>
+              <option value="aluminum">Aluminum</option>
+              <option value="steel">Steel</option>
+            </select>
 
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className="border border-gray-200 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-gray-900 text-gray-700 min-w-[120px] transition-colors"
-          >
-            <option value="">Status</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </select>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="border border-gray-300 rounded-lg px-4 py-2.5 bg-gray-50 hover:bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-gray-700 min-w-[120px] transition-all duration-200"
+            >
+              <option value="">Status</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
         </div>
       </div>
 
