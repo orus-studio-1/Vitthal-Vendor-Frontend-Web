@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { Outfit, Montserrat } from "next/font/google";
 import "./globals.css";
-import { VendorHeader } from "@/components/ui/VendorHeader";
-import { VendorFooter } from "@/components/ui/VendorFooter";
 import { Toaster } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
+import { VendorFooter } from "@/components/ui/VendorFooter";
+import { VendorHeader } from "@/components/ui/VendorHeader";
 
+import { AuthInitializer } from "@/components/auth/AuthInitializer";
 const outfit = Outfit({
   variable: "--font-heading",
   subsets: ["latin"],
@@ -36,6 +37,7 @@ export default function RootLayout({
         <VendorHeader />
         <main className="flex-1">{children}</main>
         <VendorFooter />
+        <AuthInitializer />
       </body>
     </html>
   );

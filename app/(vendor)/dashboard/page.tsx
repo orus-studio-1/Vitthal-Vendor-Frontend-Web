@@ -260,77 +260,76 @@ const StatCard = ({ title, value, icon: Icon, trend, trendValue }: any) => (
   </div>
 );
 
+// Default fallback dashboard data for new vendors
+const DEFAULT_DASHBOARD_DATA: DashboardData = {
+  stats: {
+    totalRevenue: 0,
+    totalOrders: 0,
+    activeProducts: 0,
+    totalCustomers: 0,
+  },
+  revenueChart: {
+    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    data: [0, 0, 0, 0, 0, 0, 0],
+  },
+  recentOrders: [],
+  topProducts: [],
+};
+
 const DashboardPage = () => {
   const router = useRouter();
   const { user } = useAuthStore();
-  const [isClient, setIsClient] = useState(false);
-  const [isCheckingSetup, setIsCheckingSetup] = useState(true);
-  const [isSetupComplete, setIsSetupComplete] = useState(false);
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [isLoadingDashboard, setIsLoadingDashboard] = useState(true);
-
-  useEffect(() => {
-    setIsClient(true);
-    checkVendorSetup();
-  }, []);
-
-  const checkVendorSetup = async () => {
-    try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/vendors/checkSetupStatus`,
-        {
-          credentials: "include",
-        }
-      );
-
-      if (res.ok) {
-        const data = await res.json();
-        if (!data.isSetupComplete) {
-          router.push("/profile/setup");
-        } else {
-          setIsSetupComplete(true);
-          fetchDashboardData();
-        }
-      } else {
-        router.push("/profile/setup");
-      }
-    } catch (error) {
-      console.error("Error checking setup status:", error);
-      router.push("/profile/setup");
-    } finally {
-      setIsCheckingSetup(false);
-    }
-  };
+  const [error, setError] = useState<string | null>(null);
 
   const fetchDashboardData = async () => {
     setIsLoadingDashboard(true);
+    setError(null);
     try {
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/vendors/dashboard`,
         {
           credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            "x-request-from": "vendor",
+          },
         }
       );
 
       if (res.ok) {
         const result = await res.json();
-        setDashboardData(result.data);
+        setDashboardData(result.data || DEFAULT_DASHBOARD_DATA);
       } else {
-        console.error("Failed to fetch dashboard data");
+        const errorData = await res.json().catch(() => ({}));
+        const errorMessage = errorData.message || `Failed to fetch dashboard data (${res.status})`;
+        console.error("Failed to fetch dashboard data:", errorMessage);
+        setError(errorMessage);
+        // Set default data on error so UI doesn't stay blank
+        setDashboardData(DEFAULT_DASHBOARD_DATA);
       }
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
+      setError("Failed to load dashboard data. Please try again later.");
+      // Set default data on error
+      setDashboardData(DEFAULT_DASHBOARD_DATA);
     } finally {
       setIsLoadingDashboard(false);
     }
   };
 
+  // Fetch dashboard data on component mount
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
   const chartData = useMemo(() => ({
-    labels: dashboardData?.revenueChart.labels || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    labels: dashboardData?.revenueChart?.labels || DEFAULT_DASHBOARD_DATA.revenueChart.labels,
     datasets: [
       {
         label: 'Revenue',
-        data: dashboardData?.revenueChart.data || [0, 0, 0, 0, 0, 0, 0],
+        data: dashboardData?.revenueChart?.data || DEFAULT_DASHBOARD_DATA.revenueChart.data,
         fill: true,
         backgroundColor: (context: any) => {
           const ctx = context.chart.ctx;
@@ -351,18 +350,30 @@ const DashboardPage = () => {
     ],
   }), [dashboardData]);
 
-  if (!isClient || isCheckingSetup) return (
-    <div className="min-h-screen bg-[#fafafa] p-6 md:p-8 lg:p-10 flex items-center justify-center">
-      <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-    </div>
-  );
 
-  if (!isSetupComplete) return null;
 
-  const stats = dashboardData?.stats;
+  const stats = (dashboardData || DEFAULT_DASHBOARD_DATA)?.stats;
 
   return (
     <div className="min-h-screen bg-[#fafafa] p-6 md:p-8 lg:p-10 font-sans">
+      {/* Error Banner */}
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-red-800">Error loading dashboard</p>
+            <p className="text-sm text-red-700 mt-1">{error}</p>
+          </div>
+          <button
+            onClick={() => {
+              setError(null);
+              fetchDashboardData();
+            }}
+            className="px-3 py-1.5 text-sm font-semibold text-red-700 hover:bg-red-100 rounded transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      )}
       <div className="max-w-[1400px] mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

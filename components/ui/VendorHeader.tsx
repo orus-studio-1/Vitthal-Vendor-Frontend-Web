@@ -8,17 +8,13 @@ import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
 import Image from "next/image";
 
+import { VendorHeaderSkeleton } from "./VendorHeaderSkeleton";
 export function VendorHeader() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileDropdown, setProfileDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const { user, isAuthenticated, isLoading, fetchUser, logout } = useAuthStore();
+  const { user, isAuthenticated, isLoading, logout } = useAuthStore();
   const router = useRouter();
-
-  // Fetch user on mount
-  useLayoutEffect(() => {
-    fetchUser();
-  }, [fetchUser]);
 
   // Close dropdown when clicking outside
   useLayoutEffect(() => {
@@ -44,6 +40,10 @@ export function VendorHeader() {
     { href: "/orders", label: "Orders", icon: ShoppingBag },
     { href: "/analytics", label: "Analytics", icon: BarChart3 },
   ];
+  if (isLoading && !isAuthenticated) {
+    return <VendorHeaderSkeleton />;
+  }
+
 
   return (
     <header className="border-b border-zinc-200 bg-white sticky top-0 z-50">

@@ -1,10 +1,22 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Package, Banknote, Tag, Save, X, ImageOff, Eye, ToggleLeft, ToggleRight } from 'lucide-react';
-import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
-import { toast } from 'sonner';
+import React, { useState, useEffect } from "react";
+import {
+  ArrowLeft,
+  Package,
+  Banknote,
+  Tag,
+  Save,
+  X,
+  ImageOff,
+  Eye,
+  ToggleLeft,
+  ToggleRight,
+} from "lucide-react";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { MarkdownRenderer } from "@/components/markdown-renderer";
 
 interface ProductImage {
   image_url: string;
@@ -18,14 +30,18 @@ interface VendorProduct {
   description: string;
   category: string;
   product_type: string;
+  material?: string;
+  grade?: string;
+  application?: string;
+  standard?: string;
   specifications: Record<string, unknown>;
-  vendor_product_id: string;
   price: number;
   moq: number;
   stock_quantity: number;
   is_active: boolean;
-  created_at: string;
-  updated_at: string;
+  status: string;
+  vendor_product_created_at: string;
+  vendor_product_updated_at: string;
   images: ProductImage[];
 }
 
@@ -38,9 +54,9 @@ export default function EditProductPage() {
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  const [price, setPrice] = useState('');
-  const [moq, setMoq] = useState('');
-  const [stockQuantity, setStockQuantity] = useState('');
+  const [price, setPrice] = useState("");
+  const [moq, setMoq] = useState("");
+  const [stockQuantity, setStockQuantity] = useState("");
   const [isActive, setIsActive] = useState(true);
 
   useEffect(() => {
@@ -50,10 +66,17 @@ export default function EditProductPage() {
   const fetchProduct = async () => {
     try {
       setLoading(true);
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9000';
-      const response = await fetch(`${apiUrl}/api/vendors/product/${productId}`, {
-        credentials: 'include'
-      });
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9000";
+      const response = await fetch(
+        `${apiUrl}/api/products/vendor/product/${productId}`,
+        {
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            "x-request-from": "vendor",
+          },
+        },
+      );
 
       const data = await response.json();
       if (response.ok && data.data) {
@@ -79,19 +102,24 @@ export default function EditProductPage() {
     setIsSaving(true);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9000';
-      const response = await fetch(`${apiUrl}/api/vendors/product/${productId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          productId,
-          price: Number(price),
-          moq: Number(moq),
-          stockQuantity: Number(stockQuantity),
-          isActive
-        })
-      });
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9000";
+      const response = await fetch(
+        `${apiUrl}/api/products/vendor/product/${productId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "x-request-from": "vendor",
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            price: Number(price),
+            moq: Number(moq),
+            stockQuantity: Number(stockQuantity),
+            isActive,
+          }),
+        },
+      );
 
       const data = await response.json();
       if (response.ok) {
@@ -108,7 +136,9 @@ export default function EditProductPage() {
     }
   };
 
-  const primaryImage = product?.images?.find(img => img.is_primary)?.image_url || product?.images?.[0]?.image_url;
+  const primaryImage =
+    product?.images?.find((img) => img.is_primary)?.image_url ||
+    product?.images?.[0]?.image_url;
 
   if (loading) {
     return (
@@ -134,8 +164,13 @@ export default function EditProductPage() {
       <div className="p-4 sm:p-6 max-w-4xl mx-auto text-center">
         <div className="bg-white border border-gray-200 rounded-lg p-12">
           <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Product Not Found</h2>
-          <p className="text-gray-500 mb-6">The product you&apos;re looking for doesn&apos;t exist or you don&apos;t have access to it.</p>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            Product Not Found
+          </h2>
+          <p className="text-gray-500 mb-6">
+            The product you&apos;re looking for doesn&apos;t exist or you
+            don&apos;t have access to it.
+          </p>
           <Link
             href="/products"
             className="inline-flex items-center justify-center bg-gray-900 text-white px-6 py-2.5 rounded-md hover:bg-gray-800 transition-colors font-medium"
@@ -160,8 +195,12 @@ export default function EditProductPage() {
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900 tracking-tight">Edit Product</h1>
-            <p className="text-gray-500 mt-1">Update pricing, stock, and availability</p>
+            <h1 className="text-2xl font-semibold text-gray-900 tracking-tight">
+              Edit Product
+            </h1>
+            <p className="text-gray-500 mt-1">
+              Update pricing, stock, and availability
+            </p>
           </div>
         </div>
         <Link
@@ -176,7 +215,9 @@ export default function EditProductPage() {
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Product Preview Card */}
         <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Product Details</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            Product Details
+          </h2>
           <div className="flex items-start gap-4">
             {primaryImage ? (
               <img
@@ -190,26 +231,39 @@ export default function EditProductPage() {
               </div>
             )}
             <div className="flex-1">
-              <h3 className="font-semibold text-gray-900 text-lg">{product.product_name}</h3>
-              <p className="text-gray-500 text-sm mt-0.5">{product.category} • {product.product_type}</p>
-              <p className="text-gray-400 text-xs mt-1">ID: {product.product_id.split('-')[0]}</p>
+              <h3 className="font-semibold text-gray-900 text-lg">
+                {product.product_name}
+              </h3>
+              <p className="text-gray-500 text-sm mt-0.5">
+                {product.category} • {product.product_type}
+              </p>
+              <p className="text-gray-400 text-xs mt-1">
+                ID: {product.product_id.split("-")[0]}
+              </p>
             </div>
           </div>
 
           {product.description && (
             <div className="mt-4 pt-4 border-t border-gray-100">
               <p className="text-sm text-gray-500 mb-1">Description</p>
-              <p className="text-gray-700 text-sm leading-relaxed">{product.description}</p>
+              <MarkdownRenderer
+                content={product.description}
+                className="prose prose-sm max-w-none text-gray-700 text-sm leading-relaxed"
+              />
             </div>
           )}
         </div>
 
         {/* Status Toggle */}
         <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Product Status</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            Product Status
+          </h2>
           <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-100">
             <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isActive ? 'bg-emerald-100' : 'bg-gray-200'}`}>
+              <div
+                className={`w-10 h-10 rounded-full flex items-center justify-center ${isActive ? "bg-emerald-100" : "bg-gray-200"}`}
+              >
                 {isActive ? (
                   <ToggleRight className="w-6 h-6 text-emerald-600" />
                 ) : (
@@ -217,9 +271,13 @@ export default function EditProductPage() {
                 )}
               </div>
               <div>
-                <p className="font-medium text-gray-900">{isActive ? 'Active' : 'Inactive'}</p>
+                <p className="font-medium text-gray-900">
+                  {isActive ? "Active" : "Inactive"}
+                </p>
                 <p className="text-xs text-gray-500">
-                  {isActive ? 'Product is visible to buyers' : 'Product is hidden from buyers'}
+                  {isActive
+                    ? "Product is visible to buyers"
+                    : "Product is hidden from buyers"}
                 </p>
               </div>
             </div>
@@ -227,12 +285,12 @@ export default function EditProductPage() {
               type="button"
               onClick={() => setIsActive(!isActive)}
               className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 ${
-                isActive ? 'bg-emerald-600' : 'bg-gray-300'
+                isActive ? "bg-emerald-600" : "bg-gray-300"
               }`}
             >
               <span
                 className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                  isActive ? 'translate-x-6' : 'translate-x-1'
+                  isActive ? "translate-x-6" : "translate-x-1"
                 }`}
               />
             </button>
@@ -241,7 +299,9 @@ export default function EditProductPage() {
 
         {/* Pricing & Stock */}
         <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900 mb-6">Pricing & Stock</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-6">
+            Pricing & Stock
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-900 mb-2">
@@ -262,7 +322,9 @@ export default function EditProductPage() {
                   placeholder="0.00"
                 />
               </div>
-              <p className="text-xs text-gray-500 mt-1.5">Your price per unit</p>
+              <p className="text-xs text-gray-500 mt-1.5">
+                Your price per unit
+              </p>
             </div>
 
             <div>
@@ -283,7 +345,9 @@ export default function EditProductPage() {
                   placeholder="1"
                 />
               </div>
-              <p className="text-xs text-gray-500 mt-1.5">Minimum units a buyer must buy</p>
+              <p className="text-xs text-gray-500 mt-1.5">
+                Minimum units a buyer must buy
+              </p>
             </div>
 
             <div>
@@ -304,26 +368,40 @@ export default function EditProductPage() {
                   placeholder="0"
                 />
               </div>
-              <p className="text-xs text-gray-500 mt-1.5">Total units available right now</p>
+              <p className="text-xs text-gray-500 mt-1.5">
+                Total units available right now
+              </p>
             </div>
           </div>
         </div>
 
         {/* Specifications (Read-only) */}
-        {product.specifications && Object.keys(product.specifications).length > 0 && (
-          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Specifications</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {Object.entries(product.specifications).map(([key, value]) => (
-                <div key={key} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
-                  <span className="text-gray-500 capitalize">{key.replace(/_/g, ' ')}</span>
-                  <span className="font-medium text-gray-900">{String(value)}</span>
-                </div>
-              ))}
+        {product.specifications &&
+          Object.keys(product.specifications).length > 0 && (
+            <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                Specifications
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {Object.entries(product.specifications).map(([key, value]) => (
+                  <div
+                    key={key}
+                    className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0"
+                  >
+                    <span className="text-gray-500 capitalize">
+                      {key.replace(/_/g, " ")}
+                    </span>
+                    <span className="font-medium text-gray-900">
+                      {String(value)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-gray-400 mt-4">
+                Contact admin to modify product specifications
+              </p>
             </div>
-            <p className="text-xs text-gray-400 mt-4">Contact admin to modify product specifications</p>
-          </div>
-        )}
+          )}
 
         {/* Action Footer */}
         <div className="flex items-center justify-end gap-4 pt-4 border-t border-gray-200">

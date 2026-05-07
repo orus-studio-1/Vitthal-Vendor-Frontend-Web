@@ -20,7 +20,6 @@ import {
   Trash2,
   Store,
   ShoppingBag,
-  AlertCircle,
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
@@ -65,14 +64,17 @@ export default function ProfilePage() {
   const [profileImage, setProfileImage] = useState<string | null>(null);
 
   // Vendor details from backend
-  const [vendorDetails, setVendorDetails] = useState<VendorDetails | null>(null);
+  const [vendorDetails, setVendorDetails] = useState<VendorDetails | null>(
+    null,
+  );
   const [isLoading, setIsLoading] = useState(true);
-  const [isSetupComplete, setIsSetupComplete] = useState(false);
 
   // Address management
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [isAddingAddress, setIsAddingAddress] = useState(false);
-  const [editingAddressId, setEditingAddressId] = useState<string | number | null>(null);
+  const [editingAddressId, setEditingAddressId] = useState<
+    string | number | null
+  >(null);
   const [addressForm, setAddressForm] = useState({
     address: "",
     city: "",
@@ -89,25 +91,15 @@ export default function ProfilePage() {
   useLayoutEffect(() => {
     async function fetchVendorDetails() {
       try {
-        // First check setup status
-        const setupRes = await fetch(
-          `${API_BASE}/api/vendors/checkSetupStatus`,
-          {
-            credentials: "include",
-          }
-        );
-
-        if (setupRes.ok) {
-          const setupData = await setupRes.json();
-          setIsSetupComplete(setupData.isSetupComplete);
-        }
-
-        // Then fetch vendor details
         const response = await fetch(
           `${API_BASE}/api/vendors/getVendorDetails`,
           {
             credentials: "include",
-          }
+            headers: {
+              "Content-Type": "application/json",
+              "x-request-from": "vendor",
+            },
+          },
         );
 
         if (response.ok) {
@@ -129,7 +121,8 @@ export default function ProfilePage() {
           }
 
           if (data.data?.vendor_phone) setEditPhone(data.data.vendor_phone);
-          if (data.data?.vendor_company_name) setEditCompany(data.data.vendor_company_name);
+          if (data.data?.vendor_company_name)
+            setEditCompany(data.data.vendor_company_name);
         }
       } catch (error) {
         console.error("Failed to fetch vendor details:", error);
@@ -188,6 +181,7 @@ export default function ProfilePage() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "x-request-from": "vendor",
           },
           credentials: "include",
           body: JSON.stringify({
@@ -195,7 +189,7 @@ export default function ProfilePage() {
             latitude: 0,
             longitude: 0,
           }),
-        }
+        },
       );
 
       if (response.ok) {
@@ -222,6 +216,7 @@ export default function ProfilePage() {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
+            "x-request-from": "vendor",
           },
           credentials: "include",
           body: JSON.stringify({
@@ -229,14 +224,16 @@ export default function ProfilePage() {
             latitude: 0,
             longitude: 0,
           }),
-        }
+        },
       );
 
       if (response.ok) {
         toast.success("Address updated successfully");
         const data = await response.json();
         setAddresses((prev) =>
-          prev.map((addr) => (addr.id === editingAddressId ? data.vendorAddress : addr))
+          prev.map((addr) =>
+            addr.id === editingAddressId ? data.vendorAddress : addr,
+          ),
         );
         resetAddressForm();
       } else {
@@ -280,30 +277,11 @@ export default function ProfilePage() {
           <div className="flex items-center justify-center py-12">
             <div className="h-8 w-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
           </div>
-        ) : !isSetupComplete ? (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-8 text-center shadow-sm">
-            <AlertCircle className="mx-auto h-16 w-16 text-amber-600 mb-4" />
-            <h1 className="text-2xl font-bold text-zinc-900 mb-2">
-              Profile Setup Required
-            </h1>
-            <p className="text-sm text-zinc-600 mb-6">
-              You need to complete your vendor profile setup before you can view or edit your details. Please set up your account to continue.
-            </p>
-            <button
-              onClick={() => router.push("/profile/setup")}
-              className="inline-flex items-center gap-2 rounded-md bg-amber-600 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-amber-700"
-            >
-              Complete Setup
-            </button>
-          </div>
         ) : (
           <>
             {/* Breadcrumb */}
             <nav className="mb-6 text-sm text-zinc-500">
-              <Link
-                href="/"
-                className="hover:text-zinc-800 transition-colors"
-              >
+              <Link href="/" className="hover:text-zinc-800 transition-colors">
                 Home
               </Link>
               <span className="mx-2">/</span>
@@ -322,7 +300,9 @@ export default function ProfilePage() {
                   </div>
                   <div>
                     <p className="font-semibold text-zinc-900">My Products</p>
-                    <p className="text-xs text-zinc-500">Manage your products</p>
+                    <p className="text-xs text-zinc-500">
+                      Manage your products
+                    </p>
                   </div>
                 </div>
                 <ChevronRight
@@ -341,7 +321,9 @@ export default function ProfilePage() {
                   </div>
                   <div>
                     <p className="font-semibold text-zinc-900">Store Orders</p>
-                    <p className="text-xs text-zinc-500">View customer orders</p>
+                    <p className="text-xs text-zinc-500">
+                      View customer orders
+                    </p>
                   </div>
                 </div>
                 <ChevronRight
@@ -354,7 +336,7 @@ export default function ProfilePage() {
             {/* Profile Header Card */}
             <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden">
               {/* Header Banner */}
-              <div className="h-28 bg-gradient-to-r from-[#1d4ed8] to-[#3b82f6]" />
+              <div className="h-28 bg-linear-to-r from-[#1d4ed8] to-[#3b82f6]" />
 
               <div className="px-6 pb-6 sm:px-8">
                 {/* Avatar + Info Row */}
@@ -505,7 +487,9 @@ export default function ProfilePage() {
                         />
                       ) : (
                         <p className="text-sm font-medium text-zinc-900">
-                          {vendorDetails?.vendor_company_name || editCompany || "—"}
+                          {vendorDetails?.vendor_company_name ||
+                            editCompany ||
+                            "—"}
                         </p>
                       )}
                     </div>
@@ -534,7 +518,9 @@ export default function ProfilePage() {
                     <div className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-4 space-y-3 mb-4">
                       <div className="flex items-center justify-between mb-2">
                         <h3 className="font-medium text-zinc-900">
-                          {editingAddressId ? "Edit Address" : "Add New Address"}
+                          {editingAddressId
+                            ? "Edit Address"
+                            : "Add New Address"}
                         </h3>
                         <button
                           onClick={resetAddressForm}
@@ -569,7 +555,10 @@ export default function ProfilePage() {
                             type="text"
                             value={addressForm.city}
                             onChange={(e) =>
-                              setAddressForm({ ...addressForm, city: e.target.value })
+                              setAddressForm({
+                                ...addressForm,
+                                city: e.target.value,
+                              })
                             }
                             className="w-full px-3 py-2 rounded-lg border border-zinc-300 text-sm focus:outline-none focus:border-[#1d4ed8]"
                             placeholder="City"
@@ -632,7 +621,9 @@ export default function ProfilePage() {
                       <div className="flex gap-2 pt-2">
                         <button
                           onClick={
-                            editingAddressId ? handleUpdateAddress : handleAddAddress
+                            editingAddressId
+                              ? handleUpdateAddress
+                              : handleAddAddress
                           }
                           className="flex-1 py-2 rounded-lg bg-[#1d4ed8] text-white text-sm font-medium hover:bg-[#1e40af] transition-colors"
                         >
@@ -711,8 +702,13 @@ export default function ProfilePage() {
                     </div>
                   ) : (
                     <div className="rounded-lg border border-dashed border-zinc-300 p-6 text-center">
-                      <MapPin size={32} className="mx-auto text-zinc-300 mb-2" />
-                      <p className="text-sm text-zinc-500">No addresses saved yet</p>
+                      <MapPin
+                        size={32}
+                        className="mx-auto text-zinc-300 mb-2"
+                      />
+                      <p className="text-sm text-zinc-500">
+                        No addresses saved yet
+                      </p>
                       {!isAddingAddress && (
                         <button
                           onClick={() => setIsAddingAddress(true)}
