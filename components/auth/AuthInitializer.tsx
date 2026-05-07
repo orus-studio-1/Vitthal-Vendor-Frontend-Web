@@ -4,20 +4,27 @@ import { useEffect } from "react";
 import { useAuthStore } from "@/store/authStore";
 
 export function AuthInitializer() {
-  const { isAuthenticated, fetchUser, setVendorSession } = useAuthStore();
+  const { fetchUser, setVendorSession } = useAuthStore();
 
   useEffect(() => {
     // Try to fetch user data on mount to restore session
     const initializeAuth = async () => {
       try {
-        // First fetch the vendor status from server
-        const statusRes = await fetch("/api/vendor-status", {
-          credentials: "include",
-        });
+        // Fetch the vendor status directly from the backend so the browser can
+        // include the backend cookies issued during login.
+        const statusRes = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/vendors/vendorIdStatus`,
+          {
+            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+              "x-request-from": "vendor",
+            },
+          },
+        );
 
         if (statusRes.ok) {
           const status = await statusRes.json();
-          // Set the vendor session info
           setVendorSession({
             id: status.id,
             role: status.role,
