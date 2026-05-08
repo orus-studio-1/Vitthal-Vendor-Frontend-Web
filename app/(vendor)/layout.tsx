@@ -1,5 +1,5 @@
-import { VendorFooter } from "@/components/ui/VendorFooter";
-import { VendorHeader } from "@/components/ui/VendorHeader";
+
+import VendorStatusWrapper from '@/components/vendor-status/VendorStatusWrapper';
 
 export default async function VendorProtectedLayout({
   children,
@@ -7,8 +7,8 @@ export default async function VendorProtectedLayout({
   children: React.ReactNode;
 }) {
   return (
-    <>
+    <VendorStatusWrapper>
       <main className="flex-1">{children}</main>
-    </>
+    </VendorStatusWrapper>
   );
 }

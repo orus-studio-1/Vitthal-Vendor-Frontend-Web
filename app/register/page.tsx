@@ -9,7 +9,6 @@ import {
   CheckCircle,
   Eye,
   EyeOff,
-  FileText,
   Loader2,
   MapPin,
   Phone,
