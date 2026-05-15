@@ -1,4 +1,8 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9000';
+const QUOTATION_API_BASE_URL =
+  process.env.NEXT_PUBLIC_ADMIN_API_URL ||
+  process.env.NEXT_PUBLIC_QUOTATION_API_URL ||
+  (API_BASE_URL.includes(':9000') ? API_BASE_URL.replace(':9000', ':9001') : API_BASE_URL);
 
 export interface ApiResponse<T = any> {
   message: string;
@@ -78,6 +82,41 @@ export interface ProductDetails {
   specifications: Record<string, any>;
 }
 
+export type PublicVendorQuotationStatus =
+  | "sent"
+  | "vendor_opened"
+  | "vendor_approved"
+  | "vendor_rejected"
+  | "admin_approved"
+  | "admin_rejected";
+
+export interface PublicVendorQuotation {
+  id: string;
+  quotation_number: string;
+  vendor_id: string;
+  sent_to_email: string;
+  title: string;
+  quantity: number;
+  unit: string;
+  target_price: number | null;
+  requested_moq: number | null;
+  request_notes: string | null;
+  validity_date: string | null;
+  status: PublicVendorQuotationStatus;
+  vendor_price: number | null;
+  vendor_moq: number | null;
+  vendor_notes: string | null;
+  vendor_rejection_reason: string | null;
+  token_expires_at: string;
+  vendor_opened_at: string | null;
+  vendor_responded_at: string | null;
+  company_name: string;
+  vendor_name: string;
+  created_by_admin_name: string;
+  admin_reviewed_at: string | null;
+  admin_review_notes: string | null;
+}
+
 class ApiClient {
   private getAuthHeaders(): HeadersInit {
     const token = typeof window !== 'undefined' ? localStorage.getItem('vendor_token') : null;
@@ -88,6 +127,20 @@ class ApiClient {
     };
   }
 
+  private async parseResponse<T>(response: Response): Promise<ApiResponse<T>> {
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      return response.json();
+    }
+
+    const text = await response.text();
+    if (!response.ok) {
+      throw new Error(text || `API request failed with status ${response.status}`);
+    }
+
+    throw new Error('Server returned a non-JSON response.');
+  }
+
   async get<T>(endpoint: string): Promise<ApiResponse<T>> {
     try {
       const response = await fetch(`${API_BASE_URL}/api${endpoint}`, {
@@ -96,7 +149,7 @@ class ApiClient {
         credentials : "include"
       });
 
-      const data = await response.json();
+      const data = await this.parseResponse<T>(response);
       
       if (!response.ok) {
         throw new Error(data.message || 'API request failed');
@@ -118,7 +171,7 @@ class ApiClient {
         credentials : "include"
       });
 
-      const data = await response.json();
+      const data = await this.parseResponse<T>(response);
       
       if (!response.ok) {
         throw new Error(data.message || 'API request failed');
@@ -140,7 +193,7 @@ class ApiClient {
         credentials : "include"
       });
 
-      const data = await response.json();
+      const data = await this.parseResponse<T>(response);
       
       if (!response.ok) {
         throw new Error(data.message || 'API request failed');
@@ -160,7 +213,7 @@ class ApiClient {
         headers: this.getAuthHeaders(),
       });
 
-      const data = await response.json();
+      const data = await this.parseResponse<T>(response);
       
       if (!response.ok) {
         throw new Error(data.message || 'API request failed');
@@ -197,4 +250,71 @@ export const productApi = {
   updateVendorProduct: async (productId: string, updates: Partial<ProductDetails>): Promise<ApiResponse<ProductDetails>> => {
     return apiClient.put<ProductDetails>(`/products/vendor/product/${productId}`, updates);
   },
+};
+
+export const vendorQuotationApi = {
+  getQuotation: async (token: string): Promise<ApiResponse<PublicVendorQuotation>> => {
+    const response = await fetch(`${QUOTATION_API_BASE_URL}/api/quotations/vendor/${token}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-request-from': 'vendor',
+      },
+      credentials: 'include',
+    });
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      const text = await response.text();
+      throw new Error(text || 'Quotation service returned a non-JSON response.');
+    }
+
+    const data = (await response.json()) as ApiResponse<PublicVendorQuotation>;
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to load quotation');
+    }
+
+    return data;
+  },
+
+  respondToQuotation: async (
+    token: string,
+    payload:
+      | {
+          decision: "approved";
+          vendorPrice?: number | null;
+          vendorMoq?: number | null;
+          vendorNotes?: string;
+          vendorSignatureData: string;
+        }
+      | {
+          decision: "rejected";
+          rejectionReason: string;
+        }
+  ): Promise<ApiResponse<PublicVendorQuotation>> => {
+    const response = await fetch(`${QUOTATION_API_BASE_URL}/api/quotations/vendor/${token}/respond`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-request-from': 'vendor',
+      },
+      body: JSON.stringify(payload),
+      credentials: 'include',
+    });
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      const text = await response.text();
+      throw new Error(text || 'Quotation service returned a non-JSON response.');
+    }
+
+    const data = (await response.json()) as ApiResponse<PublicVendorQuotation>;
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to submit quotation response');
+    }
+
+    return data;
+  },
+
+  getQuotationPdfUrl: (token: string) => `${QUOTATION_API_BASE_URL}/api/quotations/vendor/${token}/pdf`,
 };
