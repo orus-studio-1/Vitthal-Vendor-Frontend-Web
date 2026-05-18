@@ -27,12 +27,12 @@ export default function VendorStatusWrapper({ children }: { children: React.Reac
           },
         },);
         const data = await response.json();
-        console.log(data.approval_status);
         if(!response.ok){
-          toast.error("Unable to fetch!!");
+          setError(true);
+          toast.error(data?.message || "Unable to fetch vendor status");
           return;
         }
-          setVendorStatus(data.approval_status);
+        setVendorStatus(data.approval_status);
       } catch (err) {
         console.error('Failed to fetch vendor status:', err);
         setError(true);
