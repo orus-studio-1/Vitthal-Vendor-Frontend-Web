@@ -75,6 +75,22 @@ type MarkdownEditResult = {
   selectionEnd: number;
 };
 
+async function parseApiResponse(response: Response) {
+  const contentType = response.headers.get("content-type") || "";
+
+  if (contentType.includes("application/json")) {
+    return response.json();
+  }
+
+  const text = await response.text();
+  return {
+    message:
+      text && !text.trim().startsWith("<!DOCTYPE")
+        ? text
+        : `Unexpected non-JSON response from ${response.url || "server"}`,
+  };
+}
+
 function replaceRange(
   value: string,
   start: number,
@@ -343,7 +359,7 @@ export default function AddProductPage() {
           },
         });
 
-        const data = await res.json();
+        const data = await parseApiResponse(res);
         if (res.ok && Array.isArray(data.data)) {
           setAllowedCategories(data.data);
         } else {
@@ -376,7 +392,7 @@ export default function AddProductPage() {
               },
             },
           );
-          const data = await res.json();
+          const data = await parseApiResponse(res);
           if (res.ok && data.data) {
             setSearchResults(data.data);
           } else {
@@ -409,7 +425,7 @@ export default function AddProductPage() {
         },
       );
 
-      const data = await res.json();
+      const data = await parseApiResponse(res);
       if (res.ok && data.data) {
         setProductPreview(data.data);
       } else {
@@ -602,7 +618,7 @@ export default function AddProductPage() {
           }),
         });
 
-        const prodData = await prodRes.json();
+        const prodData = await parseApiResponse(prodRes);
         if (!prodRes.ok)
           throw new Error(prodData.message || "Failed to create product");
         finalProductId = prodData.result.id;
@@ -625,7 +641,7 @@ export default function AddProductPage() {
             credentials: "include",
             body: JSON.stringify({ productId: finalProductId, specifications: specificationPayload }),
           });
-          const specData = await specRes.json();
+          const specData = await parseApiResponse(specRes);
           if (!specRes.ok) throw new Error(specData.message || "Failed to submit specifications");
         }
       }
@@ -647,7 +663,7 @@ export default function AddProductPage() {
         }),
       });
 
-      const vendorData = await vendorRes.json();
+      const vendorData = await parseApiResponse(vendorRes);
       if (!vendorRes.ok)
         throw new Error(vendorData.message || "Failed to save vendor details");
 
@@ -668,7 +684,7 @@ export default function AddProductPage() {
           body: formData,
         });
 
-        const imageData = await imageRes.json();
+        const imageData = await parseApiResponse(imageRes);
         if (!imageRes.ok) {
           console.warn("Failed to upload some images:", imageData.message);
           toast.warning("Product saved but some images failed to upload.");

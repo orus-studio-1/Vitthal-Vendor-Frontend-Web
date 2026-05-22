@@ -130,7 +130,9 @@ export type PublicVendorQuotationStatus =
 export interface PublicVendorQuotation {
   id: string;
   quotation_number: string;
+  quotation_kind: "vendor_agreement" | "order_request";
   vendor_id: string;
+  product_id: string | null;
   sent_to_email: string;
   title: string;
   quantity: number;
@@ -152,6 +154,33 @@ export interface PublicVendorQuotation {
   created_by_admin_name: string;
   admin_reviewed_at: string | null;
   admin_review_notes: string | null;
+}
+
+export interface VendorAdminQuotationSummary {
+  id: string;
+  quotation_number: string;
+  quotation_kind: "vendor_agreement" | "order_request";
+  product_id: string | null;
+  title: string;
+  quantity: number;
+  unit: string;
+  target_price: number | null;
+  requested_moq: number | null;
+  request_notes: string | null;
+  validity_date: string | null;
+  status: PublicVendorQuotationStatus;
+  vendor_price: number | null;
+  vendor_moq: number | null;
+  vendor_notes: string | null;
+  vendor_rejection_reason: string | null;
+  vendor_opened_at: string | null;
+  vendor_responded_at: string | null;
+  admin_reviewed_at: string | null;
+  admin_review_notes: string | null;
+  company_name: string;
+  vendor_name: string;
+  created_at: string;
+  updated_at: string;
 }
 
 class ApiClient {
@@ -290,6 +319,30 @@ export const productApi = {
 };
 
 export const vendorQuotationApi = {
+  listDashboardQuotations: async (): Promise<ApiResponse<VendorAdminQuotationSummary[]>> => {
+    const response = await fetch(`${QUOTATION_API_BASE_URL}/api/quotations/vendor/list`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-request-from': 'vendor',
+      },
+      credentials: 'include',
+    });
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      const text = await response.text();
+      throw new Error(text || 'Quotation service returned a non-JSON response.');
+    }
+
+    const data = (await response.json()) as ApiResponse<VendorAdminQuotationSummary[]>;
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to load dashboard quotations');
+    }
+
+    return data;
+  },
+
   getQuotation: async (token: string): Promise<ApiResponse<PublicVendorQuotation>> => {
     const response = await fetch(`${QUOTATION_API_BASE_URL}/api/quotations/vendor/${token}`, {
       method: 'GET',
