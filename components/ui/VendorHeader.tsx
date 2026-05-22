@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useRef, useLayoutEffect } from "react";
+import { useState, useRef, useLayoutEffect, useEffect } from "react";
 import { Menu, X, User, LogOut, ChevronDown, LayoutDashboard, Package, ShoppingBag, BarChart3, Settings, HelpCircle, Bell, FileText } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
+import { useNotificationStore } from "@/store/notificationStore";
 import { toast } from "sonner";
 import Image from "next/image";
 
@@ -12,8 +13,11 @@ import { VendorHeaderSkeleton } from "./VendorHeaderSkeleton";
 export function VendorHeader() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileDropdown, setProfileDropdown] = useState(false);
+  const [notifDropdown, setNotifDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const notifRef = useRef<HTMLDivElement>(null);
   const { user, isAuthenticated, isLoading, logout } = useAuthStore();
+  const { notifications, unreadCount, fetchNotifications, fetchUnreadCount, markRead, markAllRead } = useNotificationStore();
   const router = useRouter();
 
   // Close dropdown when clicking outside
@@ -22,10 +26,37 @@ export function VendorHeader() {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setProfileDropdown(false);
       }
+      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+        setNotifDropdown(false);
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchUnreadCount();
+      const interval = setInterval(fetchUnreadCount, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated, fetchUnreadCount]);
+
+  function handleOpenNotifications() {
+    setNotifDropdown(!notifDropdown);
+    if (!notifDropdown) fetchNotifications();
+  }
+
+  function timeAgo(dateStr: string) {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "Just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    return `${days}d ago`;
+  }
 
   async function handleLogout() {
     await logout();
@@ -103,14 +134,64 @@ export function VendorHeader() {
           ) : isAuthenticated ? (
             <>
               {/* Notifications */}
-              <button
-                type="button"
-                className="relative rounded-lg p-2 text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
-                aria-label="Notifications"
-              >
-                <Bell size={20} />
-                <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500" />
-              </button>
+              <div className="relative" ref={notifRef}>
+                <button
+                  onClick={handleOpenNotifications}
+                  className="relative flex items-center justify-center rounded-lg p-2 text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
+                  aria-label="Notifications"
+                >
+                  <Bell size={20} />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white animate-pulse">
+                      {unreadCount > 9 ? "9+" : unreadCount}
+                    </span>
+                  )}
+                </button>
+                {notifDropdown && (
+                  <div className="absolute right-0 top-full mt-2 w-80 max-h-96 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-2xl z-50 flex flex-col">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100 bg-zinc-50/50">
+                      <p className="text-sm font-bold text-zinc-900">Notifications</p>
+                      {unreadCount > 0 && (
+                        <button
+                          onClick={() => markAllRead()}
+                          className="text-xs text-blue-600 hover:text-blue-700 font-semibold"
+                        >
+                          Mark all read
+                        </button>
+                      )}
+                    </div>
+                    <div className="overflow-y-auto max-h-72 divide-y divide-zinc-50">
+                      {notifications.length === 0 ? (
+                        <div className="px-4 py-10 text-center text-sm text-zinc-400">
+                          <Bell size={24} className="mx-auto mb-3 text-zinc-300" />
+                          You have no notifications
+                        </div>
+                      ) : (
+                        notifications.map((n) => (
+                          <button
+                            key={n.id}
+                            onClick={() => {
+                              if (!n.is_read) markRead(n.id);
+                              setNotifDropdown(false);
+                              if (n.reference_type === "quotation" && n.reference_id) {
+                                router.push(`/quotations/${n.reference_id}`);
+                              }
+                            }}
+                            className={`w-full text-left px-4 py-3 hover:bg-zinc-50 transition-colors flex gap-3 ${!n.is_read ? "bg-blue-50/30" : ""}`}
+                          >
+                            <div className={`mt-1 h-2 w-2 shrink-0 rounded-full ${!n.is_read ? "bg-blue-500" : "bg-transparent"}`} />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-zinc-800 truncate">{n.title}</p>
+                              <p className="text-xs text-zinc-500 mt-0.5 line-clamp-2 leading-relaxed">{n.body}</p>
+                              <p className="text-[10px] font-medium text-zinc-400 mt-1.5 uppercase tracking-wider">{timeAgo(n.created_at)}</p>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* Help */}
               <Link
