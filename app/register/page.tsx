@@ -14,6 +14,8 @@ import {
   Phone,
   Briefcase,
   Upload,
+  Mail,
+  Edit2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuthStore } from "@/store/authStore";
@@ -98,79 +100,6 @@ const STEP_LABELS: Record<Step, string> = {
   verify: "Verify",
 };
 
-const INDIAN_STATES = [
-  "Andhra Pradesh",
-  "Arunachal Pradesh",
-  "Assam",
-  "Bihar",
-  "Chhattisgarh",
-  "Goa",
-  "Gujarat",
-  "Haryana",
-  "Himachal Pradesh",
-  "Jharkhand",
-  "Karnataka",
-  "Kerala",
-  "Madhya Pradesh",
-  "Maharashtra",
-  "Manipur",
-  "Meghalaya",
-  "Mizoram",
-  "Nagaland",
-  "Odisha",
-  "Punjab",
-  "Rajasthan",
-  "Sikkim",
-  "Tamil Nadu",
-  "Telangana",
-  "Tripura",
-  "Uttar Pradesh",
-  "Uttarakhand",
-  "West Bengal",
-  "Puducherry",
-  "Lakshadweep",
-  "Daman and Diu",
-  "Dadra and Nagar Haveli",
-  "Andaman and Nicobar Islands",
-  "Chandigarh",
-  "Delhi",
-  "Ladakh",
-  "Jammu and Kashmir",
-];
-
-const INDIAN_CITIES = [
-  "Ahmedabad",
-  "Bangalore",
-  "Bhopal",
-  "Chandigarh",
-  "Chennai",
-  "Coimbatore",
-  "Dehradun",
-  "Delhi",
-  "Ernakulam",
-  "Ghaziabad",
-  "Goa",
-  "Gurgaon",
-  "Hyderabad",
-  "Indore",
-  "Jaipur",
-  "Kannur",
-  "Kochi",
-  "Kolkata",
-  "Lucknow",
-  "Ludhiana",
-  "Mumbai",
-  "Mysore",
-  "Nagpur",
-  "Noida",
-  "Patna",
-  "Pune",
-  "Surat",
-  "Thane",
-  "Vadodara",
-  "Visakhapatnam",
-].sort();
-
 const BUSINESS_TYPES = [
   "Manufacturing",
   "Trading",
@@ -228,7 +157,9 @@ export default function RegisterPage() {
   const [gstEntity, setGstEntity] = useState("");
   const [gstCheck, setGstCheck] = useState("");
   const [gstZ, setGstZ] = useState("Z");
-  const [address, setAddress] = useState("");
+  const [addressLine1, setAddressLine1] = useState("");
+  const [addressLine2, setAddressLine2] = useState("");
+  const [landmark, setLandmark] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [country, setCountry] = useState("India");
@@ -272,6 +203,15 @@ export default function RegisterPage() {
   }, [password, confirmPassword]);
 
   const gstNumber = gstState + gstPan + gstEntity + gstZ + gstCheck;
+  const combinedAddress = useMemo(() => {
+    return [
+      addressLine1.trim(),
+      addressLine2.trim(),
+      landmark.trim() ? `Landmark: ${landmark.trim()}` : "",
+    ]
+      .filter(Boolean)
+      .join(", ");
+  }, [addressLine1, addressLine2, landmark]);
   const activeStepIndex = STEP_ORDER.indexOf(step);
   const selectedCategoryCount = selectedCategories.length;
   const parsedMinCommission = Number(minCommission);
@@ -444,7 +384,8 @@ export default function RegisterPage() {
       designation === "other" ? customDesignation.trim() : designation.trim();
 
     if (
-      !address.trim() ||
+      !addressLine1.trim() ||
+      !addressLine2.trim() ||
       !city ||
       !state ||
       !pincode.trim() ||
@@ -613,11 +554,11 @@ export default function RegisterPage() {
           ),
           phone: phone.trim(),
           alternativeNumber: alternatePhone.trim(),
-            designation:
-              designation === "other" ? customDesignation.trim() : designation.trim(),
+          designation:
+            designation === "other" ? customDesignation.trim() : designation.trim(),
           businessDescription: businessDescription.trim(),
           vendorCategories: selectedCategories,
-          address: address.trim(),
+          address: combinedAddress,
           city,
           state,
           country,
@@ -677,28 +618,25 @@ export default function RegisterPage() {
               {STEP_ORDER.map((item, index) => (
                 <div key={item} className="flex flex-col items-center flex-1">
                   <div
-                    className={`flex items-center justify-center w-10 h-10 rounded-full font-medium text-sm transition-colors ${
-                      index <= activeStepIndex
-                        ? "bg-[#1d4ed8] text-white"
-                        : "bg-zinc-200 text-zinc-600"
-                    }`}
+                    className={`flex items-center justify-center w-10 h-10 rounded-full font-medium text-sm transition-colors ${index <= activeStepIndex
+                      ? "bg-[#1d4ed8] text-white"
+                      : "bg-zinc-200 text-zinc-600"
+                      }`}
                   >
                     {index + 1}
                   </div>
                   <span
-                    className={`mt-2 text-xs font-medium whitespace-nowrap ${
-                      index <= activeStepIndex
-                        ? "text-[#1d4ed8]"
-                        : "text-zinc-500"
-                    }`}
+                    className={`mt-2 text-xs font-medium whitespace-nowrap ${index <= activeStepIndex
+                      ? "text-[#1d4ed8]"
+                      : "text-zinc-500"
+                      }`}
                   >
                     {STEP_LABELS[item]}
                   </span>
                   {index < STEP_ORDER.length - 1 && (
                     <div
-                      className={`absolute w-16 h-0.5 translate-x-12 ${
-                        index < activeStepIndex ? "bg-[#1d4ed8]" : "bg-zinc-200"
-                      }`}
+                      className={`absolute w-16 h-0.5 translate-x-12 ${index < activeStepIndex ? "bg-[#1d4ed8]" : "bg-zinc-200"
+                        }`}
                       style={{ top: "20px" }}
                     />
                   )}
@@ -1063,18 +1001,18 @@ export default function RegisterPage() {
               <div className="grid gap-5 md:grid-cols-2">
                 <div>
                   <label
-                    htmlFor="address"
+                    htmlFor="addressLine1"
                     className="mb-1.5 block text-sm font-medium text-zinc-800"
                   >
-                    Street address
+                    Flat, House no., Building, Company name
                   </label>
                   <input
-                    id="address"
+                    id="addressLine1"
                     type="text"
                     required
-                    value={address}
-                    onChange={(event) => setAddress(event.target.value)}
-                    placeholder="123 Industrial Area, Sector 5"
+                    value={addressLine1}
+                    onChange={(event) => setAddressLine1(event.target.value)}
+                    placeholder="e.g., Shop No. 4, Ground Floor, Sai Plaza"
                     className="h-11 w-full rounded-md border border-zinc-300 px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-[#1d4ed8] focus:ring-1 focus:ring-[#1d4ed8]/30"
                   />
                 </div>
@@ -1098,6 +1036,43 @@ export default function RegisterPage() {
                       className="h-11 w-full rounded-md border border-zinc-300 pl-10 pr-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-[#1d4ed8] focus:ring-1 focus:ring-[#1d4ed8]/30"
                     />
                   </div>
+                </div>
+              </div>
+
+              <div className="grid gap-5 md:grid-cols-2">
+                <div>
+                  <label
+                    htmlFor="addressLine2"
+                    className="mb-1.5 block text-sm font-medium text-zinc-800"
+                  >
+                    Area, Street, Sector, Village
+                  </label>
+                  <input
+                    id="addressLine2"
+                    type="text"
+                    required
+                    value={addressLine2}
+                    onChange={(event) => setAddressLine2(event.target.value)}
+                    placeholder="e.g., MIDC Industrial Area, Phase II"
+                    className="h-11 w-full rounded-md border border-zinc-300 px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-[#1d4ed8] focus:ring-1 focus:ring-[#1d4ed8]/30"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="landmark"
+                    className="mb-1.5 block text-sm font-medium text-zinc-800"
+                  >
+                    Landmark <span className="text-xs text-zinc-500">(optional)</span>
+                  </label>
+                  <input
+                    id="landmark"
+                    type="text"
+                    value={landmark}
+                    onChange={(event) => setLandmark(event.target.value)}
+                    placeholder="e.g., Near Blue Star Factory"
+                    className="h-11 w-full rounded-md border border-zinc-300 px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-[#1d4ed8] focus:ring-1 focus:ring-[#1d4ed8]/30"
+                  />
                 </div>
               </div>
 
@@ -1453,7 +1428,7 @@ export default function RegisterPage() {
                 </div>
                 <p className="mt-3 text-xs text-zinc-600">
                   ℹ️ Minimum commission cannot be greater than maximum
-                  commission. Both values shou ju78ld be between 0-100%.
+                  commission. Both values should be between 0-100%.
                 </p>
               </div>
 
@@ -1482,6 +1457,30 @@ export default function RegisterPage() {
               className="space-y-5"
               noValidate
             >
+              {/* Premium Email Indicator Banner */}
+              <div className="flex items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50 p-4 shadow-sm transition-all hover:bg-zinc-100/70">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-[#1d4ed8]">
+                    <Mail className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+                      Signing up as
+                    </p>
+                    <p className="text-sm font-semibold text-zinc-800 break-all">{email}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setStep("identity")}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded px-2 py-1 text-xs font-semibold text-[#1d4ed8] hover:bg-blue-50 hover:text-[#1e40af] transition-all focus:outline-none"
+                  aria-label="Change email"
+                >
+                  <Edit2 className="h-3.5 w-3.5" />
+                  Change
+                </button>
+              </div>
+
               <div>
                 <label
                   htmlFor="password"

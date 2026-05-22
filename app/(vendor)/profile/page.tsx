@@ -20,6 +20,7 @@ import {
   Trash2,
   Store,
   ShoppingBag,
+  FileText,
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
@@ -49,6 +50,7 @@ type VendorDetails = {
   vendor_pincode?: string;
   vendor_latitude?: number;
   vendor_longitude?: number;
+  vendor_application_number?: string;
 };
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9000";
@@ -493,6 +495,19 @@ export default function ProfilePage() {
                         </p>
                       )}
                     </div>
+
+                    {/* Application ID */}
+                    {vendorDetails?.vendor_application_number && (
+                      <div className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-4">
+                        <div className="flex items-center gap-2 text-xs text-zinc-500 mb-1.5">
+                          <FileText size={14} />
+                          Application ID
+                        </div>
+                        <p className="text-sm font-mono font-semibold text-blue-600">
+                          {vendorDetails.vendor_application_number}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
 

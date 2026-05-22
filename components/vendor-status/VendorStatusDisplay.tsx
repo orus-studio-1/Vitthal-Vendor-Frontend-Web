@@ -4,10 +4,10 @@ import { Clock, FileText, CheckCircle, XCircle, AlertCircle } from 'lucide-react
 
 interface VendorStatusDisplayProps {
   status: string | null;
+  applicationNumber?: string | null;
 }
 
-export default function VendorStatusDisplay({ status }: VendorStatusDisplayProps) {
-    console.log(status);
+export default function VendorStatusDisplay({ status, applicationNumber }: VendorStatusDisplayProps) {
   const getStatusConfig = () => {
     switch (status) {
       case 'pending':
@@ -85,7 +85,12 @@ export default function VendorStatusDisplay({ status }: VendorStatusDisplayProps
           <h2 className={`text-2xl font-bold mb-2 ${config.titleColor}`}>
             {config.title}
           </h2>
-          <p className={`text-sm ${config.descriptionColor} leading-relaxed`}>
+          {applicationNumber && (
+            <div className="my-3 inline-block px-3 py-1 bg-white/70 backdrop-blur-sm rounded-full border border-gray-200/50 shadow-sm font-mono text-xs font-semibold text-gray-700">
+              Application ID: <span className="text-blue-600 font-bold">{applicationNumber}</span>
+            </div>
+          )}
+          <p className={`text-sm ${config.descriptionColor} leading-relaxed mt-2`}>
             {config.description}
           </p>
         </div>

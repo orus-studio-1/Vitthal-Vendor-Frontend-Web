@@ -8,10 +8,12 @@ interface VendorStatusData {
   id: string;
   role: string;
   approval_status: string | null;
+  application_number: string | null;
 }
 
 export default function VendorStatusWrapper({ children }: { children: React.ReactNode }) {
   const [vendorStatus, setVendorStatus] = useState<string | null>(null);
+  const [applicationNumber, setApplicationNumber] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -33,6 +35,7 @@ export default function VendorStatusWrapper({ children }: { children: React.Reac
           return;
         }
         setVendorStatus(data.approval_status);
+        setApplicationNumber(data.application_number);
       } catch (err) {
         console.error('Failed to fetch vendor status:', err);
         setError(true);
@@ -66,7 +69,7 @@ export default function VendorStatusWrapper({ children }: { children: React.Reac
 
   // Show status screen if vendor is not approved
   if (vendorStatus !== 'approved') {
-    return <VendorStatusDisplay status={vendorStatus} />;
+    return <VendorStatusDisplay status={vendorStatus} applicationNumber={applicationNumber} />;
   }
 
   // Show children if vendor is approved

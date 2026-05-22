@@ -42,6 +42,32 @@ const ProductsPage = () => {
   const [category, setCategory] = useState("");
   const [productType, setProductType] = useState("");
   const [status, setStatus] = useState("");
+  const [vendorCategories, setVendorCategories] = useState<{ code: string; label: string }[]>([]);
+
+  useEffect(() => {
+    const fetchVendorCategories = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9000";
+        const response = await fetch(
+          `${apiUrl}/api/vendors/getVendorCategories`,
+          {
+            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+              "x-request-from": "vendor",
+            },
+          }
+        );
+        const data = await response.json();
+        if (response.ok && data.data) {
+          setVendorCategories(data.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch vendor categories:", error);
+      }
+    };
+    fetchVendorCategories();
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -163,8 +189,11 @@ const ProductsPage = () => {
               className="border border-gray-300 rounded-lg px-4 py-2.5 bg-gray-50 hover:bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-gray-700 min-w-[140px] transition-all duration-200"
             >
               <option value="">All Categories</option>
-              <option value="plastic">Plastic</option>
-              <option value="metal">Metal</option>
+              {vendorCategories.map((cat) => (
+                <option key={cat.code} value={cat.code}>
+                  {cat.label}
+                </option>
+              ))}
             </select>
 
             <select

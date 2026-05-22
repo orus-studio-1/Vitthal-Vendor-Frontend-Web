@@ -82,6 +82,43 @@ export interface ProductDetails {
   specifications: Record<string, any>;
 }
 
+export interface VendorQuotationSummary {
+  id: string;
+  status: string;
+  requested_quantity: number;
+  requested_price: number | null;
+  current_offer_price: number | null;
+  current_offer_quantity: number | null;
+  current_offer_by: string | null;
+  accepted_price: number | null;
+  accepted_quantity: number | null;
+  rejection_reason: string | null;
+  buyer_city: string | null;
+  buyer_state: string | null;
+  buyer_country: string | null;
+  buyer_pincode: string | null;
+  buyer_id: string;
+  created_at: string;
+  updated_at: string;
+  product_name: string;
+}
+
+export interface VendorQuotationMessage {
+  id: string;
+  sender_role: string;
+  action: string;
+  offer_price: number | null;
+  offer_quantity: number | null;
+  note: string | null;
+  reason: string | null;
+  created_at: string;
+}
+
+export interface VendorQuotationDetail {
+  quotation: VendorQuotationSummary & { product_id: string };
+  messages: VendorQuotationMessage[];
+}
+
 export type PublicVendorQuotationStatus =
   | "sent"
   | "vendor_opened"
@@ -317,4 +354,24 @@ export const vendorQuotationApi = {
   },
 
   getQuotationPdfUrl: (token: string) => `${QUOTATION_API_BASE_URL}/api/quotations/vendor/${token}/pdf`,
+};
+
+export const vendorNegotiationApi = {
+  listQuotations: async (): Promise<ApiResponse<VendorQuotationSummary[]>> => {
+    return apiClient.get<VendorQuotationSummary[]>(`/quotations/vendor/list`);
+  },
+
+  getQuotation: async (id: string): Promise<ApiResponse<VendorQuotationDetail>> => {
+    return apiClient.get<VendorQuotationDetail>(`/quotations/vendor/${id}`);
+  },
+
+  respondToQuotation: async (id: string, payload: {
+    action: "offer" | "counter" | "reject";
+    offerPrice?: number;
+    offerQuantity?: number;
+    reason?: string;
+    note?: string;
+  }): Promise<ApiResponse<void>> => {
+    return apiClient.post<void>(`/quotations/vendor/${id}/respond`, payload);
+  },
 };

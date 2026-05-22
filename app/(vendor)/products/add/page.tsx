@@ -15,6 +15,8 @@ import {
   Italic,
   List,
   ListOrdered,
+  ToggleLeft,
+  ToggleRight,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -324,6 +326,8 @@ export default function AddProductPage() {
   const [price, setPrice] = useState("");
   const [moq, setMoq] = useState("");
   const [stockQuantity, setStockQuantity] = useState("");
+  const [quotationEnabled, setQuotationEnabled] = useState(false);
+  const [quotationMinQty, setQuotationMinQty] = useState("");
   const toolbarButtonClass =
     "inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-100";
 
@@ -526,6 +530,11 @@ export default function AddProductPage() {
       return;
     }
 
+    if (quotationEnabled && !quotationMinQty) {
+      toast.error("Please enter a minimum quantity for quotation-enabled products!");
+      return;
+    }
+
     // Category validation for existing products
     if (!isCreatingNew && selectedProduct) {
       const categoryIsAllowed = allowedCategories.some(
@@ -633,6 +642,8 @@ export default function AddProductPage() {
           price: Number(price),
           moq: Number(moq),
           stockQuantity: Number(stockQuantity),
+          quotationEnabled,
+          quotationMinQty: quotationEnabled ? Number(quotationMinQty) : null,
         }),
       });
 
@@ -1583,6 +1594,45 @@ export default function AddProductPage() {
                 </div>
                 <p className="text-xs text-gray-500 mt-1.5">
                   Total units available right now
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Enable quotation ordering</p>
+                  <p className="text-xs text-gray-500">Require negotiation for large quantities</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setQuotationEnabled((prev) => !prev)}
+                  className="text-gray-700"
+                  aria-pressed={quotationEnabled}
+                >
+                  {quotationEnabled ? (
+                    <ToggleRight className="h-7 w-7 text-emerald-600" />
+                  ) : (
+                    <ToggleLeft className="h-7 w-7 text-gray-400" />
+                  )}
+                </button>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-1">
+                  Quotation minimum quantity
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={quotationMinQty}
+                  onChange={(e) => setQuotationMinQty(e.target.value)}
+                  placeholder="e.g. 100"
+                  disabled={!quotationEnabled}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-gray-900 focus:border-gray-900 text-lg font-medium disabled:bg-gray-50"
+                />
+                <p className="text-xs text-gray-500 mt-1.5">
+                  Buyers at or above this quantity must request a quotation
                 </p>
               </div>
             </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useLayoutEffect } from "react";
-import { Menu, X, User, LogOut, ChevronDown, LayoutDashboard, Package, ShoppingBag, BarChart3, Settings, HelpCircle, Bell } from "lucide-react";
+import { Menu, X, User, LogOut, ChevronDown, LayoutDashboard, Package, ShoppingBag, BarChart3, Settings, HelpCircle, Bell, FileText } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
@@ -149,6 +149,14 @@ export function VendorHeader() {
                       Profile Settings
                     </Link>
                     <Link
+                      href="/quotations"
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
+                      onClick={() => setProfileDropdown(false)}
+                    >
+                      <FileText size={18} className="text-zinc-400" />
+                      Quotations
+                    </Link>
+                    <Link
                       href="/settings"
                       className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
                       onClick={() => setProfileDropdown(false)}
@@ -275,6 +283,16 @@ export function VendorHeader() {
                   >
                     <User size={18} />
                     Profile
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/quotations"
+                    className="flex items-center gap-3 rounded-lg px-3 py-3 hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <FileText size={18} />
+                    Quotations
                   </Link>
                 </li>
                 <li>
