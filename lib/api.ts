@@ -1,8 +1,6 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9000';
 const QUOTATION_API_BASE_URL =
-  process.env.NEXT_PUBLIC_ADMIN_API_URL ||
-  process.env.NEXT_PUBLIC_QUOTATION_API_URL ||
-  (API_BASE_URL.includes(':9000') ? API_BASE_URL.replace(':9000', ':9001') : API_BASE_URL);
+  process.env.NEXT_PUBLIC_ADMIN_API_URL || 'http://localhost:9001';
 
 export interface ApiResponse<T = any> {
   message: string;
@@ -159,7 +157,7 @@ class ApiClient {
     const token = typeof window !== 'undefined' ? localStorage.getItem('vendor_token') : null;
     return {
       'Content-Type': 'application/json',
-      'x-request-from' : 'vendor',
+      'x-request-from': 'vendor',
       ...(token && { Authorization: `Bearer ${token}` }),
     };
   }
@@ -183,11 +181,11 @@ class ApiClient {
       const response = await fetch(`${API_BASE_URL}/api${endpoint}`, {
         method: 'GET',
         headers: this.getAuthHeaders(),
-        credentials : "include"
+        credentials: "include"
       });
 
       const data = await this.parseResponse<T>(response);
-      
+
       if (!response.ok) {
         throw new Error(data.message || 'API request failed');
       }
@@ -205,11 +203,11 @@ class ApiClient {
         method: 'POST',
         headers: this.getAuthHeaders(),
         body: body ? JSON.stringify(body) : undefined,
-        credentials : "include"
+        credentials: "include"
       });
 
       const data = await this.parseResponse<T>(response);
-      
+
       if (!response.ok) {
         throw new Error(data.message || 'API request failed');
       }
@@ -227,11 +225,11 @@ class ApiClient {
         method: 'PUT',
         headers: this.getAuthHeaders(),
         body: body ? JSON.stringify(body) : undefined,
-        credentials : "include"
+        credentials: "include"
       });
 
       const data = await this.parseResponse<T>(response);
-      
+
       if (!response.ok) {
         throw new Error(data.message || 'API request failed');
       }
@@ -251,7 +249,7 @@ class ApiClient {
       });
 
       const data = await this.parseResponse<T>(response);
-      
+
       if (!response.ok) {
         throw new Error(data.message || 'API request failed');
       }
@@ -318,16 +316,16 @@ export const vendorQuotationApi = {
     token: string,
     payload:
       | {
-          decision: "approved";
-          vendorPrice?: number | null;
-          vendorMoq?: number | null;
-          vendorNotes?: string;
-          vendorSignatureData: string;
-        }
+        decision: "approved";
+        vendorPrice?: number | null;
+        vendorMoq?: number | null;
+        vendorNotes?: string;
+        vendorSignatureData: string;
+      }
       | {
-          decision: "rejected";
-          rejectionReason: string;
-        }
+        decision: "rejected";
+        rejectionReason: string;
+      }
   ): Promise<ApiResponse<PublicVendorQuotation>> => {
     const response = await fetch(`${QUOTATION_API_BASE_URL}/api/quotations/vendor/${token}/respond`, {
       method: 'POST',
@@ -373,5 +371,66 @@ export const vendorNegotiationApi = {
     note?: string;
   }): Promise<ApiResponse<void>> => {
     return apiClient.post<void>(`/quotations/vendor/${id}/respond`, payload);
+  },
+};
+
+export interface VendorChatMessage {
+  id: string;
+  vendorId: string;
+  senderUserId: string;
+  senderRole: string;
+  body: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export interface VendorChatResponse {
+  vendor: {
+    id: string;
+    user_id: string;
+    company_name: string;
+    name: string;
+    email: string;
+  };
+  messages: VendorChatMessage[];
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+  };
+}
+
+export const vendorChatApi = {
+  getMessages: async (page = 1, limit = 50): Promise<ApiResponse<VendorChatResponse>> => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('vendor_token') : null;
+    const response = await fetch(`${QUOTATION_API_BASE_URL}/api/vendors/chat?page=${page}&limit=${limit}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-request-from': 'vendor',
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      credentials: 'include',
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || "API request failed");
+    return data;
+  },
+
+  sendMessage: async (body: string): Promise<ApiResponse<VendorChatMessage>> => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('vendor_token') : null;
+    const response = await fetch(`${QUOTATION_API_BASE_URL}/api/vendors/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-request-from': 'vendor',
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: JSON.stringify({ body }),
+      credentials: 'include',
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || "API request failed");
+    return data;
   },
 };

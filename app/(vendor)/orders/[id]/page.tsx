@@ -17,10 +17,16 @@ import {
   Truck,
   Download,
   Printer,
-  MoreVertical,
   Check,
   X,
+  Store,
+  Warehouse,
+  Navigation,
+  Send,
+  ArrowRight,
 } from "lucide-react";
+
+// ── Types ──────────────────────────────────────────────────────────────
 
 interface OrderItem {
   product_id: string;
@@ -45,11 +51,376 @@ interface Order {
   pincode: string;
   latitude: string;
   langitude: string;
+  vendor_city: string | null;
+  vendor_state: string | null;
+  vendor_latitude: number | null;
+  vendor_longitude: number | null;
   customer_name: string;
   customer_email: string;
   customer_phone: string | null;
   items: OrderItem[];
 }
+
+interface StatusHistoryEntry {
+  id: string;
+  status: string;
+  note: string | null;
+  created_at: string;
+}
+
+interface FulfillmentEntry {
+  id: string;
+  fulfillment_status: string;
+  fulfillment_note: string | null;
+  fulfillment_updated_at: string;
+  stop_sequence: number | null;
+  location_label: string | null;
+  center_id: string | null;
+  center_name: string | null;
+  center_address: string | null;
+  center_city: string | null;
+  center_state: string | null;
+  center_country: string | null;
+  center_pincode: string | null;
+  center_latitude: number | null;
+  center_longitude: number | null;
+}
+
+interface RoutePlanStop {
+  id: string;
+  stop_sequence: number;
+  fulfillment_center_id: string;
+  center_name: string;
+  center_city: string;
+  center_state: string;
+  center_pincode: string | null;
+  center_latitude: number | null;
+  center_longitude: number | null;
+  estimated_arrival: string | null;
+  actual_arrival: string | null;
+  status: string;
+}
+
+interface TrackingData {
+  order: {
+    order_id: string;
+    status: string;
+    payment_status: string;
+    total_amount: number;
+    created_at: string;
+    updated_at: string;
+    address_line: string;
+    city: string;
+    state: string;
+    country: string;
+    pincode: string;
+    latitude: string;
+    langitude: string;
+    order_reference: string | null;
+    order_notes: string | null;
+    vendor_name: string;
+    vendor_id: string;
+    vendor_city: string | null;
+    vendor_state: string | null;
+    vendor_latitude: number | null;
+    vendor_longitude: number | null;
+  };
+  items: OrderItem[];
+  statusHistory: StatusHistoryEntry[];
+  fulfillmentTracking: FulfillmentEntry[];
+  routePlan: RoutePlanStop[];
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────
+
+const formatOrderId = (id: string): string => `#${id.slice(0, 8).toUpperCase()}`;
+
+const formatDate = (dateStr: string): string => {
+  return new Date(dateStr).toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const formatShortDate = (dateStr: string): string => {
+  return new Date(dateStr).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+};
+
+const formatCurrency = (value: number): string => {
+  return `₹${value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
+
+const getStatusLabel = (status: string): string => {
+  const map: Record<string, string> = {
+    pending: "Pending",
+    processing: "Processing",
+    shipped: "Shipped",
+    delivered: "Delivered",
+    cancelled: "Cancelled",
+  };
+  return map[status.toLowerCase()] || status.charAt(0).toUpperCase() + status.slice(1);
+};
+
+const getStatusIcon = (status: string) => {
+  const normalized = status.toLowerCase();
+  if (normalized === "delivered") return <CheckCircle2 className="w-5 h-5" />;
+  if (normalized === "processing") return <CheckCircle2 className="w-5 h-5" />;
+  if (normalized === "shipped") return <Truck className="w-5 h-5" />;
+  if (normalized === "cancelled") return <XCircle className="w-5 h-5" />;
+  return <Clock className="w-5 h-5" />;
+};
+
+const getStatusColor = (status: string) => {
+  const normalized = status.toLowerCase();
+  if (normalized === "delivered" || normalized === "processing") {
+    return { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200", icon: "text-emerald-600" };
+  }
+  if (normalized === "shipped") {
+    return { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200", icon: "text-blue-600" };
+  }
+  if (normalized === "cancelled") {
+    return { bg: "bg-rose-50", text: "text-rose-700", border: "border-rose-200", icon: "text-rose-600" };
+  }
+  return { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200", icon: "text-amber-600" };
+};
+
+const getPaymentStatusColor = (status: string) => {
+  const normalized = status.toLowerCase();
+  if (normalized === "paid") return "bg-emerald-100 text-emerald-700";
+  if (normalized === "failed") return "bg-rose-100 text-rose-700";
+  return "bg-amber-100 text-amber-700";
+};
+
+const calculateSubtotal = (items: OrderItem[]): number => {
+  return items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+};
+
+// ── Route Journey Map (Vendor Version) ──────────────────────────────────
+
+function VendorRouteJourneyMap({
+  routePlan,
+  trackingOrder,
+  buyerCity,
+  buyerState,
+  buyerPincode,
+}: {
+  routePlan: RoutePlanStop[];
+  trackingOrder: TrackingData["order"];
+  buyerCity: string;
+  buyerState: string;
+  buyerPincode: string;
+}) {
+  const sellerLocation = trackingOrder.vendor_city && trackingOrder.vendor_state
+    ? `${trackingOrder.vendor_city}, ${trackingOrder.vendor_state}`
+    : trackingOrder.vendor_name || "Your Warehouse";
+
+  const buyerLocation = `${buyerCity}, ${buyerState}`;
+  const currentStatus = trackingOrder.status.toLowerCase();
+  const sellerDone = currentStatus !== "pending";
+  const buyerDone = currentStatus === "delivered";
+
+  const completedStops = routePlan.filter(
+    (s) => s.status === "departed" || s.status === "arrived"
+  ).length;
+  const inTransitStops = routePlan.filter((s) => s.status === "in_transit").length;
+  const totalStops = routePlan.length + 2;
+  const isOrderShipped = ["shipped", "delivered"].includes(currentStatus);
+  const isDelivered = currentStatus === "delivered";
+
+  const progressPercent = isDelivered
+    ? 100
+    : ((1 + completedStops + inTransitStops * 0.5) / (totalStops - 1)) * 100;
+
+  const getStopStyles = (status: string) => {
+    switch (status) {
+      case "departed":
+      case "arrived":
+        return {
+          ring: "ring-emerald-500 bg-emerald-500",
+          icon: "text-white",
+          badge: "bg-emerald-100 text-emerald-700",
+          badgeText: status === "departed" ? "Departed" : "Arrived",
+        };
+      case "in_transit":
+        return {
+          ring: "ring-blue-500 bg-blue-500 animate-pulse",
+          icon: "text-white",
+          badge: "bg-blue-100 text-blue-700",
+          badgeText: "In Transit",
+        };
+      default:
+        return {
+          ring: "ring-zinc-300 bg-white",
+          icon: "text-zinc-400",
+          badge: "bg-zinc-100 text-zinc-500",
+          badgeText: "Upcoming",
+        };
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-3xl border border-gray-100/80 shadow-sm overflow-hidden">
+      {/* Header */}
+      <div className="px-6 py-5 border-b border-gray-100/80 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+            <Navigation className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">Shipment Route</h2>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {routePlan.length} fulfillment {routePlan.length === 1 ? "center" : "centers"} on route
+            </p>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-2xl font-bold text-gray-900">{Math.round(progressPercent)}%</p>
+          <p className="text-xs text-gray-500">Journey Complete</p>
+        </div>
+      </div>
+
+      {/* Progress bar */}
+      <div className="px-6 pt-4">
+        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all duration-1000 ease-out bg-gradient-to-r from-emerald-500 via-blue-500 to-indigo-500"
+            style={{ width: `${Math.min(progressPercent, 100)}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Journey stops */}
+      <div className="p-6">
+        <div className="space-y-0">
+          {/* Seller (Your warehouse) */}
+          <div className="flex gap-4">
+            <div className="flex flex-col items-center">
+              <div className={`w-11 h-11 rounded-full flex items-center justify-center ring-2 shrink-0 ${
+                sellerDone ? "ring-emerald-500 bg-emerald-500" : "ring-amber-400 bg-amber-400 animate-pulse"
+              }`}>
+                <Store className="w-5 h-5 text-white" />
+              </div>
+              <div className={`w-0.5 flex-1 min-h-[40px] ${
+                sellerDone && routePlan.length > 0
+                  ? routePlan[0].status !== "upcoming"
+                    ? "bg-emerald-500"
+                    : "bg-gradient-to-b from-emerald-500 to-gray-200"
+                  : "bg-gray-200"
+              }`} />
+            </div>
+            <div className="pb-6 flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="text-sm font-bold text-gray-900">Your Warehouse</p>
+                {sellerDone && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-700">
+                    <CheckCircle2 className="w-3 h-3" /> Dispatched
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-gray-500 mt-0.5">{sellerLocation}</p>
+            </div>
+          </div>
+
+          {/* FC Stops */}
+          {routePlan.map((stop, index) => {
+            const styles = getStopStyles(stop.status);
+            const isLast = index === routePlan.length - 1;
+            const nextStop = routePlan[index + 1];
+
+            return (
+              <div key={stop.id} className="flex gap-4">
+                <div className="flex flex-col items-center">
+                  <div className={`w-11 h-11 rounded-full flex items-center justify-center ring-2 shrink-0 ${styles.ring}`}>
+                    <Warehouse className={`w-5 h-5 ${styles.icon}`} />
+                  </div>
+                  <div className={`w-0.5 flex-1 min-h-[40px] ${
+                    stop.status === "departed"
+                      ? isLast
+                        ? isDelivered || isOrderShipped ? "bg-emerald-500"
+                          : "bg-gradient-to-b from-emerald-500 to-gray-200"
+                        : nextStop?.status !== "upcoming"
+                          ? "bg-emerald-500"
+                          : "bg-gradient-to-b from-emerald-500 to-gray-200"
+                      : stop.status === "in_transit" || stop.status === "arrived"
+                        ? "bg-gradient-to-b from-blue-400 to-gray-200"
+                        : "bg-gray-200"
+                  }`} />
+                </div>
+                <div className="pb-6 flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className={`text-sm font-bold ${stop.status === "upcoming" ? "text-gray-400" : "text-gray-900"}`}>
+                      {stop.center_name}
+                    </p>
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${styles.badge}`}>
+                      {stop.status === "departed" && <CheckCircle2 className="w-3 h-3" />}
+                      {stop.status === "in_transit" && <Truck className="w-3 h-3" />}
+                      {stop.status === "arrived" && <MapPin className="w-3 h-3" />}
+                      {styles.badgeText}
+                    </span>
+                  </div>
+                  <p className={`text-sm mt-0.5 ${stop.status === "upcoming" ? "text-gray-400" : "text-gray-500"}`}>
+                    {stop.center_city}, {stop.center_state}
+                    {stop.center_pincode && ` — ${stop.center_pincode}`}
+                  </p>
+
+                  <div className="mt-1.5 flex items-center gap-3 flex-wrap">
+                    {stop.actual_arrival && (
+                      <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium">
+                        <CheckCircle2 className="w-3 h-3" />
+                        Arrived: {formatShortDate(stop.actual_arrival)}
+                      </span>
+                    )}
+                    {!stop.actual_arrival && stop.estimated_arrival && (
+                      <span className="inline-flex items-center gap-1 text-xs text-gray-400 font-medium">
+                        <Calendar className="w-3 h-3" />
+                        ETA: {formatShortDate(stop.estimated_arrival)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Customer Destination */}
+          <div className="flex gap-4">
+            <div className="flex flex-col items-center">
+              <div className={`w-11 h-11 rounded-full flex items-center justify-center ring-2 shrink-0 ${
+                buyerDone ? "ring-emerald-500 bg-emerald-500" : "ring-gray-300 bg-white"
+              }`}>
+                <MapPin className={`w-5 h-5 ${buyerDone ? "text-white" : "text-gray-400"}`} />
+              </div>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className={`text-sm font-bold ${buyerDone ? "text-gray-900" : "text-gray-400"}`}>
+                  Customer Address
+                </p>
+                {buyerDone && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-700">
+                    <CheckCircle2 className="w-3 h-3" /> Delivered
+                  </span>
+                )}
+              </div>
+              <p className={`text-sm mt-0.5 ${buyerDone ? "text-gray-500" : "text-gray-400"}`}>
+                {buyerLocation} — {buyerPincode}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Page ───────────────────────────────────────────────────────────
 
 const OrderDetailPage = () => {
   const router = useRouter();
@@ -57,6 +428,7 @@ const OrderDetailPage = () => {
   const orderId = params.id as string;
 
   const [order, setOrder] = useState<Order | null>(null);
+  const [trackingData, setTrackingData] = useState<TrackingData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -64,6 +436,7 @@ const OrderDetailPage = () => {
   useEffect(() => {
     if (orderId) {
       fetchOrderDetails();
+      fetchTrackingData();
     }
   }, [orderId]);
 
@@ -100,95 +473,27 @@ const OrderDetailPage = () => {
     }
   };
 
-  const formatOrderId = (id: string): string => {
-    return `#${id.slice(0, 8).toUpperCase()}`;
-  };
+  const fetchTrackingData = async () => {
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/orders/vendor/${orderId}/track`,
+        {
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            "x-request-from": "vendor",
+          },
+        },
+      );
 
-  const formatDate = (dateStr: string): string => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString("en-US", {
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const formatCurrency = (value: number): string => {
-    return `₹${value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  };
-
-  const getStatusLabel = (status: string): string => {
-    const map: Record<string, string> = {
-      pending: "Pending",
-      processing: "Processing",
-      shipped: "Shipped",
-      delivered: "Delivered",
-      cancelled: "Cancelled",
-    };
-    return (
-      map[status.toLowerCase()] ||
-      status.charAt(0).toUpperCase() + status.slice(1)
-    );
-  };
-
-  const getStatusIcon = (status: string) => {
-    const normalized = status.toLowerCase();
-    if (normalized === "delivered") return <CheckCircle2 className="w-5 h-5" />;
-    if (normalized === "processing") return <CheckCircle2 className="w-5 h-5" />;
-    if (normalized === "shipped") return <Truck className="w-5 h-5" />;
-    if (normalized === "cancelled") return <XCircle className="w-5 h-5" />;
-    return <Clock className="w-5 h-5" />;
-  };
-
-  const getStatusColor = (status: string) => {
-    const normalized = status.toLowerCase();
-    if (normalized === "delivered" || normalized === "processing") {
-      return {
-        bg: "bg-emerald-50",
-        text: "text-emerald-700",
-        border: "border-emerald-200",
-        icon: "text-emerald-600",
-      };
+      if (res.ok) {
+        const result = await res.json();
+        setTrackingData(result.data);
+      }
+      // Non-critical: silently fail if tracking not available yet
+    } catch (err) {
+      console.error("Error fetching tracking data:", err);
     }
-    if (normalized === "shipped") {
-      return {
-        bg: "bg-blue-50",
-        text: "text-blue-700",
-        border: "border-blue-200",
-        icon: "text-blue-600",
-      };
-    }
-    if (normalized === "cancelled") {
-      return {
-        bg: "bg-rose-50",
-        text: "text-rose-700",
-        border: "border-rose-200",
-        icon: "text-rose-600",
-      };
-    }
-    return {
-      bg: "bg-amber-50",
-      text: "text-amber-700",
-      border: "border-amber-200",
-      icon: "text-amber-600",
-    };
-  };
-
-  const getPaymentStatusColor = (status: string) => {
-    const normalized = status.toLowerCase();
-    if (normalized === "paid") {
-      return "bg-emerald-100 text-emerald-700";
-    }
-    if (normalized === "failed") {
-      return "bg-rose-100 text-rose-700";
-    }
-    return "bg-amber-100 text-amber-700";
-  };
-
-  const calculateSubtotal = (items: OrderItem[]): number => {
-    return items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   };
 
   const updateOrderStatus = async (newStatus: string) => {
@@ -210,10 +515,11 @@ const OrderDetailPage = () => {
       );
 
       if (res.ok) {
-        // Update local state
         setOrder((prevOrder) => 
           prevOrder ? { ...prevOrder, status: newStatus } : null
         );
+        // Re-fetch tracking data after status update (route may have been generated)
+        fetchTrackingData();
       } else {
         console.error("Failed to update order status");
       }
@@ -282,6 +588,9 @@ const OrderDetailPage = () => {
 
   const statusColors = getStatusColor(order.status);
   const subtotal = calculateSubtotal(order.items);
+  const routePlan = trackingData?.routePlan || [];
+  const hasRouteplan = routePlan.length > 0;
+  const isCancelled = order.status.toLowerCase() === "cancelled";
 
   return (
     <div className="min-h-screen bg-[#fafafa] p-6 md:p-8 lg:p-10 font-sans">
@@ -390,6 +699,58 @@ const OrderDetailPage = () => {
             </div>
           </div>
         </div>
+
+        {/* ── Route Journey Map ─────────────────────────────────────── */}
+        {hasRouteplan && !isCancelled && trackingData && (
+          <VendorRouteJourneyMap
+            routePlan={routePlan}
+            trackingOrder={trackingData.order}
+            buyerCity={order.city}
+            buyerState={order.state}
+            buyerPincode={order.pincode}
+          />
+        )}
+
+        {/* Direct delivery fallback */}
+        {!hasRouteplan && !isCancelled && order.status.toLowerCase() !== "pending" && (
+          <div className="bg-white rounded-3xl border border-gray-100/80 shadow-sm p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+                <Navigation className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Shipment Route</h2>
+                <p className="text-xs text-gray-500 mt-0.5">Direct delivery</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-xl border border-blue-100">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center">
+                  <Store className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-medium">Origin</p>
+                  <p className="text-sm font-bold text-gray-900">
+                    {order.vendor_city ? `${order.vendor_city}, ${order.vendor_state}` : "Your Warehouse"}
+                  </p>
+                </div>
+              </div>
+              <ArrowRight className="w-5 h-5 text-blue-400 mx-2 shrink-0" />
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center">
+                  <MapPin className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-medium">Destination</p>
+                  <p className="text-sm font-bold text-gray-900">{order.city}, {order.state}</p>
+                </div>
+              </div>
+            </div>
+            <p className="text-xs text-gray-400 mt-3">
+              No intermediate fulfillment centers on this route. Order is being delivered directly.
+            </p>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Order Items */}

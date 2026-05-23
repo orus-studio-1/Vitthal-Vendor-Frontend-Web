@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useLayoutEffect, useEffect } from "react";
-import { Menu, X, User, LogOut, ChevronDown, LayoutDashboard, Package, ShoppingBag, BarChart3, Settings, HelpCircle, Bell, FileText } from "lucide-react";
+import { Menu, X, User, LogOut, ChevronDown, LayoutDashboard, Package, ShoppingBag, BarChart3, Settings, HelpCircle, Bell, FileText, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
@@ -193,6 +193,15 @@ export function VendorHeader() {
                 )}
               </div>
 
+              {/* Chat with Admin */}
+              <Link
+                href="/chat"
+                className="rounded-lg p-2 text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
+                aria-label="Chat with Admin"
+              >
+                <MessageSquare size={20} />
+              </Link>
+
               {/* Help */}
               <Link
                 href="/help"
@@ -374,6 +383,16 @@ export function VendorHeader() {
                   >
                     <FileText size={18} />
                     Quotations
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/chat"
+                    className="flex items-center gap-3 rounded-lg px-3 py-3 hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <MessageSquare size={18} />
+                    Chat with Admin
                   </Link>
                 </li>
                 <li>
