@@ -176,15 +176,32 @@ function VendorDocumentContent() {
           <div className="mt-8 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
             <div className="space-y-6">
               <section className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-                <h2 className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">{isAgreement ? 'Admin agreement' : 'Admin request'}</h2>
-                <div className="mt-4 grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
-                  <p><span className="font-medium text-slate-900">Quantity:</span> {quotation?.quantity} {quotation?.unit}</p>
-                  <p><span className="font-medium text-slate-900">Target price:</span> {formatCurrency(quotation?.target_price)}</p>
-                  <p><span className="font-medium text-slate-900">Requested MOQ:</span> {quotation?.requested_moq ?? 'Not specified'}</p>
-                  <p><span className="font-medium text-slate-900">Validity:</span> {formatDate(quotation?.validity_date)}</p>
-                </div>
+                <h2 className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">{isAgreement ? 'Business Terms' : 'Admin request'}</h2>
+                
+                {isAgreement ? (
+                  <div className="mt-4 grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
+                    <p><span className="font-medium text-slate-900">Company Name:</span> {quotation?.company_name}</p>
+                    <p><span className="font-medium text-slate-900">Business Type:</span> {quotation?.business_type || 'Not specified'}</p>
+                    <p><span className="font-medium text-slate-900">GST Number:</span> {quotation?.gst_number || 'Not specified'}</p>
+                    <p><span className="font-medium text-slate-900">Designation:</span> {quotation?.designation || 'Not specified'}</p>
+                    <p><span className="font-medium text-slate-900">Credit Cycle:</span> {quotation?.credit_cycle || 'Not specified'}</p>
+                    <p><span className="font-medium text-slate-900">Commission Range:</span> {quotation?.minimum_commision_percentage ?? 0}% - {quotation?.maximum_commision_percentage ?? 0}%</p>
+                    <div className="sm:col-span-2">
+                      <span className="font-medium text-slate-900">Business Description:</span>
+                      <p className="mt-1">{quotation?.business_description || 'Not provided'}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-4 grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
+                    <p><span className="font-medium text-slate-900">Quantity:</span> {quotation?.quantity} {quotation?.unit}</p>
+                    <p><span className="font-medium text-slate-900">Target price:</span> {formatCurrency(quotation?.target_price)}</p>
+                    <p><span className="font-medium text-slate-900">Requested MOQ:</span> {quotation?.requested_moq ?? 'Not specified'}</p>
+                    <p><span className="font-medium text-slate-900">Validity:</span> {formatDate(quotation?.validity_date)}</p>
+                  </div>
+                )}
+
                 <div className="mt-4 rounded-2xl bg-white p-4 text-sm text-slate-600 shadow-sm">
-                  {quotation?.request_notes || 'No additional request notes were provided by the admin.'}
+                  {quotation?.request_notes || (isAgreement ? 'Please review your updated business terms above and sign to agree to the platform terms and conditions.' : 'No additional request notes were provided by the admin.')}
                 </div>
                 <p className="mt-3 text-xs text-slate-500">Prepared by {quotation?.created_by_admin_name}. This secure link expires on {formatDate(quotation?.token_expires_at)}.</p>
               </section>
@@ -211,34 +228,36 @@ function VendorDocumentContent() {
 
                 {decision === 'approved' ? (
                   <div className="mt-5 space-y-4">
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <label className="space-y-2">
-                        <span className="text-sm font-medium text-slate-700">Your price</span>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={vendorPrice}
-                          onChange={(event) => setVendorPrice(event.target.value)}
-                          disabled={isFinal || isExpired}
-                          className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-400 disabled:bg-slate-50"
-                          placeholder="Enter price"
-                        />
-                      </label>
-                      <label className="space-y-2">
-                        <span className="text-sm font-medium text-slate-700">Your MOQ</span>
-                        <input
-                          type="number"
-                          min="0"
-                          step="1"
-                          value={vendorMoq}
-                          onChange={(event) => setVendorMoq(event.target.value)}
-                          disabled={isFinal || isExpired}
-                          className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-400 disabled:bg-slate-50"
-                          placeholder="Enter MOQ"
-                        />
-                      </label>
-                    </div>
+                    {!isAgreement && (
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <label className="space-y-2">
+                          <span className="text-sm font-medium text-slate-700">Your price</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={vendorPrice}
+                            onChange={(event) => setVendorPrice(event.target.value)}
+                            disabled={isFinal || isExpired}
+                            className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-400 disabled:bg-slate-50"
+                            placeholder="Enter price"
+                          />
+                        </label>
+                        <label className="space-y-2">
+                          <span className="text-sm font-medium text-slate-700">Your MOQ</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={vendorMoq}
+                            onChange={(event) => setVendorMoq(event.target.value)}
+                            disabled={isFinal || isExpired}
+                            className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-400 disabled:bg-slate-50"
+                            placeholder="Enter MOQ"
+                          />
+                        </label>
+                      </div>
+                    )}
                     <label className="space-y-2">
                       <span className="text-sm font-medium text-slate-700">Vendor notes</span>
                       <textarea
@@ -304,8 +323,8 @@ function VendorDocumentContent() {
               <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                 <h2 className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Current outcome</h2>
                 <div className="mt-4 space-y-3 text-sm text-slate-600">
-                  <p><span className="font-medium text-slate-900">Vendor price:</span> {formatCurrency(quotation?.vendor_price)}</p>
-                  <p><span className="font-medium text-slate-900">Vendor MOQ:</span> {quotation?.vendor_moq ?? 'Not specified'}</p>
+                  {!isAgreement && <p><span className="font-medium text-slate-900">Vendor price:</span> {formatCurrency(quotation?.vendor_price)}</p>}
+                  {!isAgreement && <p><span className="font-medium text-slate-900">Vendor MOQ:</span> {quotation?.vendor_moq ?? 'Not specified'}</p>}
                   <p><span className="font-medium text-slate-900">Vendor notes:</span> {quotation?.vendor_notes || 'Not provided'}</p>
                   <p><span className="font-medium text-slate-900">Rejection reason:</span> {quotation?.vendor_rejection_reason || 'Not rejected'}</p>
                   <p><span className="font-medium text-slate-900">Admin note:</span> {quotation?.admin_review_notes || 'Admin has not reviewed this yet.'}</p>

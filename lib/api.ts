@@ -149,6 +149,15 @@ export interface PublicVendorQuotation {
   vendor_responded_at: string | null;
   company_name: string;
   vendor_name: string;
+  business_type?: string;
+  gst_number?: string;
+  company_website?: string;
+  alternative_number?: string;
+  designation?: string;
+  business_description?: string;
+  credit_cycle?: string;
+  minimum_commision_percentage?: number | null;
+  maximum_commision_percentage?: number | null;
   created_by_admin_name: string;
   admin_reviewed_at: string | null;
   admin_review_notes: string | null;
