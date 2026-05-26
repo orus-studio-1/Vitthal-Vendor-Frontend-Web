@@ -17,7 +17,7 @@ export function VendorHeader() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
   const { user, isAuthenticated, isLoading, logout } = useAuthStore();
-  const { notifications, unreadCount, fetchNotifications, fetchUnreadCount, markRead, markAllRead } = useNotificationStore();
+  const { notifications, unreadCount, isLoading: notificationsLoading, fetchNotifications, fetchUnreadCount, markRead, markAllRead } = useNotificationStore();
   const router = useRouter();
 
   // Close dropdown when clicking outside
@@ -44,7 +44,7 @@ export function VendorHeader() {
 
   function handleOpenNotifications() {
     setNotifDropdown(!notifDropdown);
-    if (!notifDropdown) fetchNotifications();
+    if (!notifDropdown) void fetchNotifications();
   }
 
   function timeAgo(dateStr: string) {
@@ -137,7 +137,7 @@ export function VendorHeader() {
               <div className="relative" ref={notifRef}>
                 <button
                   onClick={handleOpenNotifications}
-                  className="relative flex items-center justify-center rounded-lg p-2 text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
+                  className="relative flex items-center justify-center rounded-xl border border-transparent p-2 text-zinc-600 transition-all hover:border-zinc-200 hover:bg-zinc-50 hover:text-zinc-900"
                   aria-label="Notifications"
                 >
                   <Bell size={20} />
@@ -148,23 +148,42 @@ export function VendorHeader() {
                   )}
                 </button>
                 {notifDropdown && (
-                  <div className="absolute right-0 top-full mt-2 w-80 max-h-96 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-2xl z-50 flex flex-col">
-                    <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100 bg-zinc-50/50">
-                      <p className="text-sm font-bold text-zinc-900">Notifications</p>
+                  <div className="absolute right-0 top-full mt-3 w-88 max-h-120 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl shadow-zinc-900/10 z-50 flex flex-col backdrop-blur-sm">
+                    <div className="flex items-center justify-between border-b border-zinc-100 bg-linear-to-r from-zinc-50 via-white to-emerald-50/60 px-4 py-3.5">
+                      <div>
+                        <p className="text-sm font-bold text-zinc-900">Notifications</p>
+                        <p className="text-[11px] text-zinc-500">Recent updates and alerts</p>
+                      </div>
                       {unreadCount > 0 && (
                         <button
                           onClick={() => markAllRead()}
-                          className="text-xs text-blue-600 hover:text-blue-700 font-semibold"
+                          className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-100"
                         >
                           Mark all read
                         </button>
                       )}
                     </div>
-                    <div className="overflow-y-auto max-h-72 divide-y divide-zinc-50">
-                      {notifications.length === 0 ? (
+                    <div className="overflow-y-auto max-h-96 divide-y divide-zinc-50">
+                      {notificationsLoading ? (
+                        <div className="space-y-3 p-4">
+                          {[...Array(4)].map((_, index) => (
+                            <div key={index} className="flex gap-3 rounded-2xl border border-zinc-100 bg-zinc-50/60 p-3.5 animate-pulse">
+                              <div className="mt-0.5 h-10 w-10 rounded-2xl bg-zinc-200/80" />
+                              <div className="flex-1 space-y-2">
+                                <div className="h-3.5 w-3/4 rounded-full bg-zinc-200/80" />
+                                <div className="h-3 w-full rounded-full bg-zinc-200/70" />
+                                <div className="h-3 w-5/6 rounded-full bg-zinc-200/60" />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : notifications.length === 0 ? (
                         <div className="px-4 py-10 text-center text-sm text-zinc-400">
-                          <Bell size={24} className="mx-auto mb-3 text-zinc-300" />
+                          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                            <Bell size={20} />
+                          </div>
                           You have no notifications
+                          <p className="mt-1 text-xs text-zinc-400">You’ll see order, quotation, and account updates here.</p>
                         </div>
                       ) : (
                         notifications.map((n) => (
@@ -177,13 +196,18 @@ export function VendorHeader() {
                                 router.push(`/quotations/${n.reference_id}`);
                               }
                             }}
-                            className={`w-full text-left px-4 py-3 hover:bg-zinc-50 transition-colors flex gap-3 ${!n.is_read ? "bg-blue-50/30" : ""}`}
+                            className={`w-full text-left px-4 py-3.5 hover:bg-zinc-50 transition-colors flex gap-3.5 ${!n.is_read ? "bg-blue-50/40" : ""}`}
                           >
-                            <div className={`mt-1 h-2 w-2 shrink-0 rounded-full ${!n.is_read ? "bg-blue-500" : "bg-transparent"}`} />
+                            <div className={`mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${!n.is_read ? "bg-blue-100 text-blue-700" : "bg-zinc-100 text-zinc-500"}`}>
+                              <Bell size={16} />
+                            </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-zinc-800 truncate">{n.title}</p>
-                              <p className="text-xs text-zinc-500 mt-0.5 line-clamp-2 leading-relaxed">{n.body}</p>
-                              <p className="text-[10px] font-medium text-zinc-400 mt-1.5 uppercase tracking-wider">{timeAgo(n.created_at)}</p>
+                              <div className="flex items-start justify-between gap-3">
+                                <p className="text-sm font-semibold text-zinc-800 truncate">{n.title}</p>
+                                <span className={`mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full ${!n.is_read ? "bg-blue-500" : "bg-zinc-200"}`} />
+                              </div>
+                              <p className="mt-1 text-xs leading-5 text-zinc-500 line-clamp-2">{n.body}</p>
+                              <p className="mt-2 text-[11px] font-medium uppercase tracking-wider text-zinc-400">{timeAgo(n.created_at)}</p>
                             </div>
                           </button>
                         ))

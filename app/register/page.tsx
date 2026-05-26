@@ -161,6 +161,9 @@ export default function RegisterPage() {
   const [addressLine2, setAddressLine2] = useState("");
   const [landmark, setLandmark] = useState("");
   const [city, setCity] = useState("");
+  const [selectedCityLabel, setSelectedCityLabel] = useState("");
+  const [cityOptions, setCityOptions] = useState<Array<{ city: string; state: string; label: string }>>([]);
+  const [cityFieldMode, setCityFieldMode] = useState<"manual" | "select" | "blocked">("manual");
   const [state, setState] = useState("");
   const [country, setCountry] = useState("India");
   const [pincode, setPincode] = useState("");
@@ -242,27 +245,70 @@ export default function RegisterPage() {
 
   async function fetchCityAndStateFromPincode(pincodeValue: string) {
     if (pincodeValue.length !== 6) {
+      setCityFieldMode("manual");
+      setCityOptions([]);
       return;
     }
 
     setIsFetchingPincode(true);
     try {
-      const response = await fetch(`https://api.postalpincode.in/pincode/${pincodeValue}`);
+      const response = await fetch(
+        `${API_BASE}/api/vendors/pincode/${pincodeValue}`,
+        {
+          method: "GET",
+          headers: {
+            Accept: "application/json",
+          },
+          cache: "no-store",
+        },
+      );
+
       const data = await response.json();
 
-      if (data && data.length > 0 && data[0].Status === "Success") {
-        const postOffice = data[0].PostOffice[0];
-        if (postOffice) {
-          setState(postOffice.State || "");
-          setCity(postOffice.District || "");
-          toast.success(`City and state auto-filled for ${pincodeValue}`);
-        }
+      if (response.ok && data?.success) {
+        const places = Array.isArray(data.places)
+          ? (data.places as Array<{
+              city?: unknown;
+              state?: unknown;
+              label?: unknown;
+            }>)
+          : [];
+        const normalizedPlaces = places
+          .filter(
+            (place): place is { city: string; state: string; label: string } =>
+              typeof place.city === "string" && typeof place.label === "string",
+          )
+          .map((place) => ({
+            city: place.city,
+            state: typeof place.state === "string" ? place.state : "",
+            label: place.label,
+          }));
+
+        setState(data.state || "");
+        setCity("");
+        setSelectedCityLabel("");
+        setCityOptions(normalizedPlaces.length > 0 ? normalizedPlaces : [{ city: data.city || "", state: data.state || "", label: data.city || "" }].filter((item) => Boolean(item.city)));
+        setCityFieldMode("select");
+        toast.success(`City and state auto-filled for ${pincodeValue}`);
+      } else if (response.status === 404) {
+        setState("");
+        setCity("");
+        setSelectedCityLabel("");
+        setCityOptions([]);
+        setCityFieldMode("blocked");
+        toast.error(data?.message || "Invalid pincode. Please check and try again.");
       } else {
-        toast.error("Invalid pincode. Please check and try again.");
+        setCityOptions([]);
+        setSelectedCityLabel("");
+        setCityFieldMode("manual");
+        toast.error(data?.message || "Could not auto-fill city and state. Please enter them manually.");
       }
     } catch (error) {
       console.error("Error fetching pincode data:", error);
-      toast.error("Failed to fetch city and state. Please enter manually.");
+      setCityOptions([]);
+      setSelectedCityLabel("");
+      setCityFieldMode("manual");
+      toast.error("Failed to fetch city and state. Please enter them manually.");
     } finally {
       setIsFetchingPincode(false);
     }
@@ -533,7 +579,32 @@ export default function RegisterPage() {
 
     setIsVerifyingOTP(true);
     try {
-      const uploadedAt = gstUploadedAt || new Date().toISOString();
+      let uploadedCertificateLink = "";
+      if (gstCertificateFile) {
+        const formData = new FormData();
+        formData.append("file", gstCertificateFile);
+        
+        try {
+          const uploadRes = await fetch(`${API_BASE}/api/upload`, {
+            method: "POST",
+            body: formData,
+          });
+          const uploadData = await uploadRes.json();
+          if (uploadRes.ok && uploadData.success) {
+            uploadedCertificateLink = uploadData.fileName;
+          } else {
+            toast.error("Failed to upload GST certificate. Please try again.");
+            setIsVerifyingOTP(false);
+            return;
+          }
+        } catch (uploadError) {
+          console.error("Upload error:", uploadError);
+          toast.error("Error uploading GST certificate.");
+          setIsVerifyingOTP(false);
+          return;
+        }
+      }
+
       const res = await fetch(`${API_BASE}/api/auth/verify-registration`, {
         method: "POST",
         headers: {
@@ -548,10 +619,7 @@ export default function RegisterPage() {
           businessType,
           gstNumber,
           companyWebsite: website.trim(),
-          gstCertificateLink: buildMockCertificateLink(
-            gstCertificateFile,
-            uploadedAt,
-          ),
+          gstCertificateLink: uploadedCertificateLink,
           phone: phone.trim(),
           alternativeNumber: alternatePhone.trim(),
           designation:
@@ -1076,7 +1144,7 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              <div className="grid gap-5 md:grid-cols-4">
+              <div className="grid gap-5 md:grid-cols-3">
                 <div>
                   <label
                     htmlFor="state"
@@ -1089,9 +1157,10 @@ export default function RegisterPage() {
                     type="text"
                     required
                     value={state}
-                    readOnly
-                    placeholder="Enter pincode to auto-fill state"
-                    className="h-11 w-full rounded-md border border-zinc-300 bg-zinc-100 px-3 text-sm text-zinc-700 outline-none placeholder:text-zinc-500"
+                    onChange={(event) => setState(event.target.value)}
+                    disabled={cityFieldMode === "blocked"}
+                    placeholder="Auto-filled from pincode or enter manually"
+                    className={`h-11 w-full rounded-md border px-3 text-sm outline-none placeholder:text-zinc-400 ${cityFieldMode === "blocked" ? "border-zinc-300 bg-zinc-100 text-zinc-500" : "border-zinc-300 text-zinc-900 focus:border-[#1d4ed8] focus:ring-1 focus:ring-[#1d4ed8]/30"}`}
                   />
                 </div>
 
@@ -1102,31 +1171,52 @@ export default function RegisterPage() {
                   >
                     City
                   </label>
-                  <input
-                    id="city"
-                    type="text"
-                    required
-                    value={city}
-                    readOnly
-                    placeholder="Enter pincode to auto-fill city"
-                    className="h-11 w-full rounded-md border border-zinc-300 bg-zinc-100 px-3 text-sm text-zinc-700 outline-none placeholder:text-zinc-500"
-                  />
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="country"
-                    className="mb-1.5 block text-sm font-medium text-zinc-800"
-                  >
-                    Country
-                  </label>
-                  <input
-                    id="country"
-                    type="text"
-                    disabled
-                    value={country}
-                    className="h-11 w-full rounded-md border border-zinc-300 bg-zinc-100 px-3 text-sm text-zinc-500 outline-none"
-                  />
+                  {cityFieldMode === "select" ? (
+                    <select
+                      id="city"
+                      required
+                      value={selectedCityLabel}
+                      onChange={(event) => {
+                        const selectedLabel = event.target.value;
+                        const selectedPlace = cityOptions.find((option) => option.label === selectedLabel);
+                        setSelectedCityLabel(selectedLabel);
+                        setCity(selectedPlace?.city || selectedLabel);
+                        if (selectedPlace?.state) {
+                          setState(selectedPlace.state);
+                        }
+                      }}
+                      className="h-11 w-full appearance-none rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-[#1d4ed8] focus:ring-1 focus:ring-[#1d4ed8]/30"
+                    >
+                      <option value="">Select city</option>
+                      {cityOptions.map((option) => (
+                        <option key={option.label} value={option.label}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : cityFieldMode === "blocked" ? (
+                    <select
+                      id="city"
+                      disabled
+                      value=""
+                      className="h-11 w-full appearance-none rounded-md border border-zinc-300 bg-zinc-100 px-3 text-sm text-zinc-500 outline-none"
+                    >
+                      <option value="">Invalid pincode</option>
+                    </select>
+                  ) : (
+                    <input
+                      id="city"
+                      type="text"
+                      required
+                      value={city}
+                      onChange={(event) => {
+                        setCity(event.target.value);
+                        setSelectedCityLabel("");
+                      }}
+                      placeholder="Auto-filled from pincode or enter manually"
+                      className="h-11 w-full rounded-md border border-zinc-300 px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-[#1d4ed8] focus:ring-1 focus:ring-[#1d4ed8]/30"
+                    />
+                  )}
                 </div>
 
                 <div>
@@ -1146,6 +1236,13 @@ export default function RegisterPage() {
                       onChange={(event) => {
                         const newPincode = event.target.value.replace(/\D/g, "");
                         setPincode(newPincode);
+                        if (newPincode.length !== 6) {
+                          setState("");
+                          setCity("");
+                          setCityOptions([]);
+                          setCityFieldMode("manual");
+                          return;
+                        }
                         fetchCityAndStateFromPincode(newPincode);
                       }}
                       placeholder="400001"
@@ -1163,8 +1260,7 @@ export default function RegisterPage() {
                   htmlFor="website"
                   className="mb-1.5 block text-sm font-medium text-zinc-800"
                 >
-                  Company website{" "}
-                  <span className="text-xs text-zinc-500">(optional)</span>
+                  Company website <span className="text-xs text-zinc-500">(optional)</span>
                 </label>
                 <input
                   id="website"

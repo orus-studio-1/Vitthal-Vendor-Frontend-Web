@@ -38,7 +38,6 @@ export default function VendorChatPage() {
     socketRef.current = ws;
 
     ws.onopen = () => {
-      console.log("WebSocket connected");
       setWsConnected(true);
     };
 
@@ -59,7 +58,6 @@ export default function VendorChatPage() {
     };
 
     ws.onclose = () => {
-      console.log("WebSocket disconnected");
       setWsConnected(false);
     };
 

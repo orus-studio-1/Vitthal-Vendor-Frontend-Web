@@ -11,7 +11,6 @@ export default function VendorStatusDisplay({ status, applicationNumber }: Vendo
   const getStatusConfig = () => {
     switch (status) {
       case 'pending':
-        console.log("Pending!")
         return {
           icon: Clock,
           title: 'Application Under Review',

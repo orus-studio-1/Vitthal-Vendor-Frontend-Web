@@ -76,12 +76,10 @@ const OrdersPage = () => {
         {
           credentials: "include",
           headers: {
-            "Content-Type": "application/json",
             "x-request-from": "vendor",
           },
         },
       );
-      console.log("Fetch orders response:", res);
       if (res.ok) {
         const result = await res.json();
         setOrders(result.data || []);

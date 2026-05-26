@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Outfit, Montserrat } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
@@ -7,6 +8,7 @@ import { VendorFooter } from "@/components/ui/VendorFooter";
 import { VendorHeader } from "@/components/ui/VendorHeader";
 
 import { AuthInitializer } from "@/components/auth/AuthInitializer";
+import { consoleGuardScript, isProduction } from "@/lib/consoleGuard";
 const outfit = Outfit({
   variable: "--font-heading",
   subsets: ["latin"],
@@ -33,6 +35,13 @@ export default function RootLayout({
       className={cn("h-full", "antialiased", outfit.variable, montserrat.variable, "font-sans")}
     >
       <body className="min-h-full flex flex-col">
+        {isProduction ? (
+          <Script
+            id="console-guard"
+            strategy="beforeInteractive"
+            dangerouslySetInnerHTML={{ __html: consoleGuardScript }}
+          />
+        ) : null}
         <Toaster position="top-right" richColors />
         <VendorHeader />
         <main className="flex-1">{children}</main>

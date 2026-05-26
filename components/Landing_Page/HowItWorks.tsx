@@ -69,7 +69,7 @@ export function HowItWorks() {
                 </div>
                 {/* Connector line for desktop */}
                 {index < steps.length - 1 && (
-                  <div className="hidden lg:block absolute top-1/2 -right-3 w-6 h-0.5 bg-zinc-300" />
+                  <div className="hidden lg:block absolute top-1/2 1 w-6 h-0.5 bg-zinc-300" />
                 )}
               </div>
             );
