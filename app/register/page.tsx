@@ -593,7 +593,7 @@ export default function RegisterPage() {
           if (uploadRes.ok && uploadData.success) {
             uploadedCertificateLink = uploadData.fileName;
           } else {
-            toast.error("Failed to upload GST certificate. Please try again.");
+            toast.error(uploadData.message || "Failed to upload GST certificate. Please try again.");
             setIsVerifyingOTP(false);
             return;
           }

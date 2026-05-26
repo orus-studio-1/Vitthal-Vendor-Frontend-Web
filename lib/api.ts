@@ -429,6 +429,8 @@ export const vendorNegotiationApi = {
     action: "offer" | "counter" | "reject";
     offerPrice?: number;
     offerQuantity?: number;
+    deliveryDays?: number;
+    tokenPercentage?: number;
     reason?: string;
     note?: string;
   }): Promise<ApiResponse<void>> => {

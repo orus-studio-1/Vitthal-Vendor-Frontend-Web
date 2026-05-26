@@ -40,6 +40,8 @@ interface VendorProduct {
   stock_quantity: number;
   quotation_enabled?: boolean;
   quotation_min_qty?: number | null;
+  quotation_limit?: number | null;
+  vendor_can_set_quotation_limit?: boolean;
   is_active: boolean;
   status: string;
   vendor_product_created_at: string;
@@ -61,7 +63,6 @@ export default function EditProductPage() {
   const [stockQuantity, setStockQuantity] = useState("");
   const [isActive, setIsActive] = useState(true);
   const [quotationEnabled, setQuotationEnabled] = useState(false);
-  const [quotationMinQty, setQuotationMinQty] = useState("");
 
   useEffect(() => {
     fetchProduct();
@@ -91,7 +92,6 @@ export default function EditProductPage() {
         setStockQuantity(prod.stock_quantity.toString());
         setIsActive(prod.is_active);
         setQuotationEnabled(Boolean(prod.quotation_enabled));
-        setQuotationMinQty(prod.quotation_min_qty?.toString?.() || "");
       } else {
         toast.error(data.message || "Failed to fetch product");
       }
@@ -105,10 +105,6 @@ export default function EditProductPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (quotationEnabled && !quotationMinQty) {
-      toast.error("Please enter a minimum quantity for quotation-enabled products");
-      return;
-    }
     setIsSaving(true);
 
     try {
@@ -128,7 +124,7 @@ export default function EditProductPage() {
             stockQuantity: Number(stockQuantity),
             isActive,
             quotationEnabled,
-            quotationMinQty: quotationEnabled ? Number(quotationMinQty) : null,
+            quotationMinQty: null,
           }),
         },
       );
@@ -386,16 +382,21 @@ export default function EditProductPage() {
             </div>
           </div>
 
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="mt-6 space-y-4">
             <div className="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3">
               <div>
-                <p className="text-sm font-medium text-gray-900">Enable quotation ordering</p>
-                <p className="text-xs text-gray-500">Require negotiation for large quantities</p>
+                <p className="text-sm font-medium text-gray-900">Participate in quotation deals</p>
+                <p className="text-xs text-gray-500">
+                  {product.quotation_limit
+                    ? `This product requires quotation for orders of ${product.quotation_limit}+ units. Enable to receive quotation requests.`
+                    : "No quotation limit set for this product. Contact admin to enable quotation flow."}
+                </p>
               </div>
               <button
                 type="button"
                 onClick={() => setQuotationEnabled((prev) => !prev)}
-                className="text-gray-700"
+                disabled={!product.quotation_limit}
+                className="text-gray-700 disabled:opacity-40"
                 aria-pressed={quotationEnabled}
               >
                 {quotationEnabled ? (
@@ -406,23 +407,19 @@ export default function EditProductPage() {
               </button>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-900 mb-2">
-                Quotation minimum quantity
-              </label>
-              <input
-                type="number"
-                min="1"
-                value={quotationMinQty}
-                onChange={(e) => setQuotationMinQty(e.target.value)}
-                disabled={!quotationEnabled}
-                className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-gray-900 focus:border-gray-900 text-lg font-medium disabled:bg-gray-50"
-                placeholder="e.g. 100"
-              />
-              <p className="text-xs text-gray-500 mt-1.5">
-                Buyers at or above this quantity must request a quotation
-              </p>
-            </div>
+            {product.quotation_limit && (
+              <div className="rounded-lg bg-blue-50 border border-blue-200 px-4 py-3">
+                <p className="text-sm font-medium text-blue-900">Product Quotation Limit</p>
+                <p className="text-xs text-blue-700 mt-0.5">
+                  Orders of <strong>{product.quotation_limit}+</strong> units require quotation negotiation.
+                  {quotationEnabled && Number(stockQuantity) < product.quotation_limit && (
+                    <span className="block mt-1 text-amber-700 font-medium">
+                      ⚠️ Your stock ({stockQuantity}) is below the quotation limit. Increase stock to receive quotation requests.
+                    </span>
+                  )}
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
