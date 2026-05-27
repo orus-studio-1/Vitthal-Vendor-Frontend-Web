@@ -99,6 +99,8 @@ export interface VendorQuotationSummary {
   created_at: string;
   updated_at: string;
   product_name: string;
+  vendor_document_url?: string | null;
+  vendor_document_s3_key?: string | null;
 }
 
 export interface VendorQuotationMessage {
@@ -426,7 +428,7 @@ export const vendorNegotiationApi = {
   },
 
   respondToQuotation: async (id: string, payload: {
-    action: "offer" | "counter" | "reject";
+    action: "offer" | "counter" | "reject" | "accept";
     offerPrice?: number;
     offerQuantity?: number;
     deliveryDays?: number;

@@ -63,6 +63,7 @@ export default function VendorQuotationDetailPage() {
   const [note, setNote] = useState("");
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [vendorActionTab, setVendorActionTab] = useState<"accept" | "counter" | "reject">("counter");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -106,8 +107,7 @@ export default function VendorQuotationDetailPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [quotation?.messages]);
-
-  const submitResponse = async (action: "offer" | "counter" | "reject") => {
+  const submitResponse = async (action: "offer" | "counter" | "reject" | "accept") => {
     if (!canVendorRespond) {
       toast.error("Wait for the client to respond before sending another offer.");
       return;
@@ -127,6 +127,7 @@ export default function VendorQuotationDetailPage() {
           payload.tokenPercentage = Number(tokenPercentage);
         }
         if (action === "counter") {
+          if (!reason.trim()) throw new Error("Reason required for counter offer");
           payload.reason = reason.trim();
           if (deliveryDays) payload.deliveryDays = Number(deliveryDays);
           if (tokenPercentage) payload.tokenPercentage = Number(tokenPercentage);
@@ -137,9 +138,12 @@ export default function VendorQuotationDetailPage() {
         payload.reason = reason.trim();
         payload.note = note.trim();
       }
+      if (action === "accept") {
+        payload.note = note.trim();
+      }
 
       await vendorNegotiationApi.respondToQuotation(quotationId, payload as any);
-      toast.success("Response submitted successfully");
+      toast.success(action === "accept" ? "Offer accepted successfully!" : "Response submitted successfully");
       setNote("");
       setReason("");
       await loadQuotation();
@@ -150,7 +154,6 @@ export default function VendorQuotationDetailPage() {
       setSubmitting(false);
     }
   };
-
   // ─── Computed Values ───────────────────────────────────────────────
   const computedSubtotal = offerPrice && offerQuantity ? Number(offerPrice) * Number(offerQuantity) : 0;
   const computedGST = computedSubtotal * 0.18;
@@ -184,7 +187,7 @@ export default function VendorQuotationDetailPage() {
     <div className="min-h-screen bg-zinc-50/50 pb-20">
       {/* ─── Header ─── */}
       <div className="bg-white border-b border-zinc-200 px-4 py-5 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-[1720px]">
+        <div className="mx-auto max-w-7xl">
           <Link href="/quotations" className="inline-flex items-center gap-2 text-sm font-medium text-zinc-500 hover:text-zinc-900 mb-4 transition-colors">
             <ArrowLeft size={16} /> Back to requests
           </Link>
@@ -199,8 +202,8 @@ export default function VendorQuotationDetailPage() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              {document && (
-                <a href={document.document_url} target="_blank" rel="noopener noreferrer"
+              {(info.vendor_document_url || document?.document_url) && (
+                <a href={info.vendor_document_url ? (info.vendor_document_url.includes('?') ? info.vendor_document_url : `${info.vendor_document_url}?t=${new Date(info.updated_at).getTime()}`) : (document?.document_url || "#")} target="_blank" rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 transition-colors">
                   <FileText size={16} /> View Agreement <ExternalLink size={14} />
                 </a>
@@ -221,17 +224,17 @@ export default function VendorQuotationDetailPage() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-[1720px] px-4 py-6 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6 items-start">
 
           {/* ─── Left Panel ─── */}
           <div className="flex flex-col gap-6 h-[800px] lg:h-[850px] shrink-0">
-            
+
             {/* Premium S3 Documents Card */}
             <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm bg-gradient-to-br from-zinc-50 to-white shrink-0">
               <h2 className="text-sm font-bold text-zinc-950 flex items-center gap-2 mb-4">
                 <FileText size={18} className="text-emerald-600" />
-                Official S3 Agreements
+                Official Agreements
               </h2>
               <div className="space-y-3">
                 {/* 1. Base Request Agreement */}
@@ -257,7 +260,7 @@ export default function VendorQuotationDetailPage() {
                 {/* 2. Vendor Specific Filled Agreement */}
                 {(info as any).vendor_document_url ? (
                   <a
-                    href={(info as any).vendor_document_url}
+                    href={(info as any).vendor_document_url.includes('?') ? (info as any).vendor_document_url : `${(info as any).vendor_document_url}?t=${new Date((info as any).updated_at || info.created_at).getTime()}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center justify-between p-3 rounded-xl border border-blue-200 bg-blue-50/50 hover:bg-blue-50 transition-colors text-xs font-semibold text-blue-800 animate-pulse"
@@ -311,7 +314,7 @@ export default function VendorQuotationDetailPage() {
                   </div>
                 )}
                 {(info as any).vendor_document_url && (
-                  <a href={(info as any).vendor_document_url} target="_blank" rel="noopener noreferrer"
+                  <a href={(info as any).vendor_document_url.includes('?') ? (info as any).vendor_document_url : `${(info as any).vendor_document_url}?t=${new Date((info as any).updated_at || info.created_at).getTime()}`} target="_blank" rel="noopener noreferrer"
                     className="flex items-center gap-2 text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors pt-2">
                     <FileText size={14} /> Your Filled Quotation Document <ExternalLink size={12} />
                   </a>
@@ -358,8 +361,9 @@ export default function VendorQuotationDetailPage() {
             </div>
 
             {/* Chat Area */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-5 bg-gradient-to-b from-zinc-50/50 to-white">
-              {displayMessages.length === 0 ? (
+            <div className="flex-1 overflow-y-auto p-6 bg-gradient-to-b from-zinc-50/50 to-white">
+              <div className="max-w-4xl mx-auto w-full space-y-5">
+                {displayMessages.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-zinc-400">
                   <Clock size={32} className="mb-3 text-zinc-300" />
                   <p className="text-sm font-medium">No messages yet</p>
@@ -384,15 +388,13 @@ export default function VendorQuotationDetailPage() {
                         </div>
 
                         {/* Message Card */}
-                        <div className={`rounded-2xl overflow-hidden border ${
-                          isVendor
+                        <div className={`rounded-2xl overflow-hidden border ${isVendor
                             ? "bg-gradient-to-br from-blue-600 to-blue-700 border-blue-500 text-white"
                             : "bg-white border-zinc-200 text-zinc-900 shadow-sm"
-                        }`}>
-                          {/* Action badge */}
-                          <div className={`px-4 py-2 text-xs font-bold uppercase tracking-widest border-b ${
-                            isVendor ? "border-blue-500/30 text-blue-100 bg-blue-700/50" : "border-zinc-100 text-zinc-500 bg-zinc-50"
                           }`}>
+                          {/* Action badge */}
+                          <div className={`px-4 py-2 text-xs font-bold uppercase tracking-widest border-b ${isVendor ? "border-blue-500/30 text-blue-100 bg-blue-700/50" : "border-zinc-100 text-zinc-500 bg-zinc-50"
+                            }`}>
                             {msg.action === "request" && "📋 Quotation Request"}
                             {msg.action === "offer" && "💰 Offer Sent"}
                             {msg.action === "counter" && (isVendor ? "↩️ Your Counter" : "↩️ Client Counter")}
@@ -455,6 +457,7 @@ export default function VendorQuotationDetailPage() {
                 })
               )}
               <div ref={messagesEndRef} />
+              </div>
             </div>
 
             {/* ─── Action Area ─── */}
@@ -473,144 +476,257 @@ export default function VendorQuotationDetailPage() {
                   </div>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {/* Live Calculation Preview */}
-                  {offerPrice && offerQuantity && (
-                    <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4">
-                      <h4 className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-2 flex items-center gap-1">
-                        <IndianRupee size={12} /> Live Quote Preview
-                      </h4>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
-                        <div className="bg-white rounded-lg border border-blue-100 p-2">
-                          <p className="text-zinc-400">Subtotal</p>
-                          <p className="font-bold text-zinc-900">{formatINR(computedSubtotal)}</p>
+                <div className="space-y-5">
+                  {/* If client countered, show action tabs */}
+                  {info.status === "client_countered" && (
+                    <div className="flex gap-2 p-1 bg-zinc-100 rounded-xl">
+                      <button
+                        type="button"
+                        onClick={() => { setVendorActionTab("accept"); setReason(""); }}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-semibold rounded-lg transition-all ${vendorActionTab === "accept" ? "bg-white shadow text-emerald-700" : "text-zinc-600 hover:text-zinc-900"}`}
+                      >
+                        <CheckCircle2 size={14} /> Accept Offer
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setVendorActionTab("counter"); setReason(""); }}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-semibold rounded-lg transition-all ${vendorActionTab === "counter" ? "bg-white shadow text-blue-700" : "text-zinc-600 hover:text-zinc-900"}`}
+                      >
+                        <Send size={14} /> Make Counter Offer
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setVendorActionTab("reject"); setReason("Cannot fulfill terms"); }}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-semibold rounded-lg transition-all ${vendorActionTab === "reject" ? "bg-white shadow text-rose-700" : "text-zinc-600 hover:text-zinc-900"}`}
+                      >
+                        <XCircle size={14} /> Reject
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Accept Offer Pathway */}
+                  {info.status === "client_countered" && vendorActionTab === "accept" && (
+                    <div className="space-y-4 animate-fade-in">
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 text-emerald-800 flex items-start gap-2.5">
+                        <CheckCircle2 size={18} className="shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-semibold">You are accepting the client's counter offer</p>
+                          <p className="text-xs text-emerald-600 mt-0.5">
+                            This will accept the client's bid of <strong className="text-emerald-800">{formatINR(info.current_offer_price)}</strong> for <strong className="text-emerald-800">{info.current_offer_quantity} units</strong>, and close bidding with other vendors.
+                          </p>
                         </div>
-                        <div className="bg-white rounded-lg border border-blue-100 p-2">
-                          <p className="text-zinc-400">GST (18%)</p>
-                          <p className="font-bold text-zinc-900">{formatINR(computedGST)}</p>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1 mb-1 block">Acceptance Note (optional)</label>
+                        <textarea
+                          value={note}
+                          onChange={(e) => setNote(e.target.value)}
+                          placeholder="e.g. We are pleased to accept your counter offer terms..."
+                          className="w-full min-h-[80px] resize-none rounded-xl border border-zinc-300 bg-zinc-50 px-4 py-3 text-sm focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
+                        />
+                      </div>
+
+                      <button
+                        onClick={() => void submitResponse("accept")}
+                        disabled={submitting}
+                        className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                      >
+                        {submitting ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle2 size={18} />}
+                        Accept and Create Order
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Reject Pathway */}
+                  {((info.status === "client_countered" && vendorActionTab === "reject") || reason) && (
+                    <div className="space-y-4 animate-fade-in">
+                      <div className="rounded-xl border border-rose-200 bg-rose-50/50 p-4 text-rose-800 flex items-start gap-2.5">
+                        <XCircle size={18} className="shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-semibold">Reject this quotation request</p>
+                          <p className="text-xs text-rose-600 mt-0.5">
+                            Rejection is permanent and will close this quotation request.
+                          </p>
                         </div>
-                        <div className="bg-white rounded-lg border border-blue-100 p-2">
-                          <p className="text-zinc-400">Grand Total</p>
-                          <p className="font-bold text-emerald-700">{formatINR(computedTotal)}</p>
-                        </div>
-                        {tokenPercentage && (
-                          <div className="bg-white rounded-lg border border-orange-100 p-2">
-                            <p className="text-zinc-400">Token ({tokenPercentage}%)</p>
-                            <p className="font-bold text-orange-700">{formatINR(computedTokenAmount)}</p>
-                          </div>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-rose-500 uppercase tracking-wider ml-1 mb-1 block">Reason for Rejection *</label>
+                        <input
+                          type="text"
+                          value={reason}
+                          onChange={(e) => setReason(e.target.value)}
+                          placeholder="Why are you rejecting this request? (Required)"
+                          className="w-full rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm text-rose-800 placeholder-rose-300 focus:border-rose-500 focus:outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1 mb-1 block">Rejection Note (optional)</label>
+                        <textarea
+                          value={note}
+                          onChange={(e) => setNote(e.target.value)}
+                          placeholder="Additional details about rejection..."
+                          className="w-full min-h-[80px] resize-none rounded-xl border border-zinc-300 bg-zinc-50 px-4 py-3 text-sm focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
+                        />
+                      </div>
+
+                      <div className="flex gap-3">
+                        {info.status === "client_countered" && (
+                          <button
+                            type="button"
+                            onClick={() => { setVendorActionTab("counter"); setReason(""); }}
+                            className="px-5 py-3 text-sm font-semibold text-zinc-500 hover:bg-zinc-50 rounded-xl transition-colors border border-zinc-200"
+                          >
+                            Back
+                          </button>
                         )}
+                        <button
+                          onClick={() => void submitResponse("reject")}
+                          disabled={submitting || !reason.trim()}
+                          className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-rose-600 py-3 text-sm font-bold text-white shadow-sm hover:bg-rose-700 disabled:opacity-50 transition-colors"
+                        >
+                          {submitting ? <Loader2 className="animate-spin" size={18} /> : <XCircle size={18} />}
+                          Confirm Rejection
+                        </button>
                       </div>
                     </div>
                   )}
 
-                  {/* Offer Form */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1 mb-1 block">Your Price (₹) *</label>
-                      <input
-                        type="number"
-                        value={offerPrice}
-                        onChange={(e) => setOfferPrice(e.target.value)}
-                        className="w-full rounded-xl border border-zinc-300 bg-zinc-50 px-4 py-2.5 text-sm font-medium focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
-                        placeholder="Price per unit"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1 mb-1 block">Quantity *</label>
-                      <input
-                        type="number"
-                        value={offerQuantity}
-                        onChange={(e) => setOfferQuantity(e.target.value)}
-                        className="w-full rounded-xl border border-zinc-300 bg-zinc-50 px-4 py-2.5 text-sm font-medium focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
-                        placeholder="Units"
-                      />
-                    </div>
-                  </div>
+                  {/* Counter Offer/First Offer Pathway */}
+                  {(isFirstOffer || (info.status === "client_countered" && vendorActionTab === "counter" && !reason)) && (
+                    <div className="space-y-4 animate-fade-in">
+                      {/* Live Calculation Preview */}
+                      {offerPrice && offerQuantity && (
+                        <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4">
+                          <h4 className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-2 flex items-center gap-1">
+                            <IndianRupee size={12} /> Live Quote Preview
+                          </h4>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+                            <div className="bg-white rounded-lg border border-blue-100 p-2">
+                              <p className="text-zinc-400">Subtotal</p>
+                              <p className="font-bold text-zinc-900">{formatINR(computedSubtotal)}</p>
+                            </div>
+                            <div className="bg-white rounded-lg border border-blue-100 p-2">
+                              <p className="text-zinc-400">GST (18%)</p>
+                              <p className="font-bold text-zinc-900">{formatINR(computedGST)}</p>
+                            </div>
+                            <div className="bg-white rounded-lg border border-blue-100 p-2">
+                              <p className="text-zinc-400">Grand Total</p>
+                              <p className="font-bold text-emerald-700">{formatINR(computedTotal)}</p>
+                            </div>
+                            {tokenPercentage && (
+                              <div className="bg-white rounded-lg border border-orange-100 p-2">
+                                <p className="text-zinc-400">Token ({tokenPercentage}%)</p>
+                                <p className="font-bold text-orange-700">{formatINR(computedTokenAmount)}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
 
-                  {/* Delivery & Token (required on first offer) */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1 mb-1 block flex items-center gap-1">
-                        <Truck size={12} /> Delivery Days {isFirstOffer && <span className="text-rose-500">*</span>}
-                      </label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={deliveryDays}
-                        onChange={(e) => setDeliveryDays(e.target.value)}
-                        className="w-full rounded-xl border border-zinc-300 bg-zinc-50 px-4 py-2.5 text-sm font-medium focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
-                        placeholder="e.g. 7"
-                      />
-                      <p className="text-[10px] text-zinc-400 mt-1 ml-1">Business days to deliver after order confirmation</p>
-                    </div>
-                    <div>
-                      <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1 mb-1 block flex items-center gap-1">
-                        <Percent size={12} /> Token Money % {isFirstOffer && <span className="text-rose-500">*</span>}
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.5"
-                        value={tokenPercentage}
-                        onChange={(e) => setTokenPercentage(e.target.value)}
-                        className="w-full rounded-xl border border-zinc-300 bg-zinc-50 px-4 py-2.5 text-sm font-medium focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
-                        placeholder="e.g. 10"
-                      />
-                      <p className="text-[10px] text-zinc-400 mt-1 ml-1">% of total to be paid upfront as advance</p>
-                    </div>
-                  </div>
+                      {/* Offer Form Fields */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1 mb-1 block">Your Price (₹) *</label>
+                          <input
+                            type="number"
+                            value={offerPrice}
+                            onChange={(e) => setOfferPrice(e.target.value)}
+                            className="w-full rounded-xl border border-zinc-300 bg-zinc-50 px-4 py-2.5 text-sm font-medium focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
+                            placeholder="Price per unit"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1 mb-1 block">Quantity *</label>
+                          <input
+                            type="number"
+                            value={offerQuantity}
+                            onChange={(e) => setOfferQuantity(e.target.value)}
+                            className="w-full rounded-xl border border-zinc-300 bg-zinc-50 px-4 py-2.5 text-sm font-medium focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
+                            placeholder="Units"
+                          />
+                        </div>
+                      </div>
 
-                  <div>
-                    <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1 mb-1 block">Message / Note</label>
-                    <textarea
-                      value={note}
-                      onChange={(e) => setNote(e.target.value)}
-                      placeholder="Add a message to the client..."
-                      className="w-full min-h-[70px] resize-none rounded-xl border border-zinc-300 bg-zinc-50 px-4 py-3 text-sm focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
-                    />
-                  </div>
+                      {/* Delivery & Token */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1 mb-1 block flex items-center gap-1">
+                            <Truck size={12} /> Delivery Days {isFirstOffer && <span className="text-rose-500">*</span>}
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            value={deliveryDays}
+                            onChange={(e) => setDeliveryDays(e.target.value)}
+                            className="w-full rounded-xl border border-zinc-300 bg-zinc-50 px-4 py-2.5 text-sm font-medium focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
+                            placeholder="e.g. 7"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1 mb-1 block flex items-center gap-1">
+                            <Percent size={12} /> Token Money % {isFirstOffer && <span className="text-rose-500">*</span>}
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.5"
+                            value={tokenPercentage}
+                            onChange={(e) => setTokenPercentage(e.target.value)}
+                            className="w-full rounded-xl border border-zinc-300 bg-zinc-50 px-4 py-2.5 text-sm font-medium focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
+                            placeholder="e.g. 10"
+                          />
+                        </div>
+                      </div>
 
-                  {reason && (
-                    <div>
-                      <label className="text-xs font-semibold text-rose-500 uppercase tracking-wider ml-1 mb-1 block">Rejection Reason</label>
-                      <input
-                        type="text"
-                        value={reason}
-                        onChange={(e) => setReason(e.target.value)}
-                        placeholder="Required if rejecting"
-                        className="w-full rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-800 placeholder-rose-300 focus:border-rose-500 focus:outline-none"
-                      />
+                      {/* Reason input for counter offer (mandatory!) */}
+                      {!isFirstOffer && (
+                        <div>
+                          <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1 mb-1 block">Reason for Counter Offer *</label>
+                          <input
+                            type="text"
+                            value={reason}
+                            onChange={(e) => setReason(e.target.value)}
+                            placeholder="Why are you countering the client's price/quantity? (Required)"
+                            className="w-full rounded-xl border border-zinc-300 bg-zinc-50 px-4 py-2.5 text-sm font-medium focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
+                          />
+                        </div>
+                      )}
+
+                      <div>
+                        <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1 mb-1 block">Message / Note (optional)</label>
+                        <textarea
+                          value={note}
+                          onChange={(e) => setNote(e.target.value)}
+                          placeholder="Add a message to the client..."
+                          className="w-full min-h-[70px] resize-none rounded-xl border border-zinc-300 bg-zinc-50 px-4 py-3 text-sm focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
+                        />
+                      </div>
+
+                      <div className="flex gap-3 pt-2 border-t border-zinc-100">
+                        {isFirstOffer && (
+                          <button
+                            type="button"
+                            onClick={() => setReason("Cannot fulfill terms")}
+                            className="px-4 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50 rounded-lg transition-colors mr-auto"
+                          >
+                            Reject Request
+                          </button>
+                        )}
+                        <button
+                          onClick={() => void submitResponse(isFirstOffer ? "offer" : "counter")}
+                          disabled={submitting || !offerPrice || !offerQuantity || (!isFirstOffer && !reason.trim())}
+                          className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-bold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                        >
+                          {submitting ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
+                          {isFirstOffer ? "Send First Offer" : "Send Counter Offer"}
+                        </button>
+                      </div>
                     </div>
                   )}
-
-                  <div className="flex flex-wrap items-center justify-end gap-3 pt-2 border-t border-zinc-100">
-                    <button
-                      onClick={() => setReason(reason ? "" : "Cannot fulfill request")}
-                      className="px-4 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50 rounded-lg transition-colors mr-auto"
-                    >
-                      {reason ? "Cancel Rejection" : "Reject Request"}
-                    </button>
-
-                    {reason ? (
-                      <button
-                        onClick={() => void submitResponse("reject")}
-                        disabled={submitting || !reason.trim()}
-                        className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-rose-700 disabled:opacity-50 transition-colors"
-                      >
-                        <XCircle size={18} /> Confirm Rejection
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => void submitResponse(isFirstOffer ? "offer" : "counter")}
-                        disabled={submitting || !offerPrice || !offerQuantity}
-                        className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                      >
-                        {submitting ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
-                        {isFirstOffer ? "Send First Offer" : "Send Counter Offer"}
-                      </button>
-                    )}
-                  </div>
                 </div>
               )}
             </div>

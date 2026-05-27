@@ -343,7 +343,6 @@ export default function AddProductPage() {
   const [moq, setMoq] = useState("");
   const [stockQuantity, setStockQuantity] = useState("");
   const [quotationEnabled, setQuotationEnabled] = useState(false);
-  const [quotationMinQty, setQuotationMinQty] = useState("");
   const toolbarButtonClass =
     "inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-100";
 
@@ -546,10 +545,7 @@ export default function AddProductPage() {
       return;
     }
 
-    if (quotationEnabled && !quotationMinQty) {
-      toast.error("Please enter a minimum quantity for quotation-enabled products!");
-      return;
-    }
+    // No local quotation limit validation needed as it's product-global
 
     // Category validation for existing products
     if (!isCreatingNew && selectedProduct) {
@@ -659,7 +655,7 @@ export default function AddProductPage() {
           moq: Number(moq),
           stockQuantity: Number(stockQuantity),
           quotationEnabled,
-          quotationMinQty: quotationEnabled ? Number(quotationMinQty) : null,
+          quotationMinQty: null,
         }),
       });
 
@@ -1612,10 +1608,8 @@ export default function AddProductPage() {
                   Total units available right now
                 </p>
               </div>
-            </div>
-
-            <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3">
+                      <div className="mt-6">
+              <div className="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 max-w-md">
                 <div>
                   <p className="text-sm font-medium text-gray-900">Enable quotation ordering</p>
                   <p className="text-xs text-gray-500">Require negotiation for large quantities</p>
@@ -1633,25 +1627,7 @@ export default function AddProductPage() {
                   )}
                 </button>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-900 mb-1">
-                  Quotation minimum quantity
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={quotationMinQty}
-                  onChange={(e) => setQuotationMinQty(e.target.value)}
-                  placeholder="e.g. 100"
-                  disabled={!quotationEnabled}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-gray-900 focus:border-gray-900 text-lg font-medium disabled:bg-gray-50"
-                />
-                <p className="text-xs text-gray-500 mt-1.5">
-                  Buyers at or above this quantity must request a quotation
-                </p>
-              </div>
-            </div>
+            </div>      </div>
           </div>
 
           {/* Action Footer */}

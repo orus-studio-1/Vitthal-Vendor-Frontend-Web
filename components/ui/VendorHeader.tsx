@@ -17,7 +17,7 @@ export function VendorHeader() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
   const { user, isAuthenticated, isLoading, logout } = useAuthStore();
-  const { notifications, unreadCount, isLoading: notificationsLoading, fetchNotifications, fetchUnreadCount, markRead, markAllRead } = useNotificationStore();
+  const { notifications, unreadCount, isLoading: notificationsLoading, fetchNotifications, fetchUnreadCount, markRead, markAllRead, initSocket, disconnectSocket } = useNotificationStore();
   const router = useRouter();
 
   // Close dropdown when clicking outside
@@ -35,12 +35,12 @@ export function VendorHeader() {
   }, []);
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && user?.userId) {
       fetchUnreadCount();
-      const interval = setInterval(fetchUnreadCount, 30000);
-      return () => clearInterval(interval);
+      initSocket(user.userId);
+      return () => disconnectSocket();
     }
-  }, [isAuthenticated, fetchUnreadCount]);
+  }, [isAuthenticated, user?.userId, fetchUnreadCount, initSocket, disconnectSocket]);
 
   function handleOpenNotifications() {
     setNotifDropdown(!notifDropdown);
