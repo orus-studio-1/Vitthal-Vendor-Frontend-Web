@@ -324,12 +324,12 @@ const ProductsPage = () => {
                       <div className="flex flex-col items-start gap-2">
                         <span
                           className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
-                            product.status
+                            product.status && product.approval_status === "approved"
                               ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                               : "bg-gray-50 text-gray-700 border-gray-200"
                           }`}
                         >
-                          {product.status ? "Active" : "Inactive"}
+                          {product.status && product.approval_status === "approved" ? "Active" : "Inactive"}
                         </span>
                         <span
                           className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
@@ -342,6 +342,11 @@ const ProductsPage = () => {
                         >
                           {product.approval_status || "pending"}
                         </span>
+                        {product.approval_status === "pending" && (
+                          <p className="text-xs text-amber-600 font-medium">
+                            (Needs Admin Approval)
+                          </p>
+                        )}
                         {product.approval_notes ? (
                           <p className="max-w-[220px] text-xs text-gray-500">
                             {product.approval_notes}

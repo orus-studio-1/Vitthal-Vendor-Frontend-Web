@@ -3,6 +3,7 @@ import { io, Socket } from "socket.io-client";
 import { toast } from "sonner";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9000";
+const PAGE_SIZE = 20;
 
 export type Notification = {
   id: string;
@@ -20,8 +21,13 @@ type NotificationState = {
   unreadCount: number;
   total: number;
   isLoading: boolean;
+  isLoadingMore: boolean;
+  hasMore: boolean;
+  nextCursor: string | null;
   socket: Socket | null;
+  _pollTimer: ReturnType<typeof setInterval> | null;
   fetchNotifications: () => Promise<void>;
+  fetchMore: () => Promise<void>;
   fetchUnreadCount: () => Promise<void>;
   markRead: (id: string) => Promise<void>;
   markAllRead: () => Promise<void>;
@@ -34,12 +40,16 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   unreadCount: 0,
   total: 0,
   isLoading: false,
+  isLoadingMore: false,
+  hasMore: false,
+  nextCursor: null,
   socket: null,
+  _pollTimer: null,
 
   fetchNotifications: async () => {
     set({ isLoading: true });
     try {
-      const res = await fetch(`${API_BASE}/api/notifications?limit=50`, {
+      const res = await fetch(`${API_BASE}/api/notifications?limit=${PAGE_SIZE}`, {
         credentials: "include",
         headers: { "Content-Type": "application/json", "x-request-from": "vendor" },
       });
@@ -49,6 +59,8 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
           notifications: data.data?.notifications || [],
           unreadCount: data.data?.unread || 0,
           total: data.data?.total || 0,
+          hasMore: data.data?.hasMore || false,
+          nextCursor: data.data?.nextCursor || null,
           isLoading: false,
         });
       } else {
@@ -56,6 +68,43 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       }
     } catch {
       set({ isLoading: false });
+    }
+  },
+
+  fetchMore: async () => {
+    const { nextCursor, hasMore, isLoadingMore } = get();
+    if (!hasMore || isLoadingMore || !nextCursor) return;
+
+    set({ isLoadingMore: true });
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/notifications?limit=${PAGE_SIZE}&cursor=${encodeURIComponent(nextCursor)}`,
+        {
+          credentials: "include",
+          headers: { "Content-Type": "application/json", "x-request-from": "vendor" },
+        }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const newNotifs: Notification[] = data.data?.notifications || [];
+
+        set((state) => {
+          // Deduplicate
+          const existingIds = new Set(state.notifications.map((n) => n.id));
+          const unique = newNotifs.filter((n) => !existingIds.has(n.id));
+
+          return {
+            notifications: [...state.notifications, ...unique],
+            hasMore: data.data?.hasMore || false,
+            nextCursor: data.data?.nextCursor || null,
+            isLoadingMore: false,
+          };
+        });
+      } else {
+        set({ isLoadingMore: false });
+      }
+    } catch {
+      set({ isLoadingMore: false });
     }
   },
 
@@ -110,7 +159,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 
   initSocket: (userId: string) => {
     const state = get();
-    if (state.socket) return; // Already connected
+    if (state.socket) return;
 
     console.log(`[Socket.io] Connecting vendor to /notifications namespace for user: ${userId}`);
     const socket = io(`${API_BASE}/notifications`, {
@@ -122,19 +171,17 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 
     socket.on("notification", (notif: Notification) => {
       console.log("[Socket.io] Vendor received new real-time notification:", notif);
-      
+
       set((prev) => {
-        // Prevent duplicate entries
         if (prev.notifications.some((n) => n.id === notif.id)) return {};
-        
+
         return {
-          notifications: [notif, ...prev.notifications].slice(0, 50),
+          notifications: [notif, ...prev.notifications],
           unreadCount: prev.unreadCount + 1,
           total: prev.total + 1,
         };
       });
 
-      // Show real-time notification toast
       toast.info(notif.title, {
         description: notif.body,
       });

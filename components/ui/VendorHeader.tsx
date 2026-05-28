@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useLayoutEffect, useEffect } from "react";
+import { useState, useRef, useLayoutEffect, useEffect, useCallback } from "react";
 import { Menu, X, User, LogOut, ChevronDown, LayoutDashboard, Package, ShoppingBag, BarChart3, Settings, HelpCircle, Bell, FileText, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -17,7 +17,7 @@ export function VendorHeader() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
   const { user, isAuthenticated, isLoading, logout } = useAuthStore();
-  const { notifications, unreadCount, isLoading: notificationsLoading, fetchNotifications, fetchUnreadCount, markRead, markAllRead, initSocket, disconnectSocket } = useNotificationStore();
+  const { notifications, unreadCount, isLoading: notificationsLoading, isLoadingMore, hasMore, fetchNotifications, fetchMore, fetchUnreadCount, markRead, markAllRead, initSocket, disconnectSocket } = useNotificationStore();
   const router = useRouter();
 
   // Close dropdown when clicking outside
@@ -46,6 +46,18 @@ export function VendorHeader() {
     setNotifDropdown(!notifDropdown);
     if (!notifDropdown) void fetchNotifications();
   }
+
+  // Infinite scroll handler for dropdown
+  const handleDropdownScroll = useCallback(
+    (e: React.UIEvent<HTMLDivElement>) => {
+      const target = e.currentTarget;
+      const nearBottom = target.scrollHeight - target.scrollTop - target.clientHeight < 80;
+      if (nearBottom && hasMore && !isLoadingMore) {
+        fetchMore();
+      }
+    },
+    [hasMore, isLoadingMore, fetchMore]
+  );
 
   function timeAgo(dateStr: string) {
     const diff = Date.now() - new Date(dateStr).getTime();
@@ -150,20 +162,29 @@ export function VendorHeader() {
                 {notifDropdown && (
                   <div className="absolute right-0 top-full mt-3 w-88 max-h-120 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl shadow-zinc-900/10 z-50 flex flex-col backdrop-blur-sm">
                     <div className="flex items-center justify-between border-b border-zinc-100 bg-linear-to-r from-zinc-50 via-white to-emerald-50/60 px-4 py-3.5">
-                      <div>
+                      <div className="flex-1">
                         <p className="text-sm font-bold text-zinc-900">Notifications</p>
                         <p className="text-[11px] text-zinc-500">Recent updates and alerts</p>
                       </div>
-                      {unreadCount > 0 && (
-                        <button
-                          onClick={() => markAllRead()}
-                          className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-100"
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href="/notifications"
+                          onClick={() => setNotifDropdown(false)}
+                          className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-100"
                         >
-                          Mark all read
-                        </button>
-                      )}
+                          See all
+                        </Link>
+                        {unreadCount > 0 && (
+                          <button
+                            onClick={() => markAllRead()}
+                            className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-100"
+                          >
+                            Mark all read
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <div className="overflow-y-auto max-h-96 divide-y divide-zinc-50">
+                    <div className="overflow-y-auto max-h-96 divide-y divide-zinc-50" onScroll={handleDropdownScroll}>
                       {notificationsLoading ? (
                         <div className="space-y-3 p-4">
                           {[...Array(4)].map((_, index) => (
@@ -183,36 +204,46 @@ export function VendorHeader() {
                             <Bell size={20} />
                           </div>
                           You have no notifications
-                          <p className="mt-1 text-xs text-zinc-400">You’ll see order, quotation, and account updates here.</p>
+                          <p className="mt-1 text-xs text-zinc-400">You&apos;ll see order, quotation, and account updates here.</p>
                         </div>
                       ) : (
-                        notifications.map((n) => (
-                          <button
-                            key={n.id}
-                            onClick={() => {
-                              if (!n.is_read) markRead(n.id);
-                              setNotifDropdown(false);
-                              if (n.reference_type === "quotation" && n.reference_id) {
-                                router.push(`/quotations/${n.reference_id}`);
-                              }
-                            }}
-                            className={`w-full text-left px-4 py-3.5 hover:bg-zinc-50 transition-colors flex gap-3.5 ${!n.is_read ? "bg-blue-50/40" : ""}`}
-                          >
-                            <div className={`mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${!n.is_read ? "bg-blue-100 text-blue-700" : "bg-zinc-100 text-zinc-500"}`}>
-                              <Bell size={16} />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between gap-3">
-                                <p className="text-sm font-semibold text-zinc-800 truncate">{n.title}</p>
-                                <span className={`mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full ${!n.is_read ? "bg-blue-500" : "bg-zinc-200"}`} />
+                        <>
+                          {notifications.map((n) => (
+                            <button
+                              key={n.id}
+                              onClick={() => {
+                                if (!n.is_read) markRead(n.id);
+                                setNotifDropdown(false);
+                                if (n.reference_type === "quotation" && n.reference_id) {
+                                  router.push(`/quotations/${n.reference_id}`);
+                                } else if (n.reference_type === "product" && n.reference_id) {
+                                  router.push(`/products`);
+                                }
+                              }}
+                              className={`w-full text-left px-4 py-3.5 hover:bg-zinc-50 transition-colors flex gap-3.5 ${!n.is_read ? "bg-blue-50/40" : ""}`}
+                            >
+                              <div className={`mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${!n.is_read ? "bg-blue-100 text-blue-700" : "bg-zinc-100 text-zinc-500"}`}>
+                                <Bell size={16} />
                               </div>
-                              <p className="mt-1 text-xs leading-5 text-zinc-500 line-clamp-2">{n.body}</p>
-                              <p className="mt-2 text-[11px] font-medium uppercase tracking-wider text-zinc-400">{timeAgo(n.created_at)}</p>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between gap-3">
+                                  <p className="text-sm font-semibold text-zinc-800 truncate">{n.title}</p>
+                                  <span className={`mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full ${!n.is_read ? "bg-blue-500" : "bg-zinc-200"}`} />
+                                </div>
+                                <p className="mt-1 text-xs leading-5 text-zinc-500 line-clamp-2">{n.body}</p>
+                                <p className="mt-2 text-[11px] font-medium uppercase tracking-wider text-zinc-400">{timeAgo(n.created_at)}</p>
+                              </div>
+                            </button>
+                          ))}
+                          {isLoadingMore && (
+                            <div className="flex items-center justify-center py-3">
+                              <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-200 border-t-emerald-500" />
                             </div>
-                          </button>
-                        ))
+                          )}
+                        </>
                       )}
                     </div>
+
                   </div>
                 )}
               </div>
@@ -417,6 +448,21 @@ export function VendorHeader() {
                   >
                     <MessageSquare size={18} />
                     Chat with Admin
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/notifications"
+                    className="flex items-center gap-3 rounded-lg px-3 py-3 hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <Bell size={18} />
+                    Notifications
+                    {unreadCount > 0 && (
+                      <span className="ml-auto inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
+                        {unreadCount > 9 ? "9+" : unreadCount}
+                      </span>
+                    )}
                   </Link>
                 </li>
                 <li>
