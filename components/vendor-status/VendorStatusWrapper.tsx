@@ -13,6 +13,7 @@ interface VendorStatusData {
 
 export default function VendorStatusWrapper({ children }: { children: React.ReactNode }) {
   const [vendorStatus, setVendorStatus] = useState<string | null>(null);
+  const [isBlocked, setIsBlocked] = useState<boolean>(false);
   const [applicationNumber, setApplicationNumber] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -35,6 +36,7 @@ export default function VendorStatusWrapper({ children }: { children: React.Reac
           return;
         }
         setVendorStatus(data.approval_status);
+        setIsBlocked(data.is_blocked || false);
         setApplicationNumber(data.application_number);
       } catch (err) {
         console.error('Failed to fetch vendor status:', err);
@@ -65,6 +67,11 @@ export default function VendorStatusWrapper({ children }: { children: React.Reac
         </div>
       </div>
     );
+  }
+
+  // Show blocked screen if vendor is blocked
+  if (isBlocked) {
+    return <VendorStatusDisplay status="blocked" applicationNumber={applicationNumber} />;
   }
 
   // Show status screen if vendor is not approved

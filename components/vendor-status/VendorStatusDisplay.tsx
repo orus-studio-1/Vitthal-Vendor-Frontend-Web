@@ -55,6 +55,17 @@ export default function VendorStatusDisplay({ status, applicationNumber }: Vendo
           descriptionColor: 'text-red-700',
           borderColor: 'border-red-200'
         };
+      case 'blocked':
+        return {
+          icon: XCircle,
+          title: 'Account Blocked',
+          description: 'Your vendor account has been blocked by the Administrator. You cannot access the dashboard or perform any actions.',
+          bgColor: 'bg-rose-50',
+          iconColor: 'text-rose-600',
+          titleColor: 'text-rose-900',
+          descriptionColor: 'text-rose-700',
+          borderColor: 'border-rose-200'
+        };
       default:
         return {
           icon: AlertCircle,

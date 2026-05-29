@@ -282,13 +282,14 @@ const DashboardPage = () => {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [isLoadingDashboard, setIsLoadingDashboard] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [timeframe, setTimeframe] = useState<string>("7");
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (currentTimeframe = timeframe) => {
     setIsLoadingDashboard(true);
     setError(null);
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/vendors/dashboard`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/vendors/dashboard?timeframe=${currentTimeframe}`,
         {
           credentials: "include",
           headers: {
@@ -319,10 +320,10 @@ const DashboardPage = () => {
     }
   };
 
-  // Fetch dashboard data on component mount
+  // Fetch dashboard data on component mount and timeframe change
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    fetchDashboardData(timeframe);
+  }, [timeframe]);
 
   const chartData = useMemo(() => ({
     labels: dashboardData?.revenueChart?.labels || DEFAULT_DASHBOARD_DATA.revenueChart.labels,
@@ -461,7 +462,11 @@ const DashboardPage = () => {
                 <h2 className="text-xl font-bold text-gray-900 tracking-tight">Revenue Analytics</h2>
                 <p className="text-sm text-gray-500 font-medium mt-1">Weekly earnings overview</p>
               </div>
-              <select className="bg-gray-50/80 border border-gray-200 text-gray-700 text-sm font-medium rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 block px-4 py-2 outline-none cursor-pointer hover:bg-gray-100 transition-colors" defaultValue="7">
+              <select 
+                className="bg-gray-50/80 border border-gray-200 text-gray-700 text-sm font-medium rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 block px-4 py-2 outline-none cursor-pointer hover:bg-gray-100 transition-colors" 
+                value={timeframe}
+                onChange={(e) => setTimeframe(e.target.value)}
+              >
                 <option value="7">Last 7 days</option>
                 <option value="30">Last 30 days</option>
                 <option value="365">This Year</option>
