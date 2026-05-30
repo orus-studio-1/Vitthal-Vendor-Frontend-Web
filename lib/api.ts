@@ -101,6 +101,7 @@ export interface VendorQuotationSummary {
   product_name: string;
   vendor_document_url?: string | null;
   vendor_document_s3_key?: string | null;
+  unit?: string | null;
 }
 
 export interface VendorQuotationMessage {

@@ -25,6 +25,7 @@ type VendorProduct = {
   stock_quantity: number;
   approval_status?: string;
   approval_notes?: string | null;
+  vendor_product_status?: string;
 };
 
 const ProductsPage = () => {
@@ -322,15 +323,18 @@ const ProductsPage = () => {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col items-start gap-2">
+                        {/* Live/Listing Status Badge */}
                         <span
                           className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
-                            product.status && product.approval_status === "approved"
+                            product.status && product.approval_status === "approved" && product.vendor_product_status === "active"
                               ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                               : "bg-gray-50 text-gray-700 border-gray-200"
                           }`}
                         >
-                          {product.status && product.approval_status === "approved" ? "Active" : "Inactive"}
+                          {product.status && product.approval_status === "approved" && product.vendor_product_status === "active" ? "Active" : "Inactive"}
                         </span>
+
+                        {/* Global Product Approval Badge */}
                         <span
                           className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
                             product.approval_status === "approved"
@@ -340,11 +344,26 @@ const ProductsPage = () => {
                                 : "bg-amber-50 text-amber-700 border-amber-200"
                           }`}
                         >
-                          {product.approval_status || "pending"}
+                          Product: {product.approval_status || "pending"}
                         </span>
-                        {product.approval_status === "pending" && (
-                          <p className="text-xs text-amber-600 font-medium">
-                            (Needs Admin Approval)
+
+                        {/* Listing/Mapping Approval Badge */}
+                        {product.vendor_product_status && product.vendor_product_status !== "active" && (
+                          <span
+                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
+                              product.vendor_product_status === "waiting"
+                                ? "bg-amber-50 text-amber-700 border-amber-200"
+                                : "bg-red-50 text-red-700 border-red-200"
+                            }`}
+                          >
+                            Listing: {product.vendor_product_status === "waiting" ? "pending approval" : product.vendor_product_status}
+                          </span>
+                        )}
+
+                        {/* Informative Help Text */}
+                        {(product.approval_status === "pending" || product.vendor_product_status === "waiting") && (
+                          <p className="text-xs text-amber-600 font-medium animate-pulse">
+                            (Waiting for Admin Approval)
                           </p>
                         )}
                         {product.approval_notes ? (

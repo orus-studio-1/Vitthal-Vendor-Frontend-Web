@@ -88,8 +88,16 @@ export default function VendorQuotationDetailPage() {
       const data = response.data as any;
       setQuotation({ quotation: data.quotation, messages: data.messages });
       setDocument(data.document || null);
-      if (data.quotation?.current_offer_price != null) setOfferPrice(String(data.quotation.current_offer_price));
-      if (data.quotation?.current_offer_quantity != null) setOfferQuantity(String(data.quotation.current_offer_quantity));
+      if (data.quotation?.current_offer_price != null) {
+        setOfferPrice(String(data.quotation.current_offer_price));
+      }
+
+      if (data.quotation?.current_offer_quantity != null) {
+        setOfferQuantity(String(data.quotation.current_offer_quantity));
+      } else if (data.quotation?.requested_quantity != null) {
+        setOfferQuantity(String(data.quotation.requested_quantity));
+      }
+
       if (data.quotation?.delivery_days != null) setDeliveryDays(String(data.quotation.delivery_days));
       if (data.quotation?.token_percentage != null) setTokenPercentage(String(data.quotation.token_percentage));
     } catch (error) {
@@ -195,7 +203,7 @@ export default function VendorQuotationDetailPage() {
             <div>
               <h1 className="text-2xl font-bold text-zinc-900 tracking-tight">{info.product_name}</h1>
               <div className="flex flex-wrap items-center gap-3 text-sm text-zinc-500 mt-1">
-                <span>Client requested <strong className="text-zinc-800">{info.requested_quantity} units</strong></span>
+                <span>Client requested <strong className="text-zinc-800">{info.requested_quantity} {info.unit || "units"}</strong></span>
                 <span className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5 font-medium">
                   Competing quotation — multiple vendors bidding
                 </span>
@@ -287,7 +295,7 @@ export default function VendorQuotationDetailPage() {
               <div className="space-y-3">
                 <div className="flex justify-between pb-3 border-b border-zinc-100">
                   <span className="text-zinc-500 text-sm">Requested Qty</span>
-                  <span className="font-semibold text-zinc-900">{info.requested_quantity} units</span>
+                  <span className="font-semibold text-zinc-900">{info.requested_quantity} {info.unit || "units"}</span>
                 </div>
                 {info.current_offer_price && (
                   <div className="flex justify-between pb-3 border-b border-zinc-100">
@@ -364,99 +372,108 @@ export default function VendorQuotationDetailPage() {
             <div className="flex-1 overflow-y-auto p-6 bg-gradient-to-b from-zinc-50/50 to-white">
               <div className="max-w-4xl mx-auto w-full space-y-5">
                 {displayMessages.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-zinc-400">
-                  <Clock size={32} className="mb-3 text-zinc-300" />
-                  <p className="text-sm font-medium">No messages yet</p>
-                  <p className="text-xs mt-1">Send your first offer with pricing, delivery timeline, and terms below.</p>
-                </div>
-              ) : (
-                displayMessages.map((msg) => {
-                  const isVendor = msg.sender_role === "vendor";
-                  const subtotal = msg.offer_price && msg.offer_quantity ? msg.offer_price * msg.offer_quantity : null;
-                  const gst = subtotal ? subtotal * 0.18 : null;
-                  const total = subtotal && gst ? subtotal + gst : null;
+                  <div className="h-full flex flex-col items-center justify-center text-zinc-400">
+                    <Clock size={32} className="mb-3 text-zinc-300" />
+                    <p className="text-sm font-medium">No messages yet</p>
+                    <p className="text-xs mt-1">Send your first offer with pricing, delivery timeline, and terms below.</p>
+                  </div>
+                ) : (
+                  displayMessages.map((msg) => {
+                    const isVendor = msg.sender_role === "vendor";
+                    const subtotal = msg.offer_price && msg.offer_quantity ? msg.offer_price * msg.offer_quantity : null;
+                    const gst = subtotal ? subtotal * 0.18 : null;
+                    const total = subtotal && gst ? subtotal + gst : null;
 
-                  return (
-                    <div key={msg.id} className={`flex ${isVendor ? "justify-end" : "justify-start"}`}>
-                      <div className={`max-w-[85%] w-full ${isVendor ? "ml-8" : "mr-8"}`}>
-                        {/* Sender + Time */}
-                        <div className={`flex items-center gap-2 mb-1.5 ${isVendor ? "justify-end" : "justify-start"}`}>
-                          <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${isVendor ? "bg-blue-100 text-blue-700" : "bg-zinc-100 text-zinc-600"}`}>
-                            {isVendor ? "You" : "Client"}
+                    return (
+                      <div key={msg.id} className={`flex ${isVendor ? "justify-end" : "justify-start"}`}>
+                        <div className={`max-w-[85%] w-full ${isVendor ? "ml-8" : "mr-8"}`}>
+                          {/* Sender + Time */}
+                          <div className={`flex items-center gap-2 mb-1.5 ${isVendor ? "justify-end" : "justify-start"}`}>
+                            <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${isVendor ? "bg-blue-100 text-blue-700" : "bg-zinc-100 text-zinc-600"}`}>
+                              {isVendor ? "You" : "Client"}
+                            </div>
+                            <span className="text-[10px] text-zinc-400">{formatTime(msg.created_at)} • {formatDate(msg.created_at)}</span>
                           </div>
-                          <span className="text-[10px] text-zinc-400">{formatTime(msg.created_at)} • {formatDate(msg.created_at)}</span>
-                        </div>
 
-                        {/* Message Card */}
-                        <div className={`rounded-2xl overflow-hidden border ${isVendor
+                          {/* Message Card */}
+                          <div className={`rounded-2xl overflow-hidden border ${isVendor
                             ? "bg-gradient-to-br from-blue-600 to-blue-700 border-blue-500 text-white"
                             : "bg-white border-zinc-200 text-zinc-900 shadow-sm"
-                          }`}>
-                          {/* Action badge */}
-                          <div className={`px-4 py-2 text-xs font-bold uppercase tracking-widest border-b ${isVendor ? "border-blue-500/30 text-blue-100 bg-blue-700/50" : "border-zinc-100 text-zinc-500 bg-zinc-50"
                             }`}>
-                            {msg.action === "request" && "📋 Quotation Request"}
-                            {msg.action === "offer" && "💰 Offer Sent"}
-                            {msg.action === "counter" && (isVendor ? "↩️ Your Counter" : "↩️ Client Counter")}
-                            {msg.action === "accept" && "✅ Accepted"}
-                            {msg.action === "reject" && "❌ Rejected"}
-                            {msg.action === "note" && "📝 Note"}
-                          </div>
+                            {/* Action badge */}
+                            <div className={`px-4 py-2 text-xs font-bold uppercase tracking-widest border-b ${isVendor ? "border-blue-500/30 text-blue-100 bg-blue-700/50" : "border-zinc-100 text-zinc-500 bg-zinc-50"
+                              }`}>
+                              {msg.action === "request" && "📋 Quotation Request"}
+                              {msg.action === "offer" && "💰 Offer Sent"}
+                              {msg.action === "counter" && (isVendor ? "↩️ Your Counter" : "↩️ Client Counter")}
+                              {msg.action === "accept" && "✅ Accepted"}
+                              {msg.action === "reject" && "❌ Rejected"}
+                              {msg.action === "note" && "📝 Note"}
+                            </div>
 
-                          <div className="p-4 space-y-3">
-                            {/* Pricing breakdown */}
-                            {msg.offer_price != null && msg.offer_quantity != null && (
-                              <div className={`rounded-xl p-3 space-y-2 ${isVendor ? "bg-blue-700/40" : "bg-zinc-50 border border-zinc-100"}`}>
-                                <div className="grid grid-cols-3 gap-2 text-center">
-                                  <div>
-                                    <p className={`text-[10px] uppercase tracking-wider ${isVendor ? "text-blue-200" : "text-zinc-400"}`}>Unit Price</p>
-                                    <p className="text-sm font-bold">{formatINR(msg.offer_price)}</p>
+                            <div className="p-4 space-y-3">
+                              {/* Pricing breakdown */}
+                              {msg.offer_price != null && msg.offer_quantity != null && msg.action !== "request" && (
+                                <div className={`rounded-xl p-3 space-y-2 ${isVendor ? "bg-blue-700/40" : "bg-zinc-50 border border-zinc-100"}`}>
+                                  <div className="grid grid-cols-3 gap-2 text-center">
+                                    <div>
+                                      <p className={`text-[10px] uppercase tracking-wider ${isVendor ? "text-blue-200" : "text-zinc-400"}`}>Unit Price</p>
+                                      <p className="text-sm font-bold">{formatINR(msg.offer_price)}</p>
+                                    </div>
+                                    <div>
+                                      <p className={`text-[10px] uppercase tracking-wider ${isVendor ? "text-blue-200" : "text-zinc-400"}`}>Quantity</p>
+                                      <p className="text-sm font-bold">{msg.offer_quantity?.toLocaleString("en-IN")} {info.unit || "units"}</p>
+                                    </div>
+                                    <div>
+                                      <p className={`text-[10px] uppercase tracking-wider ${isVendor ? "text-blue-200" : "text-zinc-400"}`}>Subtotal</p>
+                                      <p className="text-sm font-bold">{formatINR(subtotal)}</p>
+                                    </div>
                                   </div>
-                                  <div>
-                                    <p className={`text-[10px] uppercase tracking-wider ${isVendor ? "text-blue-200" : "text-zinc-400"}`}>Quantity</p>
-                                    <p className="text-sm font-bold">{msg.offer_quantity?.toLocaleString("en-IN")} units</p>
-                                  </div>
-                                  <div>
-                                    <p className={`text-[10px] uppercase tracking-wider ${isVendor ? "text-blue-200" : "text-zinc-400"}`}>Subtotal</p>
-                                    <p className="text-sm font-bold">{formatINR(subtotal)}</p>
+                                  {total != null && (
+                                    <div className={`flex items-center justify-between pt-2 mt-2 border-t ${isVendor ? "border-blue-500/30" : "border-zinc-200"}`}>
+                                      <span className={`text-xs ${isVendor ? "text-blue-200" : "text-zinc-500"}`}>GST (18%): {formatINR(gst)}</span>
+                                      <span className="text-sm font-extrabold">{formatINR(total)}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {msg.action === "request" && msg.offer_quantity != null && (
+                                <div className="rounded-xl p-3 bg-zinc-50 border border-zinc-100">
+                                  <div className="text-center">
+                                    <p className="text-[10px] uppercase tracking-wider text-zinc-400">Requested Quantity</p>
+                                    <p className="text-base font-bold text-zinc-950 mt-1">{msg.offer_quantity?.toLocaleString("en-IN")} {info.unit || "units"}</p>
                                   </div>
                                 </div>
-                                {total != null && (
-                                  <div className={`flex items-center justify-between pt-2 mt-2 border-t ${isVendor ? "border-blue-500/30" : "border-zinc-200"}`}>
-                                    <span className={`text-xs ${isVendor ? "text-blue-200" : "text-zinc-500"}`}>GST (18%): {formatINR(gst)}</span>
-                                    <span className="text-sm font-extrabold">{formatINR(total)}</span>
-                                  </div>
-                                )}
-                              </div>
-                            )}
+                              )}
 
-                            {msg.reason && (
-                              <div className={`flex items-start gap-2 text-sm ${isVendor ? "text-blue-100" : "text-zinc-600"}`}>
-                                <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-                                <span><strong>Reason:</strong> {msg.reason}</span>
-                              </div>
-                            )}
-                            {msg.note && (
-                              <div className={`text-sm whitespace-pre-wrap ${isVendor ? "text-blue-100" : "text-zinc-600"}`}>{msg.note}</div>
-                            )}
-                            {msg.action === "accept" && (
-                              <div className={`flex items-center gap-2 text-sm font-semibold ${isVendor ? "text-emerald-200" : "text-emerald-700"}`}>
-                                <CheckCircle2 size={16} /> Offer accepted!
-                              </div>
-                            )}
-                            {msg.action === "reject" && (
-                              <div className={`flex items-center gap-2 text-sm font-semibold ${isVendor ? "text-rose-200" : "text-rose-700"}`}>
-                                <XCircle size={16} /> Rejected
-                              </div>
-                            )}
+                              {msg.reason && (
+                                <div className={`flex items-start gap-2 text-sm ${isVendor ? "text-blue-100" : "text-zinc-600"}`}>
+                                  <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                                  <span><strong>Reason:</strong> {msg.reason}</span>
+                                </div>
+                              )}
+                              {msg.note && (
+                                <div className={`text-sm whitespace-pre-wrap ${isVendor ? "text-blue-100" : "text-zinc-600"}`}>{msg.note}</div>
+                              )}
+                              {msg.action === "accept" && (
+                                <div className={`flex items-center gap-2 text-sm font-semibold ${isVendor ? "text-emerald-200" : "text-emerald-700"}`}>
+                                  <CheckCircle2 size={16} /> Offer accepted!
+                                </div>
+                              )}
+                              {msg.action === "reject" && (
+                                <div className={`flex items-center gap-2 text-sm font-semibold ${isVendor ? "text-rose-200" : "text-rose-700"}`}>
+                                  <XCircle size={16} /> Rejected
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })
-              )}
-              <div ref={messagesEndRef} />
+                    );
+                  })
+                )}
+                <div ref={messagesEndRef} />
               </div>
             </div>
 
@@ -512,7 +529,7 @@ export default function VendorQuotationDetailPage() {
                         <div>
                           <p className="text-sm font-semibold">You are accepting the client's counter offer</p>
                           <p className="text-xs text-emerald-600 mt-0.5">
-                            This will accept the client's bid of <strong className="text-emerald-800">{formatINR(info.current_offer_price)}</strong> for <strong className="text-emerald-800">{info.current_offer_quantity} units</strong>, and close bidding with other vendors.
+                            This will accept the client's bid of <strong className="text-emerald-800">{formatINR(info.current_offer_price)}</strong> for <strong className="text-emerald-800">{info.current_offer_quantity} {info.unit || "units"}</strong>, and close bidding with other vendors.
                           </p>
                         </div>
                       </div>
@@ -639,13 +656,13 @@ export default function VendorQuotationDetailPage() {
                           />
                         </div>
                         <div>
-                          <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1 mb-1 block">Quantity *</label>
+                          <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1 mb-1 block">Quantity ({info.unit || "Units"}) *</label>
                           <input
                             type="number"
                             value={offerQuantity}
                             onChange={(e) => setOfferQuantity(e.target.value)}
                             className="w-full rounded-xl border border-zinc-300 bg-zinc-50 px-4 py-2.5 text-sm font-medium focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
-                            placeholder="Units"
+                            placeholder={info.unit || "Units"}
                           />
                         </div>
                       </div>
