@@ -141,16 +141,20 @@ const AnalyticsPage = () => {
     }
   }, [isClient, timeframe]);
 
-  const formatCurrency = (value: number): string => {
-    if (value >= 10000000) return `₹${(value / 10000000).toFixed(1)}Cr`;
-    if (value >= 100000) return `₹${(value / 100000).toFixed(1)}L`;
-    if (value >= 1000) return `₹${(value / 1000).toFixed(1)}K`;
-    return `₹${value.toFixed(2)}`;
+  const formatCurrency = (value: number | string): string => {
+    const num = Number(value);
+    if (isNaN(num)) return "₹0.00";
+    if (num >= 10000000) return `₹${(num / 10000000).toFixed(1)}Cr`;
+    if (num >= 100000) return `₹${(num / 100000).toFixed(1)}L`;
+    if (num >= 1000) return `₹${(num / 1000).toFixed(1)}K`;
+    return `₹${num.toFixed(2)}`;
   };
 
-  const formatGrowth = (value: number): string => {
-    const sign = value >= 0 ? "+" : "";
-    return `${sign}${value.toFixed(1)}%`;
+  const formatGrowth = (value: number | string): string => {
+    const num = Number(value);
+    if (isNaN(num)) return "0.0%";
+    const sign = num >= 0 ? "+" : "";
+    return `${sign}${num.toFixed(1)}%`;
   };
 
   // Chart data configuration

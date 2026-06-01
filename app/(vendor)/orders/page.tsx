@@ -131,10 +131,12 @@ const OrdersPage = () => {
     });
   };
 
-  const formatCurrency = (value: number): string => {
-    if (value >= 100000) return `₹${(value / 100000).toFixed(1)}L`;
-    if (value >= 1000) return `₹${(value / 1000).toFixed(1)}K`;
-    return `₹${value.toFixed(2)}`;
+  const formatCurrency = (value: number | string): string => {
+    const num = Number(value);
+    if (isNaN(num)) return "₹0.00";
+    if (num >= 100000) return `₹${(num / 100000).toFixed(1)}L`;
+    if (num >= 1000) return `₹${(num / 1000).toFixed(1)}K`;
+    return `₹${num.toFixed(2)}`;
   };
 
   const getStatusLabel = (status: string): string => {

@@ -210,10 +210,10 @@ export default function VendorQuotationDetailPage() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              {(info.vendor_document_url || document?.document_url) && (
-                <a href={info.vendor_document_url ? (info.vendor_document_url.includes('?') ? info.vendor_document_url : `${info.vendor_document_url}?t=${new Date(info.updated_at).getTime()}`) : (document?.document_url || "#")} target="_blank" rel="noopener noreferrer"
+              {(info as any).vendor_document_url && (
+                <a href={((info as any).vendor_document_url as string).includes('?') ? (info as any).vendor_document_url : `${(info as any).vendor_document_url}?t=${new Date((info as any).updated_at || info.created_at).getTime()}`} target="_blank" rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 transition-colors">
-                  <FileText size={16} /> View Agreement <ExternalLink size={14} />
+                  <FileText size={16} /> Your Latest Quotation <ExternalLink size={14} />
                 </a>
               )}
               <div className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold border ${statusInfo.bg} ${statusInfo.text}`}>
@@ -275,7 +275,7 @@ export default function VendorQuotationDetailPage() {
                   >
                     <span className="flex items-center gap-2 truncate">
                       <ShieldCheck size={16} className="text-blue-600 shrink-0" />
-                      View Your Signed Quote
+                      Your Latest Quotation
                     </span>
                     <ExternalLink size={12} className="shrink-0" />
                   </a>

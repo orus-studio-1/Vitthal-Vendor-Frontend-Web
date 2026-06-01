@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   Building2,
   CheckCircle,
@@ -136,6 +136,24 @@ function buildMockCertificateLink(file: File | null, uploadedAt: string) {
 export default function RegisterPage() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("identity");
+  const [categoriesOptions, setCategoriesOptions] = useState<any[]>(Array.from(CATEGORY_OPTIONS));
+
+  useEffect(() => {
+    async function fetchCategories() {
+      try {
+        const res = await fetch(`${API_BASE}/api/products/getCategories`);
+        if (res.ok) {
+          const resData = await res.json();
+          if (resData.data && resData.data.length > 0) {
+            setCategoriesOptions(resData.data);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch categories:", err);
+      }
+    }
+    fetchCategories();
+  }, []);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1013,7 +1031,7 @@ export default function RegisterPage() {
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
-                {CATEGORY_OPTIONS.map((category) => {
+                {categoriesOptions.map((category) => {
                   const isSelected = selectedCategories.includes(category.code);
                   return (
                     <button
@@ -1030,6 +1048,11 @@ export default function RegisterPage() {
                           <p className="mt-1 text-xs leading-5 text-zinc-500">
                             {category.description}
                           </p>
+                          {category.min_commision_percentage !== undefined && (
+                            <span className="mt-2 inline-block rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 border border-zinc-200">
+                              Commission: {category.min_commision_percentage}% - {category.max_commision_percentage}%
+                            </span>
+                          )}
                         </div>
                         <span
                           className={`mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full border text-[10px] font-bold ${isSelected ? "border-[#1d4ed8] bg-[#1d4ed8] text-white" : "border-zinc-300 text-transparent"}`}

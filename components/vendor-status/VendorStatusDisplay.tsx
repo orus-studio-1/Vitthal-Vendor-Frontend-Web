@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Clock, 
   FileText, 
@@ -67,6 +67,25 @@ export default function VendorStatusDisplay({
   onStatusUpdated 
 }: VendorStatusDisplayProps) {
   const [showEditForm, setShowEditForm] = useState(false);
+  const [categoriesOptions, setCategoriesOptions] = useState<any[]>(CATEGORY_OPTIONS);
+
+  useEffect(() => {
+    async function fetchCategories() {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/products/getCategories`);
+        if (res.ok) {
+          const resData = await res.json();
+          if (resData.data && resData.data.length > 0) {
+            setCategoriesOptions(resData.data);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch categories:", err);
+      }
+    }
+    fetchCategories();
+  }, []);
+
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -576,7 +595,7 @@ export default function VendorStatusDisplay({
               </h3>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                {CATEGORY_OPTIONS.map(cat => {
+                {categoriesOptions.map(cat => {
                   const isSelected = selectedCategories.includes(cat.code);
                   return (
                     <button
@@ -594,6 +613,11 @@ export default function VendorStatusDisplay({
                         {cat.label}
                       </span>
                       <span className="text-[11px] text-zinc-500 mt-1 leading-snug">{cat.description}</span>
+                      {cat.min_commision_percentage !== undefined && (
+                        <span className="mt-2 inline-block rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 border border-zinc-200">
+                          Commission: {cat.min_commision_percentage}% - {cat.max_commision_percentage}%
+                        </span>
+                      )}
                     </button>
                   );
                 })}

@@ -185,7 +185,20 @@ function VendorDocumentContent() {
                     <p><span className="font-medium text-slate-900">GST Number:</span> {quotation?.gst_number || 'Not specified'}</p>
                     <p><span className="font-medium text-slate-900">Designation:</span> {quotation?.designation || 'Not specified'}</p>
                     <p><span className="font-medium text-slate-900">Credit Cycle:</span> {quotation?.credit_cycle || 'Not specified'}</p>
-                    <p><span className="font-medium text-slate-900">Commission Range:</span> {quotation?.minimum_commision_percentage ?? 0}% - {quotation?.maximum_commision_percentage ?? 0}%</p>
+                    {quotation?.categories && quotation.categories.length > 0 ? (
+                      <div className="sm:col-span-2 mt-2 border-t border-slate-200/60 pt-3">
+                        <span className="font-semibold text-slate-900 block mb-1.5">Approved Categories & Commission Ranges:</span>
+                        <div className="grid gap-2 sm:grid-cols-2 bg-slate-100/60 p-3 rounded-xl border border-slate-250/30">
+                          {quotation.categories.map((cat: any) => (
+                            <div key={cat.code} className="text-xs text-slate-700 font-medium">
+                              <span className="text-slate-900 font-semibold">{cat.label}:</span> {cat.min_commision_percentage}% - {cat.max_commision_percentage}%
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <p><span className="font-medium text-slate-900">Commission Range:</span> {quotation?.minimum_commision_percentage ?? 0}% - {quotation?.maximum_commision_percentage ?? 0}%</p>
+                    )}
                     <div className="sm:col-span-2">
                       <span className="font-medium text-slate-900">Business Description:</span>
                       <p className="mt-1">{quotation?.business_description || 'Not provided'}</p>

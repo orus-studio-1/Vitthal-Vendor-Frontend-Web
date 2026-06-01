@@ -164,6 +164,12 @@ export interface PublicVendorQuotation {
   created_by_admin_name: string;
   admin_reviewed_at: string | null;
   admin_review_notes: string | null;
+  categories?: Array<{
+    code: string;
+    label: string;
+    min_commision_percentage: number;
+    max_commision_percentage: number;
+  }>;
 }
 
 export interface VendorAdminQuotationSummary {

@@ -7,7 +7,7 @@ type VendorSessionHydratorProps = {
   session: {
     id: string;
     role: string;
-    approvalStatus: "pending" | "agreement_sent" | "approved" | "rejected" | null;
+    approvalStatus: "pending" | "agreement_sent" | "approved" | "rejected" | "reconsideration" | null;
   };
 };
 

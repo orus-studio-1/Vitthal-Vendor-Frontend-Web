@@ -161,7 +161,6 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     const state = get();
     if (state.socket) return;
 
-    console.log(`[Socket.io] Connecting vendor to /notifications namespace for user: ${userId}`);
     const socket = io(`${API_BASE}/notifications`, {
       withCredentials: true,
       transports: ["websocket", "polling"],
@@ -170,7 +169,6 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     socket.emit("join", userId);
 
     socket.on("notification", (notif: Notification) => {
-      console.log("[Socket.io] Vendor received new real-time notification:", notif);
 
       set((prev) => {
         if (prev.notifications.some((n) => n.id === notif.id)) return {};
@@ -193,7 +191,6 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   disconnectSocket: () => {
     const { socket } = get();
     if (socket) {
-      console.log("[Socket.io] Disconnecting vendor socket from /notifications namespace");
       socket.disconnect();
       set({ socket: null });
     }

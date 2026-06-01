@@ -5,7 +5,7 @@ export type User = {
   username?: string;
   email?: string;
   role: string;
-  approvalStatus?: "pending" | "agreement_sent" | "approved" | "rejected" | null;
+  approvalStatus?: "pending" | "agreement_sent" | "approved" | "rejected" | "reconsideration" | null;
 };
 
 type AuthState = {
@@ -16,7 +16,7 @@ type AuthState = {
   setVendorSession: (session: {
     id: string;
     role: string;
-    approvalStatus: "pending" | "agreement_sent" | "approved" | "rejected" | null;
+    approvalStatus: "pending" | "agreement_sent" | "approved" | "rejected" | "reconsideration" | null;
   }) => void;
   clearUser: () => void;
   fetchUser: () => Promise<void>;
