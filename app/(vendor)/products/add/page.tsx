@@ -347,6 +347,7 @@ export default function AddProductPage() {
   const [material, setMaterial] = useState("");
   const [application, setApplication] = useState("");
   const [standard, setStandard] = useState("");
+  const [quotationLimit, setQuotationLimit] = useState("");
   const descriptionRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Vendor states
@@ -488,6 +489,7 @@ export default function AddProductPage() {
     setUploadedImages([]);
     setPrimaryImageIndex(0);
     setItemCode("");
+    setQuotationLimit("");
     setActiveStep(1);
   };
 
@@ -664,6 +666,7 @@ export default function AddProductPage() {
             standard,
             specifications: specificationPayload,
             itemCode: itemCode.trim() || null,
+            quotationLimit: quotationLimit ? Number(quotationLimit) : null,
           }),
         });
 
@@ -1188,6 +1191,29 @@ export default function AddProductPage() {
                     value={standard}
                     onChange={(e) => setStandard(e.target.value)}
                     placeholder="e.g. ISO 9001, ASTM D1238"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none text-sm transition-all"
+                  />
+                </div>
+
+                {/* Quotation Limit */}
+                <div>
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <label className="block text-sm font-bold text-gray-900">
+                      Quotation Limit (Units)
+                    </label>
+                    <div className="relative group">
+                      <HelpCircle className="w-4 h-4 text-gray-400 cursor-pointer" />
+                      <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-48 bg-gray-900 text-white text-[10px] p-2 rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-30 shadow-md">
+                        Threshold quantity above which orders require a quotation request instead of direct buying. Subject to Admin review and editing.
+                      </div>
+                    </div>
+                  </div>
+                  <input
+                    type="number"
+                    min="1"
+                    value={quotationLimit}
+                    onChange={(e) => setQuotationLimit(e.target.value)}
+                    placeholder="e.g. 100"
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none text-sm transition-all"
                   />
                 </div>
