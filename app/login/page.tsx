@@ -1,32 +1,20 @@
 "use client";
 
 import Link from "next/link";
-
 import { useRouter } from "next/navigation";
-
 import { useState } from "react";
-
 import { Eye, EyeOff } from "lucide-react";
-
 import { toast } from "sonner";
-
 import { useAuthStore } from "@/store/authStore";
-
 import Image from "next/image";
 
 export default function LoginPage() {
   const router = useRouter();
-
   const [showPassword, setShowPassword] = useState(false);
-
   const [isSubmitting, setIsSubmitting] = useState(false);
-
   const [password, setPassword] = useState("");
-
   const hasMinLength = password.length >= 7;
-
   const hasNumber = /\d/.test(password);
-
   const isPasswordValid = hasMinLength && hasNumber;
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -37,26 +25,19 @@ export default function LoginPage() {
     }
 
     setIsSubmitting(true);
-
     const formData = new FormData(event.currentTarget);
-
     const email = formData.get("email") as string;
-
     const passwordValue = formData.get("password") as string;
-
     try {
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`,
         {
           method: "POST",
-
           headers: {
             "Content-Type": "application/json",
             "x-request-from": "vendor",
           },
-
           credentials: "include",
-
           body: JSON.stringify({
             email,
             password: passwordValue,
@@ -66,7 +47,6 @@ export default function LoginPage() {
       );
 
       const data = await res.json();
-
       if (res.ok) {
         toast.success(data.message || "Login successful");
 
@@ -83,11 +63,11 @@ export default function LoginPage() {
         toast.error(data.message || "Login failed");
       }
       setIsSubmitting(false);
-            if (data.user) {
-              useAuthStore.getState().setUser(data.user);
-    
-                await useAuthStore.getState().fetchUser();
-             }
+      if (data.user) {
+        useAuthStore.getState().setUser(data.user);
+
+        await useAuthStore.getState().fetchUser();
+      }
     }
     catch {
       toast.error("Failed to login. Please try again.");

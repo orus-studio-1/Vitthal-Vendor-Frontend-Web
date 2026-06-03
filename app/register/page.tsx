@@ -38,58 +38,7 @@ const STEP_ORDER: Step[] = [
   "verify",
 ];
 
-const CATEGORY_OPTIONS = [
-  {
-    code: "plastic",
-    label: "Plastic",
-    description: "Polymers, granules, and molded plastic goods",
-  },
-  {
-    code: "metal",
-    label: "Metal",
-    description: "Steel, aluminium, copper, and alloy products",
-  },
-  {
-    code: "chemicals",
-    label: "Chemicals",
-    description: "Industrial chemicals, additives, and solvents",
-  },
-  {
-    code: "construction",
-    label: "Construction",
-    description: "Cement, tiles, bricks, and building materials",
-  },
-  {
-    code: "machinery",
-    label: "Machinery",
-    description: "Industrial equipment, tools, and machine parts",
-  },
-  {
-    code: "packaging",
-    label: "Packaging",
-    description: "Boxes, containers, films, and packing supplies",
-  },
-  {
-    code: "textiles",
-    label: "Textiles",
-    description: "Fabrics, yarns, and textile supplies",
-  },
-  {
-    code: "automotive",
-    label: "Automotive",
-    description: "Vehicle parts and transport components",
-  },
-  {
-    code: "agriculture",
-    label: "Agriculture",
-    description: "Seeds, fertilizers, and farm inputs",
-  },
-  {
-    code: "electrical",
-    label: "Electrical",
-    description: "Cables, switches, wiring, and fittings",
-  },
-] as const;
+
 
 const STEP_LABELS: Record<Step, string> = {
   identity: "Identity",
@@ -136,7 +85,7 @@ function buildMockCertificateLink(file: File | null, uploadedAt: string) {
 export default function RegisterPage() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("identity");
-  const [categoriesOptions, setCategoriesOptions] = useState<any[]>(Array.from(CATEGORY_OPTIONS));
+  const [categoriesOptions, setCategoriesOptions] = useState<any[]>([]);
 
   useEffect(() => {
     async function fetchCategories() {
