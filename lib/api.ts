@@ -507,3 +507,9 @@ export const vendorChatApi = {
     return data;
   },
 };
+
+export const vendorPayoutApi = {
+  listPayouts: async (): Promise<ApiResponse<any[]>> => {
+    return apiClient.get<any[]>(`/orders/vendor/payouts`);
+  },
+};

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useLayoutEffect, useEffect, useCallback } from "react";
-import { Menu, X, User, LogOut, ChevronDown, LayoutDashboard, Package, ShoppingBag, BarChart3, Settings, HelpCircle, Bell, FileText, MessageSquare } from "lucide-react";
+import { Menu, X, User, LogOut, ChevronDown, LayoutDashboard, Package, ShoppingBag, BarChart3, Settings, HelpCircle, Bell, FileText, MessageSquare, DollarSign } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
@@ -81,6 +81,7 @@ export function VendorHeader() {
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/products", label: "Products", icon: Package },
     { href: "/orders", label: "Orders", icon: ShoppingBag },
+    { href: "/payouts", label: "Payouts", icon: DollarSign },
     { href: "/analytics", label: "Analytics", icon: BarChart3 },
   ];
   if (isLoading && !isAuthenticated) {
