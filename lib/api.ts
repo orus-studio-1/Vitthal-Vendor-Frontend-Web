@@ -60,6 +60,29 @@ export interface ProductReview {
   user_email: string;
   helpful_count: number;
   verified_purchase: boolean;
+  images: string[];
+}
+
+export interface ReviewStats {
+  total_reviews: number;
+  avg_rating: string;
+  rating_distribution: {
+    1: number;
+    2: number;
+    3: number;
+    4: number;
+    5: number;
+  };
+}
+
+export interface ReviewsResponse {
+  reviews: any[];
+  stats: ReviewStats;
+  pagination: {
+    current_page: number;
+    per_page: number;
+    has_more: boolean;
+  };
 }
 
 export interface ProductDetails {
@@ -78,6 +101,11 @@ export interface ProductDetails {
   updated_at: string;
   images: string[];
   specifications: Record<string, any>;
+  attributes?: Record<string, any>;
+  material?: string;
+  grade?: string;
+  application?: string;
+  standard?: string;
 }
 
 export interface VendorQuotationSummary {
@@ -324,8 +352,8 @@ export const productApi = {
   },
 
   // Get product reviews
-  getProductReviews: async (productId: string, offset = 0, limit = 10): Promise<ApiResponse<{ reviews: ProductReview[], total: number }>> => {
-    return apiClient.get<{ reviews: ProductReview[], total: number }>(`/products/vendor/product/${productId}/reviews?offset=${offset}&limit=${limit}`);
+  getProductReviews: async (productId: string, offset = 0, limit = 10): Promise<ApiResponse<ReviewsResponse>> => {
+    return apiClient.get<ReviewsResponse>(`/products/vendor/product/${productId}/reviews?offset=${offset}&limit=${limit}`);
   },
 
   // Update vendor product

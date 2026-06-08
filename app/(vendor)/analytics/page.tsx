@@ -13,6 +13,7 @@ import {
   Download,
   Loader2,
 } from "lucide-react";
+import { toast } from "sonner";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -155,6 +156,51 @@ const AnalyticsPage = () => {
     if (isNaN(num)) return "0.0%";
     const sign = num >= 0 ? "+" : "";
     return `${sign}${num.toFixed(1)}%`;
+  };
+
+  const handleDownload = () => {
+    if (!analyticsData) return;
+
+    let csv = "";
+    
+    // 1. KPI Metrics
+    csv += "--- METRICS SUMMARY ---\n";
+    csv += "Metric,Value,Growth\n";
+    csv += `Timeframe,${timeframe},\n`;
+    csv += `Total Quantity Sold,${analyticsData.kpi.totalQuantity.toLocaleString()} units,${formatGrowth(analyticsData.kpi.tonnageGrowth)}\n`;
+    csv += `Avg. Order Value,₹${analyticsData.kpi.avgOrderValue.toFixed(2)},${formatGrowth(analyticsData.kpi.aovGrowth)}\n`;
+    csv += `Top Segment,${analyticsData.kpi.topSegment?.name || "N/A"} (${analyticsData.kpi.topSegment?.percentage || 0}%),\n`;
+    csv += `Total Revenue,₹${analyticsData.kpi.totalRevenue.toFixed(2)},${formatGrowth(analyticsData.kpi.revenueGrowth)}\n\n`;
+
+    // 2. Category Distribution
+    csv += "--- CATEGORY DISTRIBUTION ---\n";
+    csv += "Category,Quantity,Revenue (INR),Percentage\n";
+    analyticsData.categoryDistribution.forEach(cat => {
+      csv += `"${cat.name}",${cat.quantity},${cat.revenue},${cat.percentage}%\n`;
+    });
+    csv += "\n";
+
+    // 3. Top Products
+    csv += "--- TOP SELLING PRODUCTS ---\n";
+    csv += "Product Name,Category,Quantity Sold,Revenue (INR),Growth\n";
+    analyticsData.topProducts.forEach(prod => {
+      csv += `"${prod.name}","${prod.category}",${prod.sales},${prod.revenue},${prod.growth}%\n`;
+    });
+
+    try {
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `vendor_analytics_${timeframe.replace(/\s+/g, "_").toLowerCase()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success("Analytics report downloaded successfully!");
+    } catch (err) {
+      console.error("Download error:", err);
+      toast.error("Failed to download analytics report.");
+    }
   };
 
   // Chart data configuration
@@ -341,7 +387,11 @@ const AnalyticsPage = () => {
               </select>
               <Calendar className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
-            <button className="p-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all shadow-sm">
+            <button 
+              onClick={handleDownload}
+              className="p-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all shadow-sm"
+              title="Download Report"
+            >
               <Download className="w-4 h-4" />
             </button>
           </div>

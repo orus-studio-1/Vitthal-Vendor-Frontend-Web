@@ -438,18 +438,14 @@ export default function ProfilePage() {
                         <Mail size={14} />
                         Email Address
                       </div>
-                      {isEditing ? (
-                        <input
-                          type="email"
-                          value={editEmail}
-                          onChange={(e) => setEditEmail(e.target.value)}
-                          className="w-full text-sm font-medium text-zinc-900 border-b border-zinc-300 focus:outline-none focus:border-[#1d4ed8] bg-transparent py-1"
-                        />
-                      ) : (
+                      <div className="flex items-center justify-between">
                         <p className="text-sm font-medium text-zinc-900">
                           {user?.email || "—"}
                         </p>
-                      )}
+                        {isEditing && (
+                          <span className="text-[10px] text-zinc-400 bg-zinc-100 px-1.5 py-0.5 rounded font-medium">Locked</span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Phone */}

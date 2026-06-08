@@ -34,7 +34,7 @@ import {
   Legend,
   Filler
 } from 'chart.js';
-import { productApi, ProductAnalytics, ProductReview, ProductDetails } from '@/lib/api';
+import { productApi, ProductAnalytics, ProductReview, ProductDetails, ReviewStats } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
 ChartJS.register(
@@ -56,6 +56,7 @@ export default function VendorProductViewPage() {
   const [productDetails, setProductDetails] = useState<ProductDetails | null>(null);
   const [analytics, setAnalytics] = useState<ProductAnalytics | null>(null);
   const [reviews, setReviews] = useState<ProductReview[]>([]);
+  const [reviewsStats, setReviewsStats] = useState<ReviewStats | null>(null);
   const [totalReviews, setTotalReviews] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -100,9 +101,21 @@ export default function VendorProductViewPage() {
   const fetchReviews = async () => {
     try {
       setReviewsLoading(true);
-      const response = await productApi.getProductReviews(productId, reviewsPage * 10, 10);
+      const response = await productApi.getProductReviews(productId, reviewsPage, 10);
       if (response.data) {
-        setReviews(response.data.reviews);
+        const mappedReviews = response.data.reviews.map((r: any) => ({
+          id: r.review_id,
+          rating: r.rating,
+          review_text: r.review_text,
+          created_at: r.review_date,
+          user_name: r.customer_name,
+          user_email: r.customer_email,
+          helpful_count: r.helpful_count || 0,
+          verified_purchase: r.verified_purchase,
+          images: r.images || [],
+        }));
+        setReviews(mappedReviews);
+        setReviewsStats(response.data.stats);
       }
     } catch (err) {
       console.error('Failed to fetch reviews:', err);
@@ -368,6 +381,38 @@ export default function VendorProductViewPage() {
                         <dt className="text-sm text-gray-500">Product Type:</dt>
                         <dd className="text-sm font-medium text-gray-900">{productDetails.product_type}</dd>
                       </div>
+                      {productDetails.material && (
+                        <div className="flex justify-between">
+                          <dt className="text-sm text-gray-500">Material:</dt>
+                          <dd className="text-sm font-medium text-gray-900">{productDetails.material}</dd>
+                        </div>
+                      )}
+                      {productDetails.grade && (
+                        <div className="flex justify-between">
+                          <dt className="text-sm text-gray-500">Grade:</dt>
+                          <dd className="text-sm font-medium text-gray-900">{productDetails.grade}</dd>
+                        </div>
+                      )}
+                      {productDetails.application && (
+                        <div className="flex justify-between">
+                          <dt className="text-sm text-gray-500">Application:</dt>
+                          <dd className="text-sm font-medium text-gray-900">{productDetails.application}</dd>
+                        </div>
+                      )}
+                      {productDetails.standard && (
+                        <div className="flex justify-between">
+                          <dt className="text-sm text-gray-500">Standard:</dt>
+                          <dd className="text-sm font-medium text-gray-900">{productDetails.standard}</dd>
+                        </div>
+                      )}
+                      {productDetails.attributes && Object.entries(productDetails.attributes)
+                        .filter(([key]) => !["material", "grade", "application", "standard"].includes(key.toLowerCase()))
+                        .map(([key, value]) => (
+                          <div className="flex justify-between" key={key}>
+                            <dt className="text-sm text-gray-500 capitalize">{key.replace(/_/g, ' ')}:</dt>
+                            <dd className="text-sm font-medium text-gray-900 text-right max-w-[60%] whitespace-pre-wrap">{String(value)}</dd>
+                          </div>
+                        ))}
                       <div className="flex justify-between">
                         <dt className="text-sm text-gray-500">Created:</dt>
                         <dd className="text-sm font-medium text-gray-900">{formatDate(productDetails.created_at)}</dd>
@@ -624,23 +669,29 @@ export default function VendorProductViewPage() {
                 
                 <div className="md:col-span-2">
                   <div className="space-y-2">
-                    {[5, 4, 3, 2, 1].map((rating) => (
-                      <div key={rating} className="flex items-center">
-                        <span className="text-sm text-gray-600 w-3">{rating}</span>
-                        <Star className="h-4 w-4 text-yellow-400 fill-current mx-1" />
-                        <div className="flex-1 mx-3">
-                          <div className="bg-gray-200 rounded-full h-2">
-                            <div 
-                              className="bg-yellow-400 h-2 rounded-full" 
-                              style={{ width: `${Math.random() * 100}%` }}
-                            />
+                    {[5, 4, 3, 2, 1].map((rating) => {
+                      const count = reviewsStats?.rating_distribution[rating as 1 | 2 | 3 | 4 | 5] || 0;
+                      const total = reviewsStats?.total_reviews || 0;
+                      const percent = total > 0 ? (count / total) * 100 : 0;
+
+                      return (
+                        <div key={rating} className="flex items-center">
+                          <span className="text-sm text-gray-600 w-3">{rating}</span>
+                          <Star className="h-4 w-4 text-yellow-400 fill-current mx-1" />
+                          <div className="flex-1 mx-3">
+                            <div className="bg-gray-200 rounded-full h-2">
+                              <div 
+                                className="bg-yellow-400 h-2 rounded-full" 
+                                style={{ width: `${percent}%` }}
+                              />
+                            </div>
                           </div>
+                          <span className="text-sm text-gray-600 w-8 text-right">
+                            {count}
+                          </span>
                         </div>
-                        <span className="text-sm text-gray-600 w-8 text-right">
-                          {Math.floor(Math.random() * 50)}
-                        </span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -683,6 +734,21 @@ export default function VendorProductViewPage() {
                             )}
                           </div>
                           <p className="text-gray-900 mb-2">{review.review_text}</p>
+                          {review.images && review.images.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mb-3 mt-2">
+                              {review.images.map((imgUrl, idx) => (
+                                <div key={idx} className="relative h-20 w-20 rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-gray-50">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img 
+                                    src={imgUrl} 
+                                    alt={`Attachment ${idx + 1}`} 
+                                    className="h-full w-full object-cover cursor-zoom-in hover:scale-105 transition-transform"
+                                    onClick={() => window.open(imgUrl, '_blank')}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          )}
                           <div className="flex items-center text-sm text-gray-500">
                             <span className="font-medium">{review.user_name}</span>
                             <span className="mx-2">•</span>

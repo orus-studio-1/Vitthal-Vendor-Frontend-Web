@@ -34,6 +34,7 @@ interface VendorProduct {
   grade?: string;
   application?: string;
   standard?: string;
+  attributes?: Record<string, unknown>;
   specifications: Record<string, unknown>;
   price: number;
   moq: number;
@@ -422,6 +423,61 @@ export default function EditProductPage() {
             )}
           </div>
         </div>
+
+        {/* Key Properties (Read-only) */}
+        {((product.attributes && Object.keys(product.attributes).length > 0) ||
+          product.material ||
+          product.grade ||
+          product.application ||
+          product.standard) && (
+          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              Key Properties
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {product.material && (
+                <div className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
+                  <span className="text-gray-500 capitalize">Material</span>
+                  <span className="font-medium text-gray-900">{product.material}</span>
+                </div>
+              )}
+              {product.grade && (
+                <div className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
+                  <span className="text-gray-500 capitalize">Grade</span>
+                  <span className="font-medium text-gray-900">{product.grade}</span>
+                </div>
+              )}
+              {product.application && (
+                <div className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
+                  <span className="text-gray-500 capitalize">Application</span>
+                  <span className="font-medium text-gray-900">{product.application}</span>
+                </div>
+              )}
+              {product.standard && (
+                <div className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
+                  <span className="text-gray-500 capitalize">Standard</span>
+                  <span className="font-medium text-gray-900">{product.standard}</span>
+                </div>
+              )}
+              {product.attributes &&
+                Object.entries(product.attributes)
+                  .filter(([key]) => !["material", "grade", "application", "standard"].includes(key.toLowerCase()))
+                  .map(([key, value]) => (
+                    <div
+                      key={key}
+                      className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0"
+                    >
+                      <span className="text-gray-500 capitalize">
+                        {key.replace(/_/g, " ")}
+                      </span>
+                      <span className="font-medium text-gray-900 text-right max-w-[60%] whitespace-pre-wrap">
+                        {String(value)}
+                      </span>
+                    </div>
+                  ))}
+            </div>
+          </div>
+        )}
 
         {/* Specifications (Read-only) */}
         {product.specifications &&

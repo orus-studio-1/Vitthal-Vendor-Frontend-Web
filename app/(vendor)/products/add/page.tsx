@@ -67,6 +67,12 @@ type SpecificationDraft = {
   value: string;
 };
 
+type AttributeDraft = {
+  id: string;
+  key: string;
+  value: string;
+};
+
 type MarkdownAction =
   | "bold"
   | "italic"
@@ -115,6 +121,16 @@ function createSpecificationDraft(): SpecificationDraft {
       `spec-${Date.now()}-${Math.random().toString(36).slice(2)}`,
     key: "",
     value: "",
+  };
+}
+
+function createAttributeDraft(key = "", value = ""): AttributeDraft {
+  return {
+    id:
+      globalThis.crypto?.randomUUID?.() ??
+      `attr-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    key,
+    value,
   };
 }
 
@@ -343,10 +359,12 @@ export default function AddProductPage() {
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
   const [productType, setProductType] = useState("");
-  const [grade, setGrade] = useState("");
-  const [material, setMaterial] = useState("");
-  const [application, setApplication] = useState("");
-  const [standard, setStandard] = useState("");
+  const [attributes, setAttributes] = useState<AttributeDraft[]>([
+    createAttributeDraft("Material", ""),
+    createAttributeDraft("Grade", ""),
+    createAttributeDraft("Application", ""),
+    createAttributeDraft("Standard", ""),
+  ]);
   const [quotationLimit, setQuotationLimit] = useState("");
   const descriptionRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -544,6 +562,32 @@ export default function AddProductPage() {
     );
   };
 
+  const updateAttribute = (
+    index: number,
+    field: keyof AttributeDraft,
+    value: string,
+  ) => {
+    setAttributes((current) =>
+      current.map((attribute, currentIndex) =>
+        currentIndex === index
+          ? { ...attribute, [field]: value }
+          : attribute,
+      ),
+    );
+  };
+
+  const addAttributeRow = () => {
+    setAttributes((current) => [...current, createAttributeDraft()]);
+  };
+
+  const removeAttributeRow = (index: number) => {
+    setAttributes((current) =>
+      current.length === 1
+        ? [createAttributeDraft()]
+        : current.filter((_, currentIndex) => currentIndex !== index),
+    );
+  };
+
   const applyMarkdown = (action: MarkdownAction) => {
     const textarea = descriptionRef.current;
     if (!textarea) {
@@ -648,6 +692,19 @@ export default function AddProductPage() {
             (specification) => specification.key.length > 0 || specification.value.length > 0,
           );
 
+        const attributesPayload: Record<string, string> = {};
+        attributes.forEach((attr) => {
+          const k = attr.key.trim();
+          if (k) {
+            attributesPayload[k] = attr.value.trim();
+          }
+        });
+
+        const materialVal = attributesPayload["Material"] || attributesPayload["material"] || "";
+        const gradeVal = attributesPayload["Grade"] || attributesPayload["grade"] || "";
+        const applicationVal = attributesPayload["Application"] || attributesPayload["application"] || "";
+        const standardVal = attributesPayload["Standard"] || attributesPayload["standard"] || "";
+
         const prodRes = await fetch(`${apiBase}/api/products/addProduct`, {
           method: "POST",
           headers: {
@@ -660,10 +717,11 @@ export default function AddProductPage() {
             description,
             category,
             productType,
-            grade,
-            material,
-            application,
-            standard,
+            grade: gradeVal,
+            material: materialVal,
+            application: applicationVal,
+            standard: standardVal,
+            attributes: attributesPayload,
             specifications: specificationPayload,
             itemCode: itemCode.trim() || null,
             quotationLimit: quotationLimit ? Number(quotationLimit) : null,
@@ -1139,60 +1197,51 @@ export default function AddProductPage() {
                   </select>
                 </div>
 
-                {/* Grade */}
-                <div>
-                  <label className="block text-sm font-bold text-gray-900 mb-1.5">
-                    Grade
+                {/* Key Properties (Attributes) Builder */}
+                <div className="md:col-span-2 border-t border-gray-100 pt-6 mt-2">
+                  <label className="block text-sm font-bold text-gray-900">
+                    Product Key Properties (Attributes)
                   </label>
-                  <input
-                    type="text"
-                    value={grade}
-                    onChange={(e) => setGrade(e.target.value)}
-                    placeholder="e.g. Injection Grade, Raffia"
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none text-sm transition-all"
-                  />
-                </div>
+                  <p className="text-xs text-gray-500 mt-0.5 mb-4">
+                    Define primary product properties (e.g. Material, Grade, Application, Standard) as key-value pairs. Customize keys to fit your product category.
+                  </p>
 
-                {/* Material */}
-                <div>
-                  <label className="block text-sm font-bold text-gray-900 mb-1.5">
-                    Material
-                  </label>
-                  <input
-                    type="text"
-                    value={material}
-                    onChange={(e) => setMaterial(e.target.value)}
-                    placeholder="e.g. Virgin Copolymer, Recycled Regrind"
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none text-sm transition-all"
-                  />
-                </div>
-
-                {/* Application */}
-                <div>
-                  <label className="block text-sm font-bold text-gray-900 mb-1.5">
-                    Application
-                  </label>
-                  <input
-                    type="text"
-                    value={application}
-                    onChange={(e) => setApplication(e.target.value)}
-                    placeholder="e.g. Automotive parts, packaging containers"
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none text-sm transition-all"
-                  />
-                </div>
-
-                {/* Standard */}
-                <div>
-                  <label className="block text-sm font-bold text-gray-900 mb-1.5">
-                    Standard
-                  </label>
-                  <input
-                    type="text"
-                    value={standard}
-                    onChange={(e) => setStandard(e.target.value)}
-                    placeholder="e.g. ISO 9001, ASTM D1238"
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none text-sm transition-all"
-                  />
+                  <div className="space-y-2.5 bg-gray-50 p-4 rounded-xl border border-gray-200">
+                    {attributes.map((attr, index) => (
+                      <div key={attr.id} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3 items-center">
+                        <input
+                          type="text"
+                          value={attr.key}
+                          onChange={(e) => updateAttribute(index, "key", e.target.value)}
+                          placeholder="Property name (e.g. Material)"
+                          className="w-full px-3.5 py-2 border border-gray-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        />
+                        <input
+                          type="text"
+                          value={attr.value}
+                          onChange={(e) => updateAttribute(index, "value", e.target.value)}
+                          placeholder="Value (e.g. Recycled PE)"
+                          className="w-full px-3.5 py-2 border border-gray-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeAttributeRow(index)}
+                          className="p-2 border border-gray-300 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-red-600 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                    
+                    <button
+                      type="button"
+                      onClick={addAttributeRow}
+                      className="mt-2 inline-flex items-center px-4 py-2 border border-dashed border-gray-300 bg-white text-gray-700 text-xs font-bold rounded-lg hover:border-blue-500 hover:text-blue-600 transition-colors"
+                    >
+                      <Plus className="w-3.5 h-3.5 mr-1.5" />
+                      Add Property Row
+                    </button>
+                  </div>
                 </div>
 
                 {/* Quotation Limit */}
