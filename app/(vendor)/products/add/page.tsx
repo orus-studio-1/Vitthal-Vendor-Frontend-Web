@@ -54,6 +54,8 @@ type ProductDetail = ProductResult & {
     moq: number;
     stock_quantity: number;
   }>;
+  quotation_limit?: number | null;
+  vendor_can_set_quotation_limit?: boolean;
 };
 
 type VendorCategory = {
@@ -295,16 +297,16 @@ function transformMarkdown(
   if (action === "bullet") {
     return applyLinePrefix(value, start, end, {
       prefix: "- ",
-      prefixPattern: /^[-*]\s+/, 
-      removalPattern: /^[-*]\s+/, 
+      prefixPattern: /^[-*]\s+/,
+      removalPattern: /^[-*]\s+/,
     });
   }
 
   if (action === "ordered") {
     return applyLinePrefix(value, start, end, {
       prefix: "1. ",
-      prefixPattern: /^\d+\.\s+/, 
-      removalPattern: /^\d+\.\s+/, 
+      prefixPattern: /^\d+\.\s+/,
+      removalPattern: /^\d+\.\s+/,
     });
   }
 
@@ -322,8 +324,8 @@ function transformMarkdown(
 
   return applyLinePrefix(value, start, end, {
     prefix: "> ",
-    prefixPattern: /^>\s?/, 
-    removalPattern: /^>\s?/, 
+    prefixPattern: /^>\s?/,
+    removalPattern: /^>\s?/,
   });
 }
 
@@ -373,7 +375,7 @@ export default function AddProductPage() {
   const [moq, setMoq] = useState("");
   const [stockQuantity, setStockQuantity] = useState("");
   const [quotationEnabled, setQuotationEnabled] = useState(false);
-  
+
   const toolbarButtonClass =
     "inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition-all hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-600/20";
 
@@ -423,8 +425,16 @@ export default function AddProductPage() {
             },
           );
           const data = await parseApiResponse(res);
-          if (res.ok && data.data) {
-            setSearchResults(data.data);
+          if (res.ok && data.data && Array.isArray(data.data)) {
+            // Filter products that belong to the vendor's opted categories
+            const filteredResults = data.data.filter((product: ProductResult) =>
+              allowedCategories.some(
+                (cat) =>
+                  cat.code.toLowerCase() === product.category.toLowerCase() ||
+                  cat.label.toLowerCase() === product.category.toLowerCase()
+              )
+            );
+            setSearchResults(filteredResults);
           } else {
             setSearchResults([]);
           }
@@ -439,7 +449,7 @@ export default function AddProductPage() {
     } else {
       setSearchResults([]);
     }
-  }, [searchQuery, selectedProduct, isCreatingNew, apiBase]);
+  }, [searchQuery, selectedProduct, isCreatingNew, apiBase, allowedCategories]);
 
   const fetchProductPreview = async (productId: string) => {
     setIsPreviewLoading(true);
@@ -477,7 +487,7 @@ export default function AddProductPage() {
         allowedCategory.label.toLowerCase() === product.category.toLowerCase(),
     );
 
-    if (allowedCategories.length > 0 && !categoryIsAllowed) {
+    if (!categoryIsAllowed) {
       toast.error("You can only add products from your assigned categories. Please select a product from your allowed categories.");
       return;
     }
@@ -624,7 +634,7 @@ export default function AddProductPage() {
             allowedCategory.label.toLowerCase() === category.toLowerCase(),
         );
 
-        if (allowedCategories.length > 0 && !categoryIsAllowed) {
+        if (!categoryIsAllowed) {
           toast.error("You can only add products from your assigned categories.");
           return;
         }
@@ -653,7 +663,7 @@ export default function AddProductPage() {
           allowedCategory.label.toLowerCase() === selectedProduct.category.toLowerCase(),
       );
 
-      if (allowedCategories.length > 0 && !categoryIsAllowed) {
+      if (!categoryIsAllowed) {
         toast.error("You can only add products from your assigned categories.");
         return;
       }
@@ -677,7 +687,7 @@ export default function AddProductPage() {
             allowedCategory.label.toLowerCase() === category.toLowerCase(),
         );
 
-        if (allowedCategories.length > 0 && !categoryIsAllowed) {
+        if (!categoryIsAllowed) {
           toast.error("You can only add products from your assigned categories.");
           setIsSaving(false);
           return;
@@ -860,16 +870,15 @@ export default function AddProductPage() {
       {/* Stepped Progress Bar */}
       <div className="mb-8 bg-white border border-gray-200 rounded-2xl p-6 shadow-xs relative overflow-hidden">
         <div className="flex items-center justify-between max-w-3xl mx-auto relative">
-          
+
           {/* Step 1 */}
           <div className="flex flex-col items-center flex-1 relative z-10">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300 ${
-              activeStep === 1
-                ? "bg-blue-600 text-white shadow-lg shadow-blue-100 ring-4 ring-blue-50"
-                : activeStep > 1
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300 ${activeStep === 1
+              ? "bg-blue-600 text-white shadow-lg shadow-blue-100 ring-4 ring-blue-50"
+              : activeStep > 1
                 ? "bg-emerald-500 text-white shadow-md shadow-emerald-50"
                 : "bg-gray-100 text-gray-400"
-            }`}>
+              }`}>
               {activeStep > 1 ? <Check className="w-5 h-5" /> : "1"}
             </div>
             <span className={`text-xs mt-2.5 font-semibold tracking-wide uppercase ${activeStep === 1 ? "text-blue-600" : activeStep > 1 ? "text-emerald-600" : "text-gray-400"}`}>
@@ -883,13 +892,12 @@ export default function AddProductPage() {
 
           {/* Step 2 */}
           <div className="flex flex-col items-center flex-1 relative z-10">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300 ${
-              activeStep === 2
-                ? "bg-blue-600 text-white shadow-lg shadow-blue-100 ring-4 ring-blue-50"
-                : activeStep > 2
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300 ${activeStep === 2
+              ? "bg-blue-600 text-white shadow-lg shadow-blue-100 ring-4 ring-blue-50"
+              : activeStep > 2
                 ? "bg-emerald-500 text-white shadow-md shadow-emerald-50"
                 : "bg-gray-100 text-gray-400"
-            }`}>
+              }`}>
               {activeStep > 2 ? <Check className="w-5 h-5" /> : "2"}
             </div>
             <span className={`text-xs mt-2.5 font-semibold tracking-wide uppercase ${activeStep === 2 ? "text-blue-600" : activeStep > 2 ? "text-emerald-600" : "text-gray-400"}`}>
@@ -903,11 +911,10 @@ export default function AddProductPage() {
 
           {/* Step 3 */}
           <div className="flex flex-col items-center flex-1 relative z-10">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300 ${
-              activeStep === 3
-                ? "bg-blue-600 text-white shadow-lg shadow-blue-100 ring-4 ring-blue-50"
-                : "bg-gray-100 text-gray-400"
-            }`}>
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300 ${activeStep === 3
+              ? "bg-blue-600 text-white shadow-lg shadow-blue-100 ring-4 ring-blue-50"
+              : "bg-gray-100 text-gray-400"
+              }`}>
               3
             </div>
             <span className={`text-xs mt-2.5 font-semibold tracking-wide uppercase ${activeStep === 3 ? "text-blue-600" : "text-gray-400"}`}>
@@ -1094,7 +1101,7 @@ export default function AddProductPage() {
       {/* Step 2 Container: Custom Product Info or Selected Product Verification */}
       {activeStep === 2 && (
         <div className="space-y-6 animate-in fade-in duration-300">
-          
+
           {/* Creating custom product fields */}
           {isCreatingNew ? (
             <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
@@ -1110,7 +1117,7 @@ export default function AddProductPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                
+
                 {/* Product Name */}
                 <div className="md:col-span-2">
                   <label className="block text-sm font-bold text-gray-900 mb-1.5">
@@ -1232,7 +1239,7 @@ export default function AddProductPage() {
                         </button>
                       </div>
                     ))}
-                    
+
                     <button
                       type="button"
                       onClick={addAttributeRow}
@@ -1275,7 +1282,7 @@ export default function AddProductPage() {
                   <p className="text-[11px] text-gray-500">
                     Write detailed characteristics. Highlight text and use formatting tools to style sections.
                   </p>
-                  
+
                   <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr] border border-gray-200 rounded-xl overflow-hidden bg-gray-50/50 p-3.5">
                     {/* Left: Input Textarea with toolbar */}
                     <div className="flex flex-col rounded-lg border border-gray-200 bg-white p-3 shadow-xs">
@@ -1415,7 +1422,7 @@ export default function AddProductPage() {
                         </button>
                       </div>
                     ))}
-                    
+
                     <button
                       type="button"
                       onClick={addSpecificationRow}
@@ -1574,7 +1581,7 @@ export default function AddProductPage() {
       {/* Step 3 Container: Vendor Pricing, Stock & Image Uploads */}
       {activeStep === 3 && (
         <div className="space-y-6 animate-in fade-in duration-300">
-          
+
           {/* Vendor pricing & inventory inputs */}
           <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
             <h2 className="text-lg font-bold text-gray-900 mb-1.5">
@@ -1670,6 +1677,15 @@ export default function AddProductPage() {
                     )}
                   </button>
                 </div>
+                {!isCreatingNew && productPreview?.quotation_limit && (
+                  <div className="mt-3 p-4 rounded-xl bg-blue-50 border border-blue-100 text-xs text-blue-800 flex items-start gap-2.5 max-w-lg">
+                    <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold text-blue-900 block mb-0.5">Product Quotation Limit</span>
+                      Orders above <strong className="font-extrabold text-blue-900">{productPreview.quotation_limit} units</strong> will require quotation negotiation.
+                    </div>
+                  </div>
+                )}
               </div>
 
             </div>
@@ -1698,7 +1714,7 @@ export default function AddProductPage() {
                 Supports JPG, JPEG, and PNG formats (Max 5MB each file)
               </p>
             </div>
-            
+
             <input
               ref={fileInputRef}
               type="file"
@@ -1724,23 +1740,22 @@ export default function AddProductPage() {
                   {uploadedImages.map((image, index) => {
                     const isPrimary = index === primaryImageIndex;
                     const objectUrl = URL.createObjectURL(image);
-                    
+
                     return (
                       <div
                         key={index}
                         onClick={() => setPrimaryImageIndex(index)}
-                        className={`group relative aspect-square rounded-xl overflow-hidden border-2 cursor-pointer shadow-xs transition-all duration-300 ${
-                          isPrimary
-                            ? "border-emerald-500 ring-4 ring-emerald-50 scale-98"
-                            : "border-gray-200 hover:border-blue-400"
-                        }`}
+                        className={`group relative aspect-square rounded-xl overflow-hidden border-2 cursor-pointer shadow-xs transition-all duration-300 ${isPrimary
+                          ? "border-emerald-500 ring-4 ring-emerald-50 scale-98"
+                          : "border-gray-200 hover:border-blue-400"
+                          }`}
                       >
                         <img
                           src={objectUrl}
                           alt={`Upload preview ${index + 1}`}
                           className="w-full h-full object-cover"
                         />
-                        
+
                         {/* Overlay Controls */}
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
                           <button
@@ -1762,7 +1777,7 @@ export default function AddProductPage() {
                             <Check className="w-3 h-3" /> Primary
                           </span>
                         )}
-                        
+
                         <span className="absolute bottom-2 right-2 inline-block rounded bg-black/60 px-1 py-0.5 text-[8px] font-bold text-white uppercase">
                           {index + 1}
                         </span>
