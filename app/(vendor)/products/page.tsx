@@ -158,13 +158,21 @@ const ProductsPage = () => {
         <h1 className="text-2xl font-semibold text-gray-900 tracking-tight">
           Products
         </h1>
-        <Link
-          href="/products/add"
-          className="inline-flex items-center justify-center bg-gray-900 text-white px-4 py-2 rounded-md hover:bg-gray-800 transition-colors font-medium shadow-sm"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Product
-        </Link>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <Link
+            href="/products/stocks"
+            className="inline-flex items-center justify-center bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 transition-colors font-medium shadow-sm w-full sm:w-auto"
+          >
+            Manage Stocks & Prices
+          </Link>
+          <Link
+            href="/products/add"
+            className="inline-flex items-center justify-center bg-gray-900 text-white px-4 py-2 rounded-md hover:bg-gray-800 transition-colors font-medium shadow-sm w-full sm:w-auto whitespace-nowrap"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Product
+          </Link>
+        </div>
       </div>
 
       {/* Search and Filter Bar */}

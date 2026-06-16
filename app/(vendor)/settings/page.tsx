@@ -98,7 +98,7 @@ export default function SettingsPage() {
   return (
     <main className="flex-1 bg-zinc-50 min-h-screen font-sans">
       <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8 space-y-6">
-        
+
         {/* Breadcrumb */}
         <nav className="text-sm text-zinc-500 flex items-center gap-2">
           <Link href="/" className="hover:text-zinc-800 transition-colors">
@@ -127,17 +127,16 @@ export default function SettingsPage() {
           </div>
         ) : (
           <div className="space-y-6">
-            
+
             {/* Custom Tabs */}
             <div className="flex border-b border-zinc-200 bg-white p-1 rounded-xl shadow-sm">
               <button
                 id="btn-tab-profile"
                 onClick={() => setActiveTab("profile")}
-                className={`flex-1 py-3 text-sm font-semibold rounded-lg transition-all duration-200 flex items-center justify-center gap-2 ${
-                  activeTab === "profile"
+                className={`flex-1 py-3 text-sm font-semibold rounded-lg transition-all duration-200 flex items-center justify-center gap-2 ${activeTab === "profile"
                     ? "bg-zinc-900 text-white shadow-sm"
                     : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"
-                }`}
+                  }`}
               >
                 <Building2 size={16} />
                 Business Profile
@@ -145,11 +144,10 @@ export default function SettingsPage() {
               <button
                 id="btn-tab-agreement"
                 onClick={() => setActiveTab("agreement")}
-                className={`flex-1 py-3 text-sm font-semibold rounded-lg transition-all duration-200 flex items-center justify-center gap-2 ${
-                  activeTab === "agreement"
+                className={`flex-1 py-3 text-sm font-semibold rounded-lg transition-all duration-200 flex items-center justify-center gap-2 ${activeTab === "agreement"
                     ? "bg-zinc-900 text-white shadow-sm"
                     : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"
-                }`}
+                  }`}
               >
                 <FileCheck size={16} />
                 Account Agreement
@@ -159,7 +157,7 @@ export default function SettingsPage() {
             {/* Content Areas */}
             {activeTab === "profile" && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                
+
                 {/* Basic Vendor Info */}
                 <div className="bg-white rounded-2xl border border-zinc-200 p-6 shadow-sm space-y-4">
                   <h2 className="text-lg font-bold text-zinc-900 flex items-center gap-2 border-b border-zinc-100 pb-3">
@@ -295,10 +293,10 @@ export default function SettingsPage() {
 
             {activeTab === "agreement" && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                
+
                 {/* Account Creation Agreement Details */}
                 <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
-                  
+
                   {/* Digital Signature Banner */}
                   <div className="bg-emerald-50 border-b border-emerald-100 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
@@ -319,24 +317,24 @@ export default function SettingsPage() {
                   {/* Contract content */}
                   <div className="p-6 md:p-8 space-y-6 max-h-[500px] overflow-y-auto border-b border-zinc-100 font-serif text-zinc-800 text-sm leading-relaxed">
                     <div className="text-center space-y-2 border-b border-zinc-200 pb-6 font-sans">
-                      <h2 className="text-lg font-bold text-zinc-900 tracking-wider">VITTHAL B2B INDUSTRIAL MARKETPLACE</h2>
+                      <h2 className="text-lg font-bold text-zinc-900 tracking-wider">MTWO Groups B2B INDUSTRIAL MARKETPLACE</h2>
                       <h1 className="text-xl font-extrabold text-zinc-900">STANDARD SELLER PARTICIPATION AGREEMENT</h1>
                       <p className="text-xs font-medium text-zinc-500">Document ID: VENDOR-AGR-{vendorDetails?.vendor_application_number || "SYS"}</p>
                     </div>
 
                     <div className="space-y-4">
                       <p>
-                        This Seller Participation Agreement (&quot;Agreement&quot;) defines the legally binding terms governing your participation as a registered merchant and supplier on the Vitthal Multi-Vendor Industrial Marketplace Platform.
+                        This Seller Participation Agreement (&quot;Agreement&quot;) defines the legally binding terms governing your participation as a registered merchant and supplier on the MTWO Groups Multi-Vendor Industrial Marketplace Platform.
                       </p>
 
                       <h3 className="font-sans font-bold text-zinc-950 mt-4">1. PLATFORM SCOPE AND SERVICES</h3>
                       <p>
-                        Vitthal facilitates online transaction logs, product catalog hosting, quotation workflow processing, RFQ bidding systems, order processing, and payment settlements for industrial goods across Metals, Plastics, and Chemicals sectors.
+                        MTWO Groups facilitates online transaction logs, product catalog hosting, quotation workflow processing, RFQ bidding systems, order processing, and payment settlements for industrial goods across Metals, Plastics, and Chemicals sectors.
                       </p>
 
                       <h3 className="font-sans font-bold text-zinc-950 mt-4">2. CATALOGING AND INVENTORY</h3>
                       <p>
-                        The Vendor agrees to maintain accurate listings, pricing details, specifications, and minimum order quantities (MOQ). Product listings must not violate third-party intellectual property. Vitthal Admin reserves the right to remove any inaccurate or unverified industrial listings.
+                        The Vendor agrees to maintain accurate listings, pricing details, specifications, and minimum order quantities (MOQ). Product listings must not violate third-party intellectual property. MTWO Groups Admin reserves the right to remove any inaccurate or unverified industrial listings.
                       </p>
 
                       <h3 className="font-sans font-bold text-zinc-950 mt-4">3. COMMISSION AND TRANSACTION FEE</h3>
@@ -371,7 +369,7 @@ export default function SettingsPage() {
                         <p className="font-bold text-zinc-900 uppercase tracking-wider mb-2 text-[10px]">Contract Metadata</p>
                         <p><span className="font-semibold text-zinc-700">Contract Reference:</span> AGR-REF-{vendorDetails?.vendor_application_number || "PENDING"}</p>
                         <p><span className="font-semibold text-zinc-700">Effective Date:</span> Active Platform Registration Session</p>
-                        <p className="text-[10px] text-zinc-400 mt-2">Digitally stamped by Vitthal B2B Authentication Authority.</p>
+                        <p className="text-[10px] text-zinc-400 mt-2">Digitally stamped by MTWO Groups B2B Authentication Authority.</p>
                       </div>
                     </div>
                   </div>

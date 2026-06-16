@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useLayoutEffect, useEffect, useCallback } from "react";
-import { Menu, X, User, LogOut, ChevronDown, LayoutDashboard, Package, ShoppingBag, BarChart3, Settings, HelpCircle, Bell, FileText, MessageSquare, DollarSign } from "lucide-react";
+import { Menu, X, User, LogOut, ChevronDown, LayoutDashboard, Package, ShoppingBag, BarChart3, Settings, HelpCircle, Bell, FileText, MessageSquare, DollarSign, FileCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
@@ -81,6 +81,7 @@ export function VendorHeader() {
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/products", label: "Products", icon: Package },
     { href: "/orders", label: "Orders", icon: ShoppingBag },
+    { href: "/quotation-orders", label: "Quotation Orders", icon: FileCheck },
     { href: "/payouts", label: "Payouts", icon: DollarSign },
     { href: "/analytics", label: "Analytics", icon: BarChart3 },
   ];
@@ -104,15 +105,15 @@ export function VendorHeader() {
       </div>
 
       {/* Main header */}
-      <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-16 w-full max-w-8xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/" className="flex items-center gap-2">
-        <Image
-          src="/logo.jpeg"
-          alt="MTWO Groups"
-          width={32}
-          height={32}
-          unoptimized
-        />
+          <Image
+            src="/logo.jpeg"
+            alt="MTWO Groups"
+            width={32}
+            height={32}
+            unoptimized
+          />
           <span className="text-xl font-semibold tracking-tight text-zinc-900">MTWO Groups</span>
           <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
             Vendor
@@ -258,14 +259,7 @@ export function VendorHeader() {
                 <MessageSquare size={20} />
               </Link>
 
-              {/* Help */}
-              <Link
-                href="/help"
-                className="rounded-lg p-2 text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
-                aria-label="Help"
-              >
-                <HelpCircle size={20} />
-              </Link>
+
 
               {/* Profile Dropdown */}
               <div className="relative" ref={dropdownRef}>
@@ -354,16 +348,14 @@ export function VendorHeader() {
       {/* Mobile Navigation - Slide from Right */}
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 bg-black/50 z-40 md:hidden transition-opacity duration-300 ${
-          mobileMenuOpen ? "opacity-100" : "opacity-0 pointer-events-none"
-        }`}
+        className={`fixed inset-0 bg-black/50 z-40 md:hidden transition-opacity duration-300 ${mobileMenuOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
         onClick={() => setMobileMenuOpen(false)}
       />
       {/* Sidebar */}
       <div
-        className={`fixed top-0 right-0 h-full w-72 bg-white z-50 md:hidden shadow-2xl transform transition-transform duration-300 ease-in-out ${
-          mobileMenuOpen ? "translate-x-0" : "translate-x-full"
-        }`}
+        className={`fixed top-0 right-0 h-full w-72 bg-white z-50 md:hidden shadow-2xl transform transition-transform duration-300 ease-in-out ${mobileMenuOpen ? "translate-x-0" : "translate-x-full"
+          }`}
       >
         {/* Sidebar Header */}
         <div className="flex items-center justify-between px-4 py-4 border-b border-zinc-200">
@@ -474,16 +466,6 @@ export function VendorHeader() {
                   >
                     <Settings size={18} />
                     Settings
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/help"
-                    className="flex items-center gap-3 rounded-lg px-3 py-3 hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <HelpCircle size={18} />
-                    Help & Support
                   </Link>
                 </li>
                 <li className="border-t border-zinc-200 mt-4 pt-4">

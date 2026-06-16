@@ -13,7 +13,6 @@ import {
   XCircle,
   ChevronLeft,
   ChevronRight,
-  Package,
   Check,
   X,
   Bell,
@@ -45,7 +44,7 @@ interface Order {
   items: OrderItem[];
 }
 
-const OrdersPage = () => {
+const QuotationOrdersPage = () => {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All Orders");
@@ -97,9 +96,9 @@ const OrdersPage = () => {
     }
   };
 
-  const directOrders = orders.filter((order) => order.order_type !== "quotation");
+  const quotationOrders = orders.filter((order) => order.order_type === "quotation");
 
-  const filteredOrders = directOrders.filter((order) => {
+  const filteredOrders = quotationOrders.filter((order) => {
     const orderId = `#${order.order_id.slice(0, 8).toUpperCase()}`;
     const matchesSearch =
       orderId.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -224,8 +223,7 @@ const OrdersPage = () => {
     }
   };
 
-  const newOrders = directOrders.filter((order) => order.status === "pending");
-  const otherOrders = directOrders.filter((order) => order.status !== "pending");
+  const newOrders = quotationOrders.filter((order) => order.status === "pending");
 
   // Pagination logic
   const paginatedOrders = filteredOrders.slice(
@@ -253,10 +251,10 @@ const OrdersPage = () => {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
-              Orders Management
+              Quotation Orders Management
             </h1>
             <p className="text-gray-500 mt-1.5 font-medium">
-              View and manage your recent customer orders.
+              View and manage customer orders originating from quotations.
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -316,10 +314,10 @@ const OrdersPage = () => {
                 </div>
                 <div>
                   <h2 className="text-xl font-bold text-gray-900">
-                    {newOrders.length} New Order{newOrders.length > 1 ? "s" : ""} Pending
+                    {newOrders.length} New Quotation Order{newOrders.length > 1 ? "s" : ""} Pending
                   </h2>
                   <p className="text-gray-600 font-medium">
-                    Review and accept or reject new customer orders
+                    Review and accept or reject new customer quotation orders
                   </p>
                 </div>
               </div>
@@ -585,8 +583,8 @@ const OrdersPage = () => {
                           colSpan={7}
                           className="px-7 py-16 text-center text-gray-500 font-medium"
                         >
-                          {directOrders.length === 0
-                            ? "No orders yet. Orders will appear here once customers start purchasing."
+                          {quotationOrders.length === 0
+                            ? "No quotation orders yet. Quotation orders will appear here once quotation negotiations are complete and paid."
                             : "No orders found matching your search or filter."}
                         </td>
                       </tr>
@@ -640,4 +638,4 @@ const OrdersPage = () => {
   );
 };
 
-export default OrdersPage;
+export default QuotationOrdersPage;

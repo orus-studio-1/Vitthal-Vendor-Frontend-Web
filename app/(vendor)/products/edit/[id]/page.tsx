@@ -62,6 +62,7 @@ export default function EditProductPage() {
   const [price, setPrice] = useState("");
   const [moq, setMoq] = useState("");
   const [stockQuantity, setStockQuantity] = useState("");
+  const [gstPercentage, setGstPercentage] = useState("0.00");
   const [isActive, setIsActive] = useState(true);
   const [quotationEnabled, setQuotationEnabled] = useState(false);
 
@@ -91,6 +92,7 @@ export default function EditProductPage() {
         setPrice(prod.price.toString());
         setMoq(prod.moq.toString());
         setStockQuantity(prod.stock_quantity.toString());
+        setGstPercentage(prod.gst_percentage !== null && prod.gst_percentage !== undefined ? prod.gst_percentage.toString() : "0.00");
         setIsActive(prod.is_active);
         setQuotationEnabled(Boolean(prod.quotation_enabled));
       } else {
@@ -126,6 +128,7 @@ export default function EditProductPage() {
             isActive,
             quotationEnabled,
             quotationMinQty: null,
+            gstPercentage: Number(gstPercentage),
           }),
         },
       );
@@ -311,7 +314,7 @@ export default function EditProductPage() {
           <h2 className="text-lg font-semibold text-gray-900 mb-6">
             Pricing & Stock
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-900 mb-2">
                 Selling Price (₹) <span className="text-red-500">*</span>
@@ -379,6 +382,31 @@ export default function EditProductPage() {
               </div>
               <p className="text-xs text-gray-500 mt-1.5">
                 Total units available right now
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-900 mb-2">
+                GST Percentage (%) <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Banknote className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  required
+                  value={gstPercentage}
+                  onChange={(e) => setGstPercentage(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-gray-900 focus:border-gray-900 text-lg font-medium"
+                  placeholder="0.00"
+                />
+              </div>
+              <p className="text-xs text-gray-500 mt-1.5">
+                Applicable GST rate
               </p>
             </div>
           </div>
