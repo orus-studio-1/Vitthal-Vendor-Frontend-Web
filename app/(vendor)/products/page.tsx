@@ -10,8 +10,24 @@ import {
   Filter,
   AlertTriangle,
   Package,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
+
+type VendorProductVariant = {
+  vendor_product_id: string;
+  product_variant_id: string;
+  price: number;
+  pending_price?: number | null;
+  moq: number;
+  stock_quantity: number;
+  is_active: boolean; // status
+  status: string; // vendor_product_status
+  gst_percentage?: number;
+  properties: Record<string, string>;
+  sku?: string | null;
+};
 
 type VendorProduct = {
   product_id: string;
@@ -20,22 +36,26 @@ type VendorProduct = {
   category: string;
   product_type: string;
   created_date: string;
-  status: boolean;
-  price: number;
-  stock_quantity: number;
   approval_status?: string;
   approval_notes?: string | null;
-  vendor_product_status?: string;
+  variants: VendorProductVariant[];
 };
 
 const ProductsPage = () => {
   const [products, setProducts] = useState<VendorProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [selectedProductId, setSelectedProductId] = useState<string | null>(
-    null,
-  );
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [expandedProductIds, setExpandedProductIds] = useState<Record<string, boolean>>({});
+
+  const toggleExpand = (productId: string) => {
+    setExpandedProductIds((prev) => ({
+      ...prev,
+      [productId]: !prev[productId],
+    }));
+  };
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -115,6 +135,7 @@ const ProductsPage = () => {
 
   const handleDeleteClick = (id: string) => {
     setSelectedProductId(id);
+    setSelectedVariantId(null);
     setDeleteModalOpen(true);
   };
 
@@ -123,8 +144,12 @@ const ProductsPage = () => {
     setIsDeleting(true);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9000";
+      let url = `${apiUrl}/api/vendors/product/${selectedProductId}`;
+      if (selectedVariantId) {
+        url += `?productVariantId=${selectedVariantId}`;
+      }
       const response = await fetch(
-        `${apiUrl}/api/vendors/product/${selectedProductId}`,
+        url,
         {
           method: "DELETE",
           credentials: "include",
@@ -137,9 +162,23 @@ const ProductsPage = () => {
 
       const data = await response.json();
       if (response.ok) {
-        setProducts(products.filter((p) => p.product_id !== selectedProductId));
+        if (selectedVariantId) {
+          // Remove only that variant from the product's variants list
+          setProducts(products.map(p => {
+            if (p.product_id === selectedProductId) {
+              return {
+                ...p,
+                variants: p.variants.filter(v => v.product_variant_id !== selectedVariantId)
+              };
+            }
+            return p;
+          }).filter(p => p.variants.length > 0)); // If no variants left, remove product row entirely
+        } else {
+          setProducts(products.filter((p) => p.product_id !== selectedProductId));
+        }
         setDeleteModalOpen(false);
         setSelectedProductId(null);
+        setSelectedVariantId(null);
       } else {
         alert(data.message || "Failed to delete product");
       }
@@ -284,130 +323,198 @@ const ProductsPage = () => {
                   </td>
                 </tr>
               ) : (
-                products.map((product) => (
-                  <tr
-                    key={product.product_id}
-                    className="hover:bg-gray-50/50 transition-colors group"
-                  >
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        {product.primary_image ? (
-                          <img
-                            src={product.primary_image}
-                            alt={product.product_name}
-                            className="w-10 h-10 rounded-md object-cover border border-gray-200 bg-gray-50"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 rounded-md bg-gray-100 border border-gray-200 flex items-center justify-center">
-                            <Package className="w-5 h-5 text-gray-400" />
+                products.map((product) => {
+                  const isExpanded = !!expandedProductIds[product.product_id];
+                  const prices = product.variants ? product.variants.map((v) => Number(v.price)) : [];
+                  const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+                  const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
+                  const priceRange = minPrice === maxPrice ? `₹${minPrice}` : `₹${minPrice} - ₹${maxPrice}`;
+                  const totalStock = product.variants ? product.variants.reduce((sum, v) => sum + Number(v.stock_quantity), 0) : 0;
+                  const activeVariantsCount = product.variants ? product.variants.filter(v => v.is_active && v.status === 'active').length : 0;
+
+                  return (
+                    <React.Fragment key={product.product_id}>
+                      <tr className="hover:bg-gray-50/50 transition-colors group">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <button
+                              type="button"
+                              onClick={() => toggleExpand(product.product_id)}
+                              className="p-1 rounded hover:bg-gray-150 text-gray-500 transition-colors"
+                            >
+                              {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                            </button>
+                            {product.primary_image ? (
+                              <img
+                                src={product.primary_image}
+                                alt={product.product_name}
+                                className="w-10 h-10 rounded-md object-cover border border-gray-200 bg-gray-50"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 rounded-md bg-gray-100 border border-gray-200 flex items-center justify-center">
+                                <Package className="w-5 h-5 text-gray-400" />
+                              </div>
+                            )}
+                            <div>
+                              <p className="font-semibold text-gray-900 group-hover:text-gray-700 transition-colors">
+                                {product.product_name}
+                              </p>
+                              <p className="text-gray-500 text-xs mt-0.5">
+                                ID: {product.product_id.split("-")[0]}
+                              </p>
+                            </div>
                           </div>
-                        )}
-                        <div>
-                          <p className="font-medium text-gray-900 group-hover:text-gray-700 transition-colors">
-                            {product.product_name}
-                          </p>
-                          <p className="text-gray-500 text-xs mt-0.5">
-                            {product.product_id.split("-")[0]}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-gray-600">
-                      <div>{product.category}</div>
-                      <div className="text-xs text-gray-400">
-                        {product.product_type}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-gray-600">
-                      <div className="font-medium text-gray-900">
-                        ₹{product.price}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {product.stock_quantity} in stock
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-gray-600">
-                      {new Date(product.created_date).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col items-start gap-2">
-                        {/* Live/Listing Status Badge */}
-                        <span
-                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
-                            product.status && product.approval_status === "approved" && product.vendor_product_status === "active"
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                              : "bg-gray-50 text-gray-700 border-gray-200"
-                          }`}
-                        >
-                          {product.status && product.approval_status === "approved" && product.vendor_product_status === "active" ? "Active" : "Inactive"}
-                        </span>
-
-                        {/* Global Product Approval Badge */}
-                        <span
-                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
-                            product.approval_status === "approved"
-                              ? "bg-blue-50 text-blue-700 border-blue-200"
-                              : product.approval_status === "rejected"
-                                ? "bg-red-50 text-red-700 border-red-200"
-                                : "bg-amber-50 text-amber-700 border-amber-200"
-                          }`}
-                        >
-                          Product: {product.approval_status || "pending"}
-                        </span>
-
-                        {/* Listing/Mapping Approval Badge */}
-                        {product.vendor_product_status && product.vendor_product_status !== "active" && (
-                          <span
-                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
-                              product.vendor_product_status === "waiting"
-                                ? "bg-amber-50 text-amber-700 border-amber-200"
-                                : "bg-red-50 text-red-700 border-red-200"
-                            }`}
-                          >
-                            Listing: {product.vendor_product_status === "waiting" ? "pending approval" : product.vendor_product_status}
-                          </span>
-                        )}
-
-                        {/* Informative Help Text */}
-                        {(product.approval_status === "pending" || product.vendor_product_status === "waiting") && (
-                          <p className="text-xs text-amber-600 font-medium animate-pulse">
-                            (Waiting for Admin Approval)
-                          </p>
-                        )}
-                        {product.approval_notes ? (
-                          <p className="max-w-[220px] text-xs text-gray-500">
-                            {product.approval_notes}
-                          </p>
-                        ) : null}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
-                        <Link
-                          href={`/products/view/${product.product_id}`}
-                          className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-all"
-                          title="View Analytics"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Link>
-                        <Link
-                          href={`/products/edit/${product.product_id}`}
-                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-all"
-                          title="Edit"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Link>
-                        <button
-                          onClick={() => handleDeleteClick(product.product_id)}
-                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                        </td>
+                        <td className="px-6 py-4 text-gray-600">
+                          <div>{product.category}</div>
+                          <div className="text-xs text-gray-400">
+                            {product.product_type}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-gray-600">
+                          <div className="font-medium text-gray-900">
+                            {priceRange}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {totalStock} in stock ({product.variants?.length || 0} variations)
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-gray-600">
+                          {new Date(product.created_date).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col items-start gap-1">
+                            <span
+                              className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
+                                product.approval_status === "approved"
+                                  ? "bg-blue-50 text-blue-700 border-blue-200"
+                                  : product.approval_status === "rejected"
+                                    ? "bg-red-50 text-red-700 border-red-200"
+                                    : "bg-amber-50 text-amber-700 border-amber-200"
+                              }`}
+                            >
+                              Product: {product.approval_status || "pending"}
+                            </span>
+                            <span className="text-[11px] text-gray-500 font-medium">
+                              {activeVariantsCount} / {product.variants?.length || 0} active listings
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                            <Link
+                              href={`/products/view/${product.product_id}`}
+                              className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-all"
+                              title="View Analytics"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Link>
+                            <Link
+                              href={`/products/edit/${product.product_id}`}
+                              className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-all"
+                              title="Edit product variants"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Link>
+                            <button
+                              onClick={() => {
+                                setSelectedProductId(product.product_id);
+                                setSelectedVariantId(null);
+                                setDeleteModalOpen(true);
+                              }}
+                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all"
+                              title="Delete catalog product mapping"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      {isExpanded && product.variants && product.variants.length > 0 && (
+                        <tr className="bg-gray-50/30">
+                          <td colSpan={6} className="px-10 py-3.5 bg-zinc-50/40">
+                            <div className="overflow-hidden border border-gray-150 rounded-xl bg-white shadow-xs">
+                              <table className="min-w-full divide-y divide-gray-150 text-xs">
+                                <thead className="bg-gray-50/70 font-semibold text-gray-500 uppercase tracking-wider">
+                                  <tr>
+                                    <th className="px-6 py-2.5 text-left">Variant Dimensions</th>
+                                    <th className="px-6 py-2.5 text-left">SKU</th>
+                                    <th className="px-6 py-2.5 text-left">Price (₹)</th>
+                                    <th className="px-6 py-2.5 text-left">MOQ</th>
+                                    <th className="px-6 py-2.5 text-left">Stock</th>
+                                    <th className="px-6 py-2.5 text-left">Listing Status</th>
+                                    <th className="px-6 py-2.5 text-right">Actions</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100 text-gray-700">
+                                  {product.variants.map((v) => {
+                                    const variantProperties = Object.entries(v.properties || {})
+                                      .map(([key, val]) => `${key}: ${val}`)
+                                      .join(", ") || "Default / Standard";
+                                    return (
+                                      <tr key={v.product_variant_id} className="hover:bg-gray-50/60 transition-colors">
+                                        <td className="px-6 py-3 font-semibold text-gray-800">{variantProperties}</td>
+                                        <td className="px-6 py-3 font-mono">{v.sku || "-"}</td>
+                                        <td className="px-6 py-3 font-semibold text-gray-900">
+                                          ₹{v.price}
+                                          {v.pending_price !== null && v.pending_price !== undefined && (
+                                            <span className="block text-[10px] text-amber-600 font-normal">
+                                              (Pending: ₹{v.pending_price})
+                                            </span>
+                                          )}
+                                        </td>
+                                        <td className="px-6 py-3">{v.moq}</td>
+                                        <td className="px-6 py-3">{v.stock_quantity}</td>
+                                        <td className="px-6 py-3">
+                                          <div className="flex flex-col items-start gap-1">
+                                            <span
+                                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${
+                                                v.is_active && v.status === "active"
+                                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                                  : "bg-gray-50 text-gray-600 border-gray-200"
+                                              }`}
+                                            >
+                                              {v.is_active && v.status === "active" ? "Active" : "Inactive"}
+                                            </span>
+                                            {v.status !== "active" && (
+                                              <span className="text-[10px] text-amber-600 font-medium italic">
+                                                ({v.status === "waiting" ? "pending approval" : v.status})
+                                              </span>
+                                            )}
+                                          </div>
+                                        </td>
+                                        <td className="px-6 py-3 text-right">
+                                          <div className="flex items-center justify-end gap-2">
+                                            <Link
+                                              href={`/products/edit/${product.product_id}`}
+                                              className="text-blue-600 hover:text-blue-800 font-medium"
+                                            >
+                                              Edit
+                                            </Link>
+                                            <button
+                                              onClick={() => {
+                                                setSelectedProductId(product.product_id);
+                                                setSelectedVariantId(v.product_variant_id);
+                                                setDeleteModalOpen(true);
+                                              }}
+                                              className="text-red-500 hover:text-red-700 font-medium"
+                                            >
+                                              Delete
+                                            </button>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })
               )}
             </tbody>
           </table>

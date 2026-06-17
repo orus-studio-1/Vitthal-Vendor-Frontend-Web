@@ -16,6 +16,20 @@ import {
 import Link from "next/link";
 import { toast } from "sonner";
 
+type VendorProductVariant = {
+  vendor_product_id: string;
+  product_variant_id: string;
+  price: number;
+  pending_price?: number | null;
+  moq: number;
+  stock_quantity: number;
+  is_active: boolean; // status
+  status: string; // vendor_product_status
+  gst_percentage?: number;
+  properties: Record<string, string>;
+  sku?: string | null;
+};
+
 type VendorProduct = {
   product_id: string;
   product_name: string;
@@ -23,15 +37,9 @@ type VendorProduct = {
   category: string;
   product_type: string;
   created_date: string;
-  status: boolean; // mapped as vp.is_active
-  price: number;
-  pending_price?: number | null;
-  moq: number;
-  stock_quantity: number;
   approval_status?: string;
   approval_notes?: string | null;
-  vendor_product_status?: string; // vp.status ('active', 'waiting', etc.)
-  gst_percentage?: number;
+  variants: VendorProductVariant[];
 };
 
 type DraftValues = {
@@ -114,12 +122,16 @@ const StocksPage = () => {
         // Initialize drafts
         const newDrafts: Record<string, DraftValues> = {};
         items.forEach((p) => {
-          newDrafts[p.product_id] = {
-            price: p.price.toString(),
-            moq: (p.moq || 1).toString(),
-            stock_quantity: (p.stock_quantity || 0).toString(),
-            is_active: p.status,
-          };
+          if (p.variants) {
+            p.variants.forEach((v) => {
+              newDrafts[v.product_variant_id] = {
+                price: v.price.toString(),
+                moq: (v.moq || 1).toString(),
+                stock_quantity: (v.stock_quantity || 0).toString(),
+                is_active: v.is_active,
+              };
+            });
+          }
         });
         setDrafts(newDrafts);
       }
@@ -136,33 +148,33 @@ const StocksPage = () => {
   }, [debouncedSearch, category]);
 
   const handleInputChange = (
-    productId: string,
+    variantId: string,
     field: keyof DraftValues,
     value: string | boolean
   ) => {
     setDrafts((prev) => ({
       ...prev,
-      [productId]: {
-        ...prev[productId],
+      [variantId]: {
+        ...prev[variantId],
         [field]: value,
       },
     }));
   };
 
-  const isRowDirty = (product: VendorProduct) => {
-    const draft = drafts[product.product_id];
+  const isRowDirty = (variant: VendorProductVariant) => {
+    const draft = drafts[variant.product_variant_id];
     if (!draft) return false;
 
     return (
-      draft.price !== product.price.toString() ||
-      draft.moq !== product.moq.toString() ||
-      draft.stock_quantity !== product.stock_quantity.toString() ||
-      draft.is_active !== product.status
+      draft.price !== variant.price.toString() ||
+      draft.moq !== variant.moq.toString() ||
+      draft.stock_quantity !== variant.stock_quantity.toString() ||
+      draft.is_active !== variant.is_active
     );
   };
 
-  const handleSaveRow = async (product: VendorProduct) => {
-    const draft = drafts[product.product_id];
+  const handleSaveRow = async (productId: string, variant: VendorProductVariant) => {
+    const draft = drafts[variant.product_variant_id];
     if (!draft) return;
 
     // Validation
@@ -183,7 +195,7 @@ const StocksPage = () => {
       return;
     }
 
-    setSavingId(product.product_id);
+    setSavingId(variant.product_variant_id);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9000";
       
@@ -193,11 +205,12 @@ const StocksPage = () => {
         stockQuantity: parsedStock,
         isActive: draft.is_active,
         quotationEnabled: false, // Maintain existing default
-        gstPercentage: product.gst_percentage,
+        gstPercentage: variant.gst_percentage,
+        productVariantId: variant.product_variant_id
       };
 
       const response = await fetch(
-        `${apiUrl}/api/products/vendor/product/${product.product_id}`,
+        `${apiUrl}/api/products/vendor/product/${productId}`,
         {
           method: "PUT",
           credentials: "include",
@@ -325,178 +338,175 @@ const StocksPage = () => {
                   </td>
                 </tr>
               ) : (
-                products.map((product) => {
-                  const draft = drafts[product.product_id];
-                  const dirty = isRowDirty(product);
-                  const isSaving = savingId === product.product_id;
-                  const isApprovedListing = product.vendor_product_status === "active";
-
-                  return (
-                    <tr
-                      key={product.product_id}
-                      className={`hover:bg-gray-50/40 transition-colors ${
-                        !isApprovedListing ? "bg-zinc-50/20" : ""
-                      }`}
-                    >
-                      {/* Product Column */}
-                      <td className="px-6 py-4">
+                products.map((product) => (
+                  <React.Fragment key={product.product_id}>
+                    {/* Parent Product Header Row */}
+                    <tr className="bg-gray-100/50 border-b border-gray-200">
+                      <td colSpan={6} className="px-6 py-3 font-semibold text-gray-800 text-sm">
                         <div className="flex items-center gap-3">
                           {product.primary_image ? (
                             <img
                               src={product.primary_image}
                               alt={product.product_name}
-                              className="w-10 h-10 rounded-lg object-cover border border-gray-200 bg-gray-50"
+                              className="w-8 h-8 rounded-lg object-cover border border-gray-200 bg-gray-50"
                             />
                           ) : (
-                            <div className="w-10 h-10 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center">
-                              <Package className="w-5 h-5 text-gray-400" />
+                            <div className="w-8 h-8 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center">
+                              <Package className="w-4 h-4 text-gray-400" />
                             </div>
                           )}
                           <div>
-                            <p className="font-semibold text-gray-900">
-                              {product.product_name}
-                            </p>
-                            <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-400">
-                              <span>{product.product_type}</span>
-                              <span>•</span>
-                              <span>{product.category}</span>
-                            </div>
+                            <span className="font-bold text-gray-950">{product.product_name}</span>
+                            <span className="text-xs text-gray-400 ml-2">({product.category} • {product.product_type})</span>
                           </div>
                         </div>
                       </td>
+                    </tr>
+                    
+                    {/* Variants Sub-Rows */}
+                    {product.variants && product.variants.map((variant) => {
+                      const draft = drafts[variant.product_variant_id];
+                      const dirty = isRowDirty(variant);
+                      const isSaving = savingId === variant.product_variant_id;
+                      const isApprovedListing = variant.status === "active";
+                      const variantProperties = Object.entries(variant.properties || {})
+                        .map(([key, val]) => `${key}: ${val}`)
+                        .join(", ") || "Default / Standard";
 
-                      {/* Price Column */}
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col gap-1.5">
-                          <div className="relative rounded-md shadow-xs">
-                            <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500 pointer-events-none select-none">
-                              ₹
-                            </span>
+                      return (
+                        <tr
+                          key={variant.product_variant_id}
+                          className={`hover:bg-gray-50/40 transition-colors border-b border-gray-150 ${
+                            !isApprovedListing ? "bg-zinc-50/10" : ""
+                          }`}
+                        >
+                          <td className="px-6 py-4 pl-12">
+                            <div>
+                              <p className="font-semibold text-gray-850">{variantProperties}</p>
+                              {variant.sku && <p className="text-[11px] text-gray-400 font-mono mt-0.5">SKU: {variant.sku}</p>}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex flex-col gap-1.5">
+                              <div className="relative rounded-md shadow-xs">
+                                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500 pointer-events-none select-none">
+                                  ₹
+                                </span>
+                                <input
+                                  type="number"
+                                  value={draft?.price ?? ""}
+                                  onChange={(e) =>
+                                    handleInputChange(
+                                      variant.product_variant_id,
+                                      "price",
+                                      e.target.value
+                                    )
+                                  }
+                                  className="w-full pl-7 pr-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-900 bg-white"
+                                  step="0.01"
+                                  min="0"
+                                />
+                              </div>
+                              {variant.pending_price !== null &&
+                                variant.pending_price !== undefined && (
+                                  <div className="flex items-center gap-1 text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-100 rounded-md px-2 py-0.5 self-start">
+                                    <AlertCircle className="w-3.5 h-3.5 shrink-0 text-amber-500" />
+                                    <span>Pending: ₹{variant.pending_price}</span>
+                                  </div>
+                                )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
                             <input
                               type="number"
-                              value={draft?.price ?? ""}
+                              value={draft?.moq ?? ""}
                               onChange={(e) =>
                                 handleInputChange(
-                                  product.product_id,
-                                  "price",
+                                  variant.product_variant_id,
+                                  "moq",
                                   e.target.value
                                 )
                               }
-                              className="w-full pl-7 pr-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-900 bg-white"
-                              step="0.01"
+                              className="w-full px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-900 bg-white"
+                              min="1"
+                            />
+                          </td>
+                          <td className="px-6 py-4">
+                            <input
+                              type="number"
+                              value={draft?.stock_quantity ?? ""}
+                              onChange={(e) =>
+                                handleInputChange(
+                                  variant.product_variant_id,
+                                  "stock_quantity",
+                                  e.target.value
+                                )
+                              }
+                              className="w-full px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-900 bg-white"
                               min="0"
                             />
-                          </div>
-
-                          {/* Pending price alert/badge */}
-                          {product.pending_price !== null &&
-                            product.pending_price !== undefined && (
-                              <div className="flex items-center gap-1 text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-100 rounded-md px-2 py-0.5 self-start">
-                                <AlertCircle className="w-3.5 h-3.5 shrink-0 text-amber-500" />
-                                <span>Pending: ₹{product.pending_price}</span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex flex-col gap-1.5 items-start">
+                              {isApprovedListing ? (
+                                <label className="relative inline-flex items-center cursor-pointer select-none">
+                                  <input
+                                    type="checkbox"
+                                    checked={draft?.is_active ?? false}
+                                    onChange={(e) =>
+                                      handleInputChange(
+                                        variant.product_variant_id,
+                                        "is_active",
+                                        e.target.checked
+                                      )
+                                    }
+                                    className="sr-only peer"
+                                  />
+                                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                                </label>
+                              ) : (
+                                <div className="flex items-center gap-1 px-2.5 py-0.5 bg-amber-50 text-amber-700 border border-amber-100 rounded-full text-[11px] font-medium">
+                                  <Lock className="w-3 h-3" />
+                                  <span>Needs Approval</span>
+                                </div>
+                              )}
+                              {isApprovedListing && (
+                                <span
+                                  className={`text-[10px] font-semibold ${
+                                    variant.is_active
+                                      ? "text-emerald-600"
+                                      : "text-gray-400"
+                                  }`}
+                                >
+                                  {variant.is_active ? "Visible" : "Hidden"}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            {isSaving ? (
+                              <div className="inline-flex items-center justify-center p-2 rounded-lg bg-gray-50 border border-gray-200">
+                                <Loader2 className="w-4 h-4 animate-spin text-gray-500" />
+                              </div>
+                            ) : dirty ? (
+                              <button
+                                onClick={() => handleSaveRow(product.product_id, variant)}
+                                className="inline-flex items-center justify-center p-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs hover:shadow-sm"
+                                title="Save changes"
+                              >
+                                <Save className="w-4 h-4" />
+                              </button>
+                            ) : (
+                              <div className="inline-flex items-center justify-center p-2 rounded-lg bg-gray-50 border border-gray-100 text-gray-300 select-none">
+                                <Check className="w-4 h-4" />
                               </div>
                             )}
-                        </div>
-                      </td>
-
-                      {/* MOQ Column */}
-                      <td className="px-6 py-4">
-                        <input
-                          type="number"
-                          value={draft?.moq ?? ""}
-                          onChange={(e) =>
-                            handleInputChange(
-                              product.product_id,
-                              "moq",
-                              e.target.value
-                            )
-                          }
-                          className="w-full px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-900 bg-white"
-                          min="1"
-                        />
-                      </td>
-
-                      {/* Stock Quantity Column */}
-                      <td className="px-6 py-4">
-                        <input
-                          type="number"
-                          value={draft?.stock_quantity ?? ""}
-                          onChange={(e) =>
-                            handleInputChange(
-                              product.product_id,
-                              "stock_quantity",
-                              e.target.value
-                            )
-                          }
-                          className="w-full px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-900 bg-white"
-                          min="0"
-                        />
-                      </td>
-
-                      {/* Active Status Toggle Column */}
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col gap-1.5 items-start">
-                          {isApprovedListing ? (
-                            <label className="relative inline-flex items-center cursor-pointer select-none">
-                              <input
-                                type="checkbox"
-                                checked={draft?.is_active ?? false}
-                                onChange={(e) =>
-                                  handleInputChange(
-                                    product.product_id,
-                                    "is_active",
-                                    e.target.checked
-                                  )
-                                }
-                                className="sr-only peer"
-                              />
-                              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-                            </label>
-                          ) : (
-                            <div className="flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-100 rounded-full text-xs font-medium">
-                              <Lock className="w-3.5 h-3.5" />
-                              <span>Needs Approval</span>
-                            </div>
-                          )}
-
-                          {/* Current Status Label */}
-                          {isApprovedListing && (
-                            <span
-                              className={`text-[11px] font-semibold ${
-                                product.status
-                                  ? "text-emerald-600"
-                                  : "text-gray-400"
-                              }`}
-                            >
-                              {product.status ? "Visible" : "Hidden"}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Action Column */}
-                      <td className="px-6 py-4 text-center">
-                        {isSaving ? (
-                          <div className="inline-flex items-center justify-center p-2 rounded-lg bg-gray-50 border border-gray-200">
-                            <Loader2 className="w-4 h-4 animate-spin text-gray-500" />
-                          </div>
-                        ) : dirty ? (
-                          <button
-                            onClick={() => handleSaveRow(product)}
-                            className="inline-flex items-center justify-center p-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs hover:shadow-sm"
-                            title="Save changes"
-                          >
-                            <Save className="w-4 h-4" />
-                          </button>
-                        ) : (
-                          <div className="inline-flex items-center justify-center p-2 rounded-lg bg-gray-50 border border-gray-100 text-gray-300 select-none">
-                            <Check className="w-4 h-4" />
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </React.Fragment>
+                ))
               )}
             </tbody>
           </table>

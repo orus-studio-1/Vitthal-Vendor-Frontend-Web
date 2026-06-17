@@ -36,9 +36,10 @@ interface VendorProduct {
   standard?: string;
   attributes?: Record<string, unknown>;
   specifications: Record<string, unknown>;
-  price: number;
-  moq: number;
-  stock_quantity: number;
+  price?: number;
+  moq?: number;
+  stock_quantity?: number;
+  gst_percentage?: number;
   quotation_enabled?: boolean;
   quotation_min_qty?: number | null;
   quotation_limit?: number | null;
@@ -48,6 +49,21 @@ interface VendorProduct {
   vendor_product_created_at: string;
   vendor_product_updated_at: string;
   images: ProductImage[];
+  variants?: VendorProductVariant[];
+}
+
+interface VendorProductVariant {
+  vendor_product_id: string;
+  product_variant_id: string;
+  price: number;
+  pending_price?: number | null;
+  moq: number;
+  stock_quantity: number;
+  is_active: boolean;
+  status: string;
+  gst_percentage?: number;
+  properties: Record<string, string>;
+  sku?: string | null;
 }
 
 export default function EditProductPage() {
@@ -65,6 +81,25 @@ export default function EditProductPage() {
   const [gstPercentage, setGstPercentage] = useState("0.00");
   const [isActive, setIsActive] = useState(true);
   const [quotationEnabled, setQuotationEnabled] = useState(false);
+  const [selectedVariantId, setSelectedVariantId] = useState<string>("");
+
+  const applyVariantState = (variantsList: VendorProductVariant[], variantId: string) => {
+    const v = variantsList.find((x) => x.product_variant_id === variantId);
+    if (v) {
+      setPrice(v.price.toString());
+      setMoq(v.moq.toString());
+      setStockQuantity(v.stock_quantity.toString());
+      setGstPercentage(v.gst_percentage !== null && v.gst_percentage !== undefined ? v.gst_percentage.toString() : "0.00");
+      setIsActive(v.is_active);
+    }
+  };
+
+  const handleVariantChange = (variantId: string) => {
+    setSelectedVariantId(variantId);
+    if (product?.variants) {
+      applyVariantState(product.variants, variantId);
+    }
+  };
 
   useEffect(() => {
     fetchProduct();
@@ -89,12 +124,19 @@ export default function EditProductPage() {
       if (response.ok && data.data) {
         const prod = data.data;
         setProduct(prod);
-        setPrice(prod.price.toString());
-        setMoq(prod.moq.toString());
-        setStockQuantity(prod.stock_quantity.toString());
-        setGstPercentage(prod.gst_percentage !== null && prod.gst_percentage !== undefined ? prod.gst_percentage.toString() : "0.00");
-        setIsActive(prod.is_active);
-        setQuotationEnabled(Boolean(prod.quotation_enabled));
+        if (prod.variants && prod.variants.length > 0) {
+          const firstVariantId = prod.variants[0].product_variant_id;
+          setSelectedVariantId(firstVariantId);
+          applyVariantState(prod.variants, firstVariantId);
+          setQuotationEnabled(Boolean(prod.variants[0].quotation_enabled));
+        } else {
+          setPrice(prod.price?.toString() || "");
+          setMoq(prod.moq?.toString() || "");
+          setStockQuantity(prod.stock_quantity?.toString() || "");
+          setGstPercentage(prod.gst_percentage !== null && prod.gst_percentage !== undefined ? prod.gst_percentage.toString() : "0.00");
+          setIsActive(prod.is_active);
+          setQuotationEnabled(Boolean(prod.quotation_enabled));
+        }
       } else {
         toast.error(data.message || "Failed to fetch product");
       }
@@ -129,6 +171,7 @@ export default function EditProductPage() {
             quotationEnabled,
             quotationMinQty: null,
             gstPercentage: Number(gstPercentage),
+            productVariantId: selectedVariantId || undefined
           }),
         },
       );
@@ -311,9 +354,34 @@ export default function EditProductPage() {
 
         {/* Pricing & Stock */}
         <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900 mb-6">
-            Pricing & Stock
-          </h2>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900">
+              Pricing & Stock
+            </h2>
+            {product.variants && product.variants.length > 0 && (
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                  Editing Variant:
+                </label>
+                <select
+                  value={selectedVariantId}
+                  onChange={(e) => handleVariantChange(e.target.value)}
+                  className="border border-gray-300 rounded-lg px-3 py-1.5 bg-gray-50 focus:outline-none focus:ring-1 focus:ring-gray-900 text-sm font-semibold text-gray-800 transition-colors"
+                >
+                  {product.variants.map((v: any) => {
+                    const label = Object.entries(v.properties || {})
+                      .map(([key, val]) => `${key}: ${val}`)
+                      .join(", ") || "Default / Standard";
+                    return (
+                      <option key={v.product_variant_id} value={v.product_variant_id}>
+                        {label} {v.sku ? `(SKU: ${v.sku})` : ""}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            )}
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-900 mb-2">

@@ -2010,82 +2010,84 @@ export default function AddProductPage() {
                     )}
 
                     {/* Propose new variation fields */}
-                    <div className="bg-violet-50/15 border border-violet-100 rounded-xl p-5 space-y-4 mt-3 animate-in fade-in slide-in-from-top-2 duration-250">
-                      <h4 className="text-xs font-bold text-violet-900 uppercase tracking-wider">
-                        ✨ Propose New Variation Values for this Product
-                      </h4>
+                    {isCreatingNew && (
+                      <div className="bg-violet-50/15 border border-violet-100 rounded-xl p-5 space-y-4 mt-3 animate-in fade-in slide-in-from-top-2 duration-250">
+                        <h4 className="text-xs font-bold text-violet-900 uppercase tracking-wider">
+                          ✨ Propose New Variation Values for this Product
+                        </h4>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                            Variation Dimension (e.g. Size, Grade, Material) *
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                              Variation Dimension (e.g. Size, Grade, Material) *
+                            </label>
+                            <input
+                              type="text"
+                              value={variantType}
+                              onChange={(e) => setVariantType(e.target.value)}
+                              placeholder="e.g. Size, Grade"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-1 focus:ring-violet-500 font-semibold text-gray-800"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-3 pt-2">
+                          <label className="block text-xs font-bold text-gray-700">
+                            Add Proposed Options (Value & Optional SKU)
                           </label>
-                          <input
-                            type="text"
-                            value={variantType}
-                            onChange={(e) => setVariantType(e.target.value)}
-                            placeholder="e.g. Size, Grade"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-1 focus:ring-violet-500 font-semibold text-gray-800"
-                          />
+                          {proposedVariants.map((variant, index) => (
+                            <div key={variant.id} className="grid grid-cols-1 sm:grid-cols-[1fr_1.2fr_auto] gap-3 items-center">
+                              <input
+                                type="text"
+                                value={variant.value}
+                                onChange={(e) => {
+                                  const updated = [...proposedVariants];
+                                  updated[index].value = e.target.value;
+                                  setProposedVariants(updated);
+                                }}
+                                placeholder={`Option value (e.g., 30mm)`}
+                                className="px-3.5 py-2 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-violet-500 w-full font-semibold"
+                              />
+                              <input
+                                type="text"
+                                value={variant.sku}
+                                onChange={(e) => {
+                                  const updated = [...proposedVariants];
+                                  updated[index].sku = e.target.value;
+                                  setProposedVariants(updated);
+                                }}
+                                placeholder="SKU / Item Code (Optional)"
+                                className="px-3.5 py-2 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-violet-500 w-full font-mono"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setProposedVariants(
+                                    proposedVariants.filter((v) => v.id !== variant.id)
+                                  );
+                                }}
+                                className="p-2 border border-gray-300 rounded-lg text-gray-400 hover:bg-gray-150 hover:text-red-650 transition"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ))}
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setProposedVariants([
+                                ...proposedVariants,
+                                { id: `pv-${Date.now()}-${Math.random().toString(36).slice(2)}`, value: "", sku: "" },
+                              ]);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-2 border border-dashed border-violet-300 text-violet-750 hover:text-violet-900 rounded-lg text-xs font-bold transition-all bg-white"
+                          >
+                            <Plus className="w-3.5 h-3.5" /> Add Variation Value
+                          </button>
                         </div>
                       </div>
-
-                      <div className="space-y-3 pt-2">
-                        <label className="block text-xs font-bold text-gray-700">
-                          Add Proposed Options (Value & Optional SKU)
-                        </label>
-                        {proposedVariants.map((variant, index) => (
-                          <div key={variant.id} className="grid grid-cols-1 sm:grid-cols-[1fr_1.2fr_auto] gap-3 items-center">
-                            <input
-                              type="text"
-                              value={variant.value}
-                              onChange={(e) => {
-                                const updated = [...proposedVariants];
-                                updated[index].value = e.target.value;
-                                setProposedVariants(updated);
-                              }}
-                              placeholder={`Option value (e.g., 30mm)`}
-                              className="px-3.5 py-2 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-violet-500 w-full font-semibold"
-                            />
-                            <input
-                              type="text"
-                              value={variant.sku}
-                              onChange={(e) => {
-                                const updated = [...proposedVariants];
-                                updated[index].sku = e.target.value;
-                                setProposedVariants(updated);
-                              }}
-                              placeholder="SKU / Item Code (Optional)"
-                              className="px-3.5 py-2 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-violet-500 w-full font-mono"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setProposedVariants(
-                                  proposedVariants.filter((v) => v.id !== variant.id)
-                                );
-                              }}
-                              className="p-2 border border-gray-300 rounded-lg text-gray-400 hover:bg-gray-150 hover:text-red-650 transition"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ))}
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setProposedVariants([
-                              ...proposedVariants,
-                              { id: `pv-${Date.now()}-${Math.random().toString(36).slice(2)}`, value: "", sku: "" },
-                            ]);
-                          }}
-                          className="inline-flex items-center gap-1.5 px-3.5 py-2 border border-dashed border-violet-300 text-violet-750 hover:text-violet-900 rounded-lg text-xs font-bold transition-all bg-white"
-                        >
-                          <Plus className="w-3.5 h-3.5" /> Add Variation Value
-                        </button>
-                      </div>
-                    </div>
+                    )}
 
                   </div>
                 </div>
