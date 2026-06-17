@@ -746,6 +746,15 @@ export default function VendorPayoutsPage() {
                                                                 {item.product_description && (
                                                                     <p className="text-xs text-gray-450 line-clamp-1 mt-0.5">{item.product_description}</p>
                                                                 )}
+                                                                {item.variant_properties && Object.keys(item.variant_properties).length > 0 && (
+                                                                    <div className="mt-1.5 flex flex-wrap gap-1">
+                                                                        {Object.entries(item.variant_properties).map(([key, val]) => (
+                                                                            <span key={key} className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-650 capitalize border border-gray-200">
+                                                                                {key}: {String(val)}
+                                                                            </span>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
                                                                 <p className="text-xs text-gray-500 mt-1.5">
                                                                     Qty: <span className="font-semibold text-gray-800">{item.quantity}</span> • Price: <span className="font-semibold text-gray-800">₹{Number(item.price).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                                                                 </p>

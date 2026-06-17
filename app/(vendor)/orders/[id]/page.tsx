@@ -35,6 +35,7 @@ interface OrderItem {
   image_url: string | null;
   quantity: number;
   price: number;
+  variant_properties?: Record<string, string>;
 }
 
 interface Order {
@@ -784,6 +785,15 @@ const OrderDetailPage = () => {
                         <p className="text-sm text-gray-500 mt-1 line-clamp-2">
                           {item.product_description}
                         </p>
+                      )}
+                      {item.variant_properties && Object.keys(item.variant_properties).length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {Object.entries(item.variant_properties).map(([key, val]) => (
+                            <span key={key} className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-[11px] font-bold text-gray-600 capitalize border border-gray-200">
+                              {key}: {String(val)}
+                            </span>
+                          ))}
+                        </div>
                       )}
                       <div className="flex items-center gap-4 mt-3">
                         <span className="text-sm text-gray-500">
