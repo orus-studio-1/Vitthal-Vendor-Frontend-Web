@@ -12,6 +12,9 @@ import {
   Eye,
   ToggleLeft,
   ToggleRight,
+  HelpCircle,
+  Upload,
+  Image as ImageIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -64,6 +67,7 @@ interface VendorProductVariant {
   gst_percentage?: number;
   properties: Record<string, string>;
   sku?: string | null;
+  name?: string | null;
 }
 
 export default function EditProductPage() {
@@ -82,6 +86,7 @@ export default function EditProductPage() {
   const [isActive, setIsActive] = useState(true);
   const [quotationEnabled, setQuotationEnabled] = useState(false);
   const [selectedVariantId, setSelectedVariantId] = useState<string>("");
+  const [uploadedImages, setUploadedImages] = useState<File[]>([]);
 
   const applyVariantState = (variantsList: VendorProductVariant[], variantId: string) => {
     const v = variantsList.find((x) => x.product_variant_id === variantId);
@@ -178,6 +183,28 @@ export default function EditProductPage() {
 
       const data = await response.json();
       if (response.ok) {
+        if (uploadedImages.length > 0) {
+          const formData = new FormData();
+          formData.append("productId", productId);
+          if (selectedVariantId) {
+            formData.append("productVariantId", selectedVariantId);
+          }
+          uploadedImages.forEach((image) => {
+            formData.append("images", image);
+          });
+          
+          const imgRes = await fetch(`${apiUrl}/api/products/uploadProductImages`, {
+            method: "POST",
+            credentials: "include",
+            headers: {
+              "x-request-from": "vendor",
+            },
+            body: formData,
+          });
+          if (!imgRes.ok) {
+            console.warn("Failed to upload variant specific images during edit.");
+          }
+        }
         toast.success("Product updated successfully!");
         router.push(`/products/view/${productId}`);
       } else {
@@ -369,7 +396,7 @@ export default function EditProductPage() {
                   className="border border-gray-300 rounded-lg px-3 py-1.5 bg-gray-50 focus:outline-none focus:ring-1 focus:ring-gray-900 text-sm font-semibold text-gray-800 transition-colors"
                 >
                   {product.variants.map((v: any) => {
-                    const label = Object.entries(v.properties || {})
+                    const label = v.name || Object.entries(v.properties || {})
                       .map(([key, val]) => `${key}: ${val}`)
                       .join(", ") || "Default / Standard";
                     return (
@@ -384,9 +411,17 @@ export default function EditProductPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-900 mb-2">
-                Selling Price (₹) <span className="text-red-500">*</span>
-              </label>
+              <div className="flex items-center gap-1.5 mb-2">
+                <label className="block text-sm font-medium text-gray-900">
+                  Selling Price (₹) <span className="text-red-500">*</span>
+                </label>
+                <div className="relative group">
+                  <HelpCircle className="w-3.5 h-3.5 text-gray-400 cursor-pointer" />
+                  <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-48 bg-gray-900 text-white text-[10px] p-2 rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-30 shadow-md font-normal">
+                    Specify the selling price of one unit of this product variant (excluding GST).
+                  </div>
+                </div>
+              </div>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Banknote className="h-5 w-5 text-gray-400" />
@@ -408,9 +443,17 @@ export default function EditProductPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-900 mb-2">
-                Minimum Order (MOQ) <span className="text-red-500">*</span>
-              </label>
+              <div className="flex items-center gap-1.5 mb-2">
+                <label className="block text-sm font-medium text-gray-900">
+                  Minimum Order (MOQ) <span className="text-red-500">*</span>
+                </label>
+                <div className="relative group">
+                  <HelpCircle className="w-3.5 h-3.5 text-gray-400 cursor-pointer" />
+                  <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-48 bg-gray-900 text-white text-[10px] p-2 rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-30 shadow-md font-normal">
+                    The minimum number of units that a buyer must order to purchase this product variant.
+                  </div>
+                </div>
+              </div>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Package className="h-5 w-5 text-gray-400" />
@@ -431,9 +474,17 @@ export default function EditProductPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-900 mb-2">
-                Available Stock <span className="text-red-500">*</span>
-              </label>
+              <div className="flex items-center gap-1.5 mb-2">
+                <label className="block text-sm font-medium text-gray-900">
+                  Available Stock <span className="text-red-500">*</span>
+                </label>
+                <div className="relative group">
+                  <HelpCircle className="w-3.5 h-3.5 text-gray-400 cursor-pointer" />
+                  <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-48 bg-gray-900 text-white text-[10px] p-2 rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-30 shadow-md font-normal">
+                    The current inventory level you have in stock for this product variant.
+                  </div>
+                </div>
+              </div>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Tag className="h-5 w-5 text-gray-400" />
@@ -454,9 +505,17 @@ export default function EditProductPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-900 mb-2">
-                GST Percentage (%) <span className="text-red-500">*</span>
-              </label>
+              <div className="flex items-center gap-1.5 mb-2">
+                <label className="block text-sm font-medium text-gray-900">
+                  GST Percentage (%) <span className="text-red-500">*</span>
+                </label>
+                <div className="relative group">
+                  <HelpCircle className="w-3.5 h-3.5 text-gray-400 cursor-pointer" />
+                  <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-48 bg-gray-900 text-white text-[10px] p-2 rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-30 shadow-md font-normal">
+                    The Goods and Services Tax (GST) rate applicable for this variant (e.g. 18%).
+                  </div>
+                </div>
+              </div>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Banknote className="h-5 w-5 text-gray-400" />
@@ -515,6 +574,66 @@ export default function EditProductPage() {
                     </span>
                   )}
                 </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Variant Specific Images Upload */}
+        <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">
+            Variant Photos (Optional)
+          </h2>
+          <p className="text-xs text-gray-500 mb-4">
+            Upload up to 3 custom photos specific to this variant.
+          </p>
+
+          <div className="flex flex-wrap items-center gap-3 pt-2 text-xs">
+            <label className="cursor-pointer px-4 py-2 border border-dashed border-violet-300 hover:border-violet-500 rounded-lg text-violet-750 hover:bg-violet-50 font-bold transition-all flex items-center gap-1.5 bg-white">
+              <Upload className="w-4 h-4 text-violet-500" />
+              <span>Select Photos ({uploadedImages.length}/3)</span>
+              <input
+                type="file"
+                multiple
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files) {
+                    const files = Array.from(e.target.files);
+                    setUploadedImages((prev) => [...prev, ...files].slice(0, 3));
+                  }
+                }}
+              />
+            </label>
+
+            {/* Thumbnail previews */}
+            {uploadedImages.length > 0 && (
+              <div className="flex items-center gap-2">
+                {uploadedImages.map((file, imgIdx) => (
+                  <div key={imgIdx} className="relative w-12 h-12 rounded-lg overflow-hidden border border-gray-200">
+                    <img
+                      src={URL.createObjectURL(file)}
+                      alt="Preview"
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUploadedImages((prev) => prev.filter((_, idx) => idx !== imgIdx));
+                      }}
+                      className="absolute top-0.5 right-0.5 bg-black/60 hover:bg-black/85 text-white p-0.5 rounded-full"
+                    >
+                      <X className="w-2.5 h-2.5" />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setUploadedImages([])}
+                  className="text-red-500 hover:text-red-700 font-bold hover:underline bg-transparent border-0"
+                >
+                  Clear All
+                </button>
               </div>
             )}
           </div>

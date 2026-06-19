@@ -335,6 +335,30 @@ function transformMarkdown(
   });
 }
 
+const parseProperties = (valueStr: string, variantType?: string) => {
+  const props: Record<string, string> = {};
+  if (!valueStr) return props;
+  
+  const parts = valueStr.split(",");
+  parts.forEach(part => {
+    const colonIndex = part.indexOf(":");
+    if (colonIndex > -1) {
+      const key = part.slice(0, colonIndex).trim();
+      const val = part.slice(colonIndex + 1).trim();
+      if (key && val) {
+        props[key] = val;
+      }
+    } else {
+      const key = variantType || "Size";
+      const val = part.trim();
+      if (val) {
+        props[key] = val;
+      }
+    }
+  });
+  return props;
+};
+
 export default function AddProductPage() {
   const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9000";
   const [activeStep, setActiveStep] = useState(1);
@@ -367,17 +391,28 @@ export default function AddProductPage() {
 
   // Variant States
   const [selectedExistingVariantIds, setSelectedExistingVariantIds] = useState<string[]>([]);
-  const [proposedVariants, setProposedVariants] = useState<Array<{ id: string; value: string; sku: string }>>([
-    { id: "pv-1", value: "", sku: "" },
+  const [proposedVariants, setProposedVariants] = useState<Array<{
+    id: string;
+    name: string;
+    properties: Array<{ id: string; key: string; value: string }>;
+    sku: string;
+  }>>([
+    { id: "pv-1", name: "", properties: [{ id: "prop-1", key: "", value: "" }], sku: "" },
   ]);
 
   // Variation configuration states for new product creation
   const [hasMultipleVariants, setHasMultipleVariants] = useState<boolean>(false);
   const [variantType, setVariantType] = useState<string>("Size");
-  const [creationVariants, setCreationVariants] = useState<Array<{ id: string; value: string; sku: string }>>([
-    { id: "v-1", value: "", sku: "" },
+  const [creationVariants, setCreationVariants] = useState<Array<{
+    id: string;
+    name: string;
+    properties: Array<{ id: string; key: string; value: string }>;
+    sku: string;
+  }>>([
+    { id: "v-1", name: "", properties: [{ id: "prop-1", key: "", value: "" }], sku: "" },
   ]);
   const [variantOfferings, setVariantOfferings] = useState<Record<string, { price: string; moq: string; stock: string }>>({});
+  const [variantImages, setVariantImages] = useState<Record<string, File[]>>({});
 
   // Form states
   const [productName, setProductName] = useState("");
@@ -407,7 +442,9 @@ export default function AddProductPage() {
 
   const activeStep3Variants: Array<{
     id: string;
+    name: string;
     value: string;
+    properties: Record<string, string>;
     sku?: string;
     isExisting: boolean;
   }> = [];
@@ -415,10 +452,23 @@ export default function AddProductPage() {
   if (isCreatingNew) {
     if (hasMultipleVariants) {
       creationVariants.forEach((v) => {
-        if (v.value.trim()) {
+        const propsObj: Record<string, string> = {};
+        v.properties.forEach((p) => {
+          if (p.key.trim() && p.value.trim()) {
+            propsObj[p.key.trim()] = p.value.trim();
+          }
+        });
+        
+        const propDesc = Object.entries(propsObj)
+          .map(([key, val]) => `${key}: ${val}`)
+          .join(', ');
+
+        if (v.name.trim() || propDesc) {
           activeStep3Variants.push({
             id: v.id,
-            value: v.value.trim(),
+            name: v.name.trim() || propDesc || "Standard Variant",
+            value: propDesc || "Standard Variant",
+            properties: propsObj,
             sku: v.sku,
             isExisting: false,
           });
@@ -433,17 +483,32 @@ export default function AddProductPage() {
           .join(', ') || "Default Variation";
         activeStep3Variants.push({
           id: v.variant_id,
+          name: (v as any).variant_name || propDesc,
           value: propDesc,
+          properties: v.properties || {},
           sku: v.sku || undefined,
           isExisting: true,
         });
       }
     });
     proposedVariants.forEach((v) => {
-      if (v.value.trim()) {
+      const propsObj: Record<string, string> = {};
+      v.properties.forEach((p) => {
+        if (p.key.trim() && p.value.trim()) {
+          propsObj[p.key.trim()] = p.value.trim();
+        }
+      });
+
+      const propDesc = Object.entries(propsObj)
+        .map(([key, val]) => `${key}: ${val}`)
+        .join(', ');
+
+      if (v.name.trim() || propDesc) {
         activeStep3Variants.push({
           id: v.id,
-          value: `${variantType}: ${v.value.trim()} (Proposed)`,
+          name: v.name.trim() || propDesc || "Proposed Variant",
+          value: propDesc || "Proposed Variant",
+          properties: propsObj,
           sku: v.sku,
           isExisting: false,
         });
@@ -635,10 +700,10 @@ export default function AddProductPage() {
     setQuotationLimit("");
     setGstPercentage("0.00");
     setSelectedExistingVariantIds([]);
-    setProposedVariants([{ id: "pv-1", value: "", sku: "" }]);
+    setProposedVariants([{ id: "pv-1", name: "", properties: [{ id: "prop-1", key: "", value: "" }], sku: "" }]);
     setHasMultipleVariants(false);
     setVariantType("Size");
-    setCreationVariants([{ id: "v-1", value: "", sku: "" }]);
+    setCreationVariants([{ id: "v-1", name: "", properties: [{ id: "prop-1", key: "", value: "" }], sku: "" }]);
     setVariantOfferings({});
     setActiveStep(1);
   };
@@ -765,6 +830,68 @@ export default function AddProductPage() {
     }, 0);
   };
 
+  // Helper to add property row on variant
+  const addVariantPropertyRow = (variantId: string, isProposed: boolean) => {
+    const setter = isProposed ? setProposedVariants : setCreationVariants;
+    setter((prev) =>
+      prev.map((v) =>
+        v.id === variantId
+          ? {
+              ...v,
+              properties: [
+                ...v.properties,
+                {
+                  id: `prop-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                  key: "",
+                  value: "",
+                },
+              ],
+            }
+          : v
+      )
+    );
+  };
+
+  // Helper to remove property row on variant
+  const removeVariantPropertyRow = (variantId: string, propId: string, isProposed: boolean) => {
+    const setter = isProposed ? setProposedVariants : setCreationVariants;
+    setter((prev) =>
+      prev.map((v) =>
+        v.id === variantId
+          ? {
+              ...v,
+              properties: v.properties.length <= 1
+                ? [{ id: `prop-${Date.now()}-${Math.random().toString(36).slice(2)}`, key: "", value: "" }]
+                : v.properties.filter((p) => p.id !== propId),
+            }
+          : v
+      )
+    );
+  };
+
+  // Helper to update property on variant
+  const updateVariantProperty = (
+    variantId: string,
+    propId: string,
+    field: "key" | "value",
+    val: string,
+    isProposed: boolean
+  ) => {
+    const setter = isProposed ? setProposedVariants : setCreationVariants;
+    setter((prev) =>
+      prev.map((v) =>
+        v.id === variantId
+          ? {
+              ...v,
+              properties: v.properties.map((p) =>
+                p.id === propId ? { ...p, [field]: val } : p
+              ),
+            }
+          : v
+      )
+    );
+  };
+
   const handleNextStep = () => {
     if (activeStep === 1) {
       if (!selectedProduct && !isCreatingNew) {
@@ -794,7 +921,10 @@ export default function AddProductPage() {
         }
       } else {
         const hasSelectedExisting = selectedExistingVariantIds.length > 0;
-        const hasProposed = proposedVariants.some((pv) => pv.value.trim().length > 0);
+        const hasProposed = proposedVariants.some((pv) => {
+          const hasProps = pv.properties.some((p) => p.key.trim() && p.value.trim());
+          return pv.name.trim().length > 0 || hasProps;
+        });
         if (!hasSelectedExisting && !hasProposed) {
           toast.error("Please select at least one variation or propose a new variation.");
           return;
@@ -813,7 +943,9 @@ export default function AddProductPage() {
   const handleSubmit = async () => {
     const activeStep3Variants: Array<{
       id: string;
+      name: string;
       value: string;
+      properties: Record<string, string>;
       sku?: string;
       isExisting: boolean;
     }> = [];
@@ -821,10 +953,23 @@ export default function AddProductPage() {
     if (isCreatingNew) {
       if (hasMultipleVariants) {
         creationVariants.forEach((v) => {
-          if (v.value.trim()) {
+          const propsObj: Record<string, string> = {};
+          v.properties.forEach((p) => {
+            if (p.key.trim() && p.value.trim()) {
+              propsObj[p.key.trim()] = p.value.trim();
+            }
+          });
+          
+          const propDesc = Object.entries(propsObj)
+            .map(([key, val]) => `${key}: ${val}`)
+            .join(', ');
+
+          if (v.name.trim() || propDesc) {
             activeStep3Variants.push({
               id: v.id,
-              value: v.value.trim(),
+              name: v.name.trim() || propDesc || "Standard Variant",
+              value: propDesc || "Standard Variant",
+              properties: propsObj,
               sku: v.sku,
               isExisting: false,
             });
@@ -839,17 +984,32 @@ export default function AddProductPage() {
             .join(', ') || "Default Variation";
           activeStep3Variants.push({
             id: v.variant_id,
+            name: (v as any).variant_name || propDesc,
             value: propDesc,
+            properties: v.properties || {},
             sku: v.sku || undefined,
             isExisting: true,
           });
         }
       });
       proposedVariants.forEach((v) => {
-        if (v.value.trim()) {
+        const propsObj: Record<string, string> = {};
+        v.properties.forEach((p) => {
+          if (p.key.trim() && p.value.trim()) {
+            propsObj[p.key.trim()] = p.value.trim();
+          }
+        });
+
+        const propDesc = Object.entries(propsObj)
+          .map(([key, val]) => `${key}: ${val}`)
+          .join(', ');
+
+        if (v.name.trim() || propDesc) {
           activeStep3Variants.push({
             id: v.id,
-            value: v.value.trim(),
+            name: v.name.trim() || propDesc || "Proposed Variant",
+            value: propDesc || "Proposed Variant",
+            properties: propsObj,
             sku: v.sku,
             isExisting: false,
           });
@@ -1024,7 +1184,6 @@ export default function AddProductPage() {
 
           if (!variant.isExisting) {
             // Create the variant first
-            const propObj = { [variantType]: variant.value };
             const variantRes = await fetch(`${apiBase}/api/products/addProductVariant`, {
               method: "POST",
               headers: {
@@ -1035,7 +1194,8 @@ export default function AddProductPage() {
               body: JSON.stringify({
                 productId: finalProductId,
                 sku: variant.sku?.trim() || null,
-                properties: propObj,
+                name: variant.name || null,
+                properties: variant.properties,
               }),
             });
             const variantData = await parseApiResponse(variantRes);
@@ -1043,6 +1203,28 @@ export default function AddProductPage() {
               throw new Error(variantData.message || `Failed to create variant ${variant.value}`);
             }
             resolvedVariantId = variantData.result.id;
+          }
+
+          // Upload variant-specific images if any
+          const files = variantImages[variant.id];
+          if (files && files.length > 0 && resolvedVariantId) {
+            const formData = new FormData();
+            formData.append("productId", finalProductId as string);
+            formData.append("productVariantId", resolvedVariantId as string);
+            files.forEach((file) => {
+              formData.append("images", file);
+            });
+            const imgRes = await fetch(`${apiBase}/api/products/uploadProductImages`, {
+              method: "POST",
+              credentials: "include",
+              headers: {
+                "x-request-from": "vendor",
+              },
+              body: formData,
+            });
+            if (!imgRes.ok) {
+              console.warn(`Failed to upload variant-specific images for variant ${variant.name}`);
+            }
           }
 
           const offering = variantOfferings[variant.id];
@@ -1078,7 +1260,6 @@ export default function AddProductPage() {
             resolvedVariantId = singleVar.id;
           } else {
             // Create proposed variant first
-            const propObj = { [variantType]: singleVar.value };
             const variantRes = await fetch(`${apiBase}/api/products/addProductVariant`, {
               method: "POST",
               headers: {
@@ -1089,7 +1270,8 @@ export default function AddProductPage() {
               body: JSON.stringify({
                 productId: finalProductId,
                 sku: singleVar.sku?.trim() || null,
-                properties: propObj,
+                name: singleVar.name || null,
+                properties: singleVar.properties,
               }),
             });
             const variantData = await parseApiResponse(variantRes);
@@ -1097,6 +1279,28 @@ export default function AddProductPage() {
               throw new Error(variantData.message || `Failed to create variant ${singleVar.value}`);
             }
             resolvedVariantId = variantData.result.id;
+          }
+
+          // Upload variant-specific images if any
+          const files = variantImages[singleVar.id];
+          if (files && files.length > 0 && resolvedVariantId) {
+            const formData = new FormData();
+            formData.append("productId", finalProductId as string);
+            formData.append("productVariantId", resolvedVariantId as string);
+            files.forEach((file) => {
+              formData.append("images", file);
+            });
+            const imgRes = await fetch(`${apiBase}/api/products/uploadProductImages`, {
+              method: "POST",
+              credentials: "include",
+              headers: {
+                "x-request-from": "vendor",
+              },
+              body: formData,
+            });
+            if (!imgRes.ok) {
+              console.warn(`Failed to upload variant-specific images for variant ${singleVar.name}`);
+            }
           }
         }
 
@@ -1546,52 +1750,7 @@ export default function AddProductPage() {
                   </datalist>
                 </div>
 
-                {/* Key Properties (Attributes) Builder */}
-                <div className="md:col-span-2 border-t border-gray-100 pt-6 mt-2">
-                  <label className="block text-sm font-bold text-gray-900">
-                    Product Key Properties (Attributes)
-                  </label>
-                  <p className="text-xs text-gray-500 mt-0.5 mb-4">
-                    Define primary product properties (e.g. Material, Grade, Application, Standard) as key-value pairs. Customize keys to fit your product category.
-                  </p>
 
-                  <div className="space-y-2.5 bg-gray-50 p-4 rounded-xl border border-gray-200">
-                    {attributes.map((attr, index) => (
-                      <div key={attr.id} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3 items-center">
-                        <input
-                          type="text"
-                          value={attr.key}
-                          onChange={(e) => updateAttribute(index, "key", e.target.value)}
-                          placeholder="Property name (e.g. Material)"
-                          className="w-full px-3.5 py-2 border border-gray-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                        />
-                        <input
-                          type="text"
-                          value={attr.value}
-                          onChange={(e) => updateAttribute(index, "value", e.target.value)}
-                          placeholder="Value (e.g. Recycled PE)"
-                          className="w-full px-3.5 py-2 border border-gray-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeAttributeRow(index)}
-                          className="p-2 border border-gray-300 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-red-600 transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
-
-                    <button
-                      type="button"
-                      onClick={addAttributeRow}
-                      className="mt-2 inline-flex items-center px-4 py-2 border border-dashed border-gray-300 bg-white text-gray-700 text-xs font-bold rounded-lg hover:border-blue-500 hover:text-blue-600 transition-colors"
-                    >
-                      <Plus className="w-3.5 h-3.5 mr-1.5" />
-                      Add Property Row
-                    </button>
-                  </div>
-                </div>
 
                 {/* Quotation Limit */}
                 <div>
@@ -1814,44 +1973,167 @@ export default function AddProductPage() {
                       </div>
 
                       <div className="space-y-3 pt-2">
-                        <label className="block text-xs font-bold text-gray-700">
-                          Configure Variant Options (E.g. Option: 10mm, SKU: BB-10MM) *
-                        </label>
+                        <div className="flex items-center gap-1.5">
+                          <label className="block text-xs font-bold text-gray-700">
+                            Configure Variant Options (E.g. Option: 10mm, SKU: BB-10MM) *
+                          </label>
+                          <div className="relative group">
+                            <HelpCircle className="w-3.5 h-3.5 text-gray-400 cursor-pointer" />
+                            <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-48 bg-gray-900 text-white text-[10px] p-2 rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-30 shadow-md">
+                              Each variant must have a name (e.g. "Small" or "Grade TN2000") and a parameter value (like thickness or size).
+                            </div>
+                          </div>
+                        </div>
                         {creationVariants.map((variant, index) => (
-                          <div key={variant.id} className="grid grid-cols-1 sm:grid-cols-[1fr_1.2fr_auto] gap-3 items-center">
-                            <input
-                              type="text"
-                              value={variant.value}
-                              onChange={(e) => {
-                                const updated = [...creationVariants];
-                                updated[index].value = e.target.value;
-                                setCreationVariants(updated);
-                              }}
-                              placeholder={`Option value (e.g., 10mm)`}
-                              className="px-3.5 py-2 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-violet-500 w-full font-semibold"
-                            />
-                            <input
-                              type="text"
-                              value={variant.sku}
-                              onChange={(e) => {
-                                const updated = [...creationVariants];
-                                updated[index].sku = e.target.value;
-                                setCreationVariants(updated);
-                              }}
-                              placeholder="SKU / Item Code (Optional)"
-                              className="px-3.5 py-2 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-violet-500 w-full font-mono"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setCreationVariants(
-                                  creationVariants.filter((v) => v.id !== variant.id)
-                                );
-                              }}
-                              className="p-2 border border-gray-300 rounded-lg text-gray-400 hover:bg-gray-150 hover:text-red-650 transition"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                          <div key={variant.id} className="border border-zinc-250 rounded-2xl p-4 bg-white space-y-4 shadow-xs">
+                            <div className="grid grid-cols-1 sm:grid-cols-[1.5fr_1.5fr_auto] gap-3 items-start">
+                              <div>
+                                <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wide mb-1">Variant Display Name</label>
+                                <input
+                                  type="text"
+                                  value={variant.name}
+                                  onChange={(e) => {
+                                    const updated = [...creationVariants];
+                                    updated[index].name = e.target.value;
+                                    setCreationVariants(updated);
+                                  }}
+                                  placeholder="Variant Name (e.g., Small)"
+                                  className="px-3.5 py-2 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-violet-500 w-full font-semibold text-gray-850"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wide mb-1">SKU / Item Code (Optional)</label>
+                                <input
+                                  type="text"
+                                  value={variant.sku}
+                                  onChange={(e) => {
+                                    const updated = [...creationVariants];
+                                    updated[index].sku = e.target.value;
+                                    setCreationVariants(updated);
+                                  }}
+                                  placeholder="SKU / Item Code"
+                                  className="px-3.5 py-2 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-violet-500 w-full font-mono text-zinc-750"
+                                />
+                              </div>
+                              <div className="self-end pb-1 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setCreationVariants(
+                                      creationVariants.filter((v) => v.id !== variant.id)
+                                    );
+                                  }}
+                                  className="p-2 border border-gray-300 rounded-lg text-gray-400 hover:bg-gray-150 hover:text-red-655 transition"
+                                  title="Delete variant row"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Structured properties matrix builder inside variant card */}
+                            <div className="border border-zinc-200 bg-zinc-50/30 rounded-xl p-3.5 space-y-2">
+                              <span className="text-[10px] font-bold text-zinc-400 block uppercase tracking-wide">
+                                Variant Attributes (Specifications)
+                              </span>
+                              {variant.properties.map((prop, propIdx) => (
+                                <div key={prop.id} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center">
+                                  <input
+                                    type="text"
+                                    value={prop.key}
+                                    onChange={(e) => updateVariantProperty(variant.id, prop.id, "key", e.target.value, false)}
+                                    placeholder="Attribute (e.g. Size)"
+                                    className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-violet-500 font-semibold text-gray-850 w-full"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={prop.value}
+                                    onChange={(e) => updateVariantProperty(variant.id, prop.id, "value", e.target.value, false)}
+                                    placeholder="Value (e.g. 10mm)"
+                                    className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-violet-500 font-semibold text-gray-850 w-full"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => removeVariantPropertyRow(variant.id, prop.id, false)}
+                                    className="p-2 border border-gray-300 rounded-lg text-gray-400 hover:bg-gray-150 hover:text-red-650 transition"
+                                    title="Remove attribute"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              ))}
+                              <button
+                                type="button"
+                                onClick={() => addVariantPropertyRow(variant.id, false)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-dashed border-violet-300 text-violet-750 hover:text-violet-900 rounded-lg text-xs font-bold transition-all bg-white"
+                              >
+                                <Plus className="w-3.5 h-3.5" /> Add Attribute Row
+                              </button>
+                            </div>
+
+                            {/* Variant Specific Images Upload */}
+                            <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-gray-50 text-xs">
+                              <span className="font-bold text-gray-500">Variant Photos:</span>
+                              <label className="cursor-pointer px-3 py-1.5 border border-dashed border-violet-300 hover:border-violet-500 rounded-lg text-violet-750 hover:bg-violet-50 font-bold transition-all flex items-center gap-1.5">
+                                <ImageIcon className="w-3.5 h-3.5" />
+                                <span>Upload Images ({variantImages[variant.id]?.length || 0}/3)</span>
+                                <input
+                                  type="file"
+                                  multiple
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    if (e.target.files) {
+                                      const files = Array.from(e.target.files);
+                                      setVariantImages(prev => ({
+                                        ...prev,
+                                        [variant.id]: [...(prev[variant.id] || []), ...files].slice(0, 3)
+                                      }));
+                                    }
+                                  }}
+                                />
+                              </label>
+
+                              {/* Thumbnail preview list */}
+                              {variantImages[variant.id] && variantImages[variant.id].length > 0 && (
+                                <div className="flex items-center gap-2">
+                                  {variantImages[variant.id].map((file, imgIdx) => (
+                                    <div key={imgIdx} className="relative w-10 h-10 rounded-lg overflow-hidden border border-gray-200">
+                                      <img
+                                        src={URL.createObjectURL(file)}
+                                        alt="Preview"
+                                        className="w-full h-full object-cover"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setVariantImages(prev => {
+                                            const files = prev[variant.id].filter((_, idx) => idx !== imgIdx);
+                                            return { ...prev, [variant.id]: files };
+                                          });
+                                        }}
+                                        className="absolute top-0.5 right-0.5 bg-black/60 hover:bg-black/85 text-white p-0.5 rounded-full"
+                                      >
+                                        <X className="w-2.5 h-2.5" />
+                                      </button>
+                                    </div>
+                                  ))}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setVariantImages(prev => {
+                                        const copy = { ...prev };
+                                        delete copy[variant.id];
+                                        return copy;
+                                      });
+                                    }}
+                                    className="text-red-500 hover:text-red-750 font-bold hover:underline bg-transparent border-0"
+                                  >
+                                    Clear All
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         ))}
 
@@ -1860,12 +2142,17 @@ export default function AddProductPage() {
                           onClick={() => {
                             setCreationVariants([
                               ...creationVariants,
-                              { id: `v-${Date.now()}-${Math.random().toString(36).slice(2)}`, value: "", sku: "" },
+                              {
+                                id: `v-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                                name: "",
+                                sku: "",
+                                properties: [{ id: `prop-${Date.now()}-${Math.random().toString(36).slice(2)}`, key: "", value: "" }],
+                              },
                             ]);
                           }}
                           className="inline-flex items-center gap-1.5 px-3.5 py-2 border border-dashed border-violet-300 text-violet-750 hover:text-violet-900 rounded-lg text-xs font-bold transition-all bg-white"
                         >
-                          <Plus className="w-3.5 h-3.5" /> Add Variation Value
+                          <Plus className="w-3.5 h-3.5" /> Add Variation Option
                         </button>
                       </div>
                     </div>
@@ -2008,68 +2295,100 @@ export default function AddProductPage() {
                         </div>
                       </div>
                     )}
-
-                    {/* Propose new variation fields */}
-                    {isCreatingNew && (
+                                      {/* Propose new variation fields */}
+                    {productPreview && (
                       <div className="bg-violet-50/15 border border-violet-100 rounded-xl p-5 space-y-4 mt-3 animate-in fade-in slide-in-from-top-2 duration-250">
                         <h4 className="text-xs font-bold text-violet-900 uppercase tracking-wider">
                           ✨ Propose New Variation Values for this Product
                         </h4>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                              Variation Dimension (e.g. Size, Grade, Material) *
-                            </label>
-                            <input
-                              type="text"
-                              value={variantType}
-                              onChange={(e) => setVariantType(e.target.value)}
-                              placeholder="e.g. Size, Grade"
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-1 focus:ring-violet-500 font-semibold text-gray-800"
-                            />
-                          </div>
-                        </div>
-
                         <div className="space-y-3 pt-2">
-                          <label className="block text-xs font-bold text-gray-700">
-                            Add Proposed Options (Value & Optional SKU)
-                          </label>
                           {proposedVariants.map((variant, index) => (
-                            <div key={variant.id} className="grid grid-cols-1 sm:grid-cols-[1fr_1.2fr_auto] gap-3 items-center">
-                              <input
-                                type="text"
-                                value={variant.value}
-                                onChange={(e) => {
-                                  const updated = [...proposedVariants];
-                                  updated[index].value = e.target.value;
-                                  setProposedVariants(updated);
-                                }}
-                                placeholder={`Option value (e.g., 30mm)`}
-                                className="px-3.5 py-2 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-violet-500 w-full font-semibold"
-                              />
-                              <input
-                                type="text"
-                                value={variant.sku}
-                                onChange={(e) => {
-                                  const updated = [...proposedVariants];
-                                  updated[index].sku = e.target.value;
-                                  setProposedVariants(updated);
-                                }}
-                                placeholder="SKU / Item Code (Optional)"
-                                className="px-3.5 py-2 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-violet-500 w-full font-mono"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setProposedVariants(
-                                    proposedVariants.filter((v) => v.id !== variant.id)
-                                  );
-                                }}
-                                className="p-2 border border-gray-300 rounded-lg text-gray-400 hover:bg-gray-150 hover:text-red-650 transition"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                            <div key={variant.id} className="border border-zinc-250 rounded-2xl p-4 bg-white space-y-4 shadow-xs">
+                              <div className="grid grid-cols-1 sm:grid-cols-[1.5fr_1.5fr_auto] gap-3 items-start">
+                                <div>
+                                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wide mb-1">Proposed Display Name</label>
+                                  <input
+                                    type="text"
+                                    value={variant.name}
+                                    onChange={(e) => {
+                                      const updated = [...proposedVariants];
+                                      updated[index].name = e.target.value;
+                                      setProposedVariants(updated);
+                                    }}
+                                    placeholder="Variant Name (e.g., Small)"
+                                    className="px-3.5 py-2 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-violet-500 w-full font-semibold text-gray-850"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wide mb-1">SKU / Item Code (Optional)</label>
+                                  <input
+                                    type="text"
+                                    value={variant.sku}
+                                    onChange={(e) => {
+                                      const updated = [...proposedVariants];
+                                      updated[index].sku = e.target.value;
+                                      setProposedVariants(updated);
+                                    }}
+                                    placeholder="SKU / Item Code"
+                                    className="px-3.5 py-2 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-violet-500 w-full font-mono text-zinc-750"
+                                  />
+                                </div>
+                                <div className="self-end pb-1 text-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setProposedVariants(
+                                        proposedVariants.filter((v) => v.id !== variant.id)
+                                      );
+                                    }}
+                                    className="p-2 border border-gray-300 rounded-lg text-gray-400 hover:bg-gray-150 hover:text-red-655 transition"
+                                    title="Delete variant row"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Structured properties matrix builder inside proposed variant card */}
+                              <div className="border border-zinc-200 bg-zinc-50/30 rounded-xl p-3.5 space-y-2">
+                                <span className="text-[10px] font-bold text-zinc-400 block uppercase tracking-wide">
+                                  Variant Attributes (Specifications)
+                                </span>
+                                {variant.properties.map((prop, propIdx) => (
+                                  <div key={prop.id} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center">
+                                    <input
+                                      type="text"
+                                      value={prop.key}
+                                      onChange={(e) => updateVariantProperty(variant.id, prop.id, "key", e.target.value, true)}
+                                      placeholder="Attribute (e.g. Size)"
+                                      className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-violet-500 font-semibold text-gray-850 w-full"
+                                    />
+                                    <input
+                                      type="text"
+                                      value={prop.value}
+                                      onChange={(e) => updateVariantProperty(variant.id, prop.id, "value", e.target.value, true)}
+                                      placeholder="Value (e.g. 10mm)"
+                                      className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-violet-500 font-semibold text-gray-850 w-full"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => removeVariantPropertyRow(variant.id, prop.id, true)}
+                                      className="p-2 border border-gray-300 rounded-lg text-gray-400 hover:bg-gray-150 hover:text-red-650 transition"
+                                      title="Remove attribute"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                ))}
+                                <button
+                                  type="button"
+                                  onClick={() => addVariantPropertyRow(variant.id, true)}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-dashed border-violet-300 text-violet-750 hover:text-violet-900 rounded-lg text-xs font-bold transition-all bg-white"
+                                >
+                                  <Plus className="w-3.5 h-3.5" /> Add Attribute Row
+                                </button>
+                              </div>
                             </div>
                           ))}
 
@@ -2078,12 +2397,17 @@ export default function AddProductPage() {
                             onClick={() => {
                               setProposedVariants([
                                 ...proposedVariants,
-                                { id: `pv-${Date.now()}-${Math.random().toString(36).slice(2)}`, value: "", sku: "" },
+                                {
+                                  id: `pv-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                                  name: "",
+                                  sku: "",
+                                  properties: [{ id: `prop-${Date.now()}-${Math.random().toString(36).slice(2)}`, key: "", value: "" }],
+                                },
                               ]);
                             }}
                             className="inline-flex items-center gap-1.5 px-3.5 py-2 border border-dashed border-violet-300 text-violet-750 hover:text-violet-900 rounded-lg text-xs font-bold transition-all bg-white"
                           >
-                            <Plus className="w-3.5 h-3.5" /> Add Variation Value
+                            <Plus className="w-3.5 h-3.5" /> Propose New Option
                           </button>
                         </div>
                       </div>
@@ -2264,9 +2588,17 @@ export default function AddProductPage() {
                 <>
                   {/* Selling Price */}
                   <div>
-                    <label className="block text-sm font-bold text-gray-900 mb-1.5">
-                      Unit Price (₹) *
-                    </label>
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <label className="block text-sm font-bold text-gray-900">
+                        Unit Price (₹) *
+                      </label>
+                      <div className="relative group">
+                        <HelpCircle className="w-3.5 h-3.5 text-gray-400 cursor-pointer" />
+                        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-48 bg-gray-900 text-white text-[10px] p-2 rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-30 shadow-md">
+                          Specify the selling price of one unit of this product (excluding GST).
+                        </div>
+                      </div>
+                    </div>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <Banknote className="h-4 w-4 text-gray-400" />
@@ -2285,9 +2617,17 @@ export default function AddProductPage() {
 
                   {/* MOQ */}
                   <div>
-                    <label className="block text-sm font-bold text-gray-900 mb-1.5">
-                      Minimum Order Qty (MOQ) *
-                    </label>
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <label className="block text-sm font-bold text-gray-900">
+                        Minimum Order Qty (MOQ) *
+                      </label>
+                      <div className="relative group">
+                        <HelpCircle className="w-3.5 h-3.5 text-gray-400 cursor-pointer" />
+                        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-48 bg-gray-900 text-white text-[10px] p-2 rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-30 shadow-md">
+                          The minimum number of units that a buyer must order to purchase this product.
+                        </div>
+                      </div>
+                    </div>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <Package className="h-4 w-4 text-gray-400" />
@@ -2306,9 +2646,17 @@ export default function AddProductPage() {
 
                   {/* Initial Stock */}
                   <div>
-                    <label className="block text-sm font-bold text-gray-900 mb-1.5">
-                      Available Stock Level *
-                    </label>
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <label className="block text-sm font-bold text-gray-900">
+                        Available Stock Level *
+                      </label>
+                      <div className="relative group">
+                        <HelpCircle className="w-3.5 h-3.5 text-gray-400 cursor-pointer" />
+                        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-48 bg-gray-900 text-white text-[10px] p-2 rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-30 shadow-md">
+                          The current inventory level you have in stock for this product.
+                        </div>
+                      </div>
+                    </div>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <Tag className="h-4 w-4 text-gray-400" />
@@ -2329,9 +2677,17 @@ export default function AddProductPage() {
 
               {/* GST Percentage */}
               <div>
-                <label className="block text-sm font-bold text-gray-900 mb-1.5">
-                  GST Percentage (%) *
-                </label>
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <label className="block text-sm font-bold text-gray-900">
+                    GST Percentage (%) *
+                  </label>
+                  <div className="relative group">
+                    <HelpCircle className="w-3.5 h-3.5 text-gray-400 cursor-pointer" />
+                    <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-48 bg-gray-900 text-white text-[10px] p-2 rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-30 shadow-md">
+                      The standard Goods and Services Tax (GST) rate applicable for this item (e.g. 18%).
+                    </div>
+                  </div>
+                </div>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <Banknote className="h-4 w-4 text-gray-400" />

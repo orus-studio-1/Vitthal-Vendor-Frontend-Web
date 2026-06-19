@@ -27,6 +27,7 @@ type VendorProductVariant = {
   gst_percentage?: number;
   properties: Record<string, string>;
   sku?: string | null;
+  name?: string | null;
 };
 
 type VendorProduct = {
@@ -448,7 +449,7 @@ const ProductsPage = () => {
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 text-gray-700">
                                   {product.variants.map((v) => {
-                                    const variantProperties = Object.entries(v.properties || {})
+                                    const variantProperties = v.name || Object.entries(v.properties || {})
                                       .map(([key, val]) => `${key}: ${val}`)
                                       .join(", ") || "Default / Standard";
                                     return (
