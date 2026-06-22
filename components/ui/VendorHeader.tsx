@@ -97,7 +97,7 @@ export function VendorHeader() {
         <div className="mx-auto flex h-9 w-full max-w-7xl items-center justify-between px-4 text-xs text-zinc-600 sm:px-6 lg:px-8">
           <p className="font-medium text-emerald-700">Vendor Portal</p>
           <div className="hidden sm:flex items-center gap-4">
-            <span>support@MTWO.com</span>
+            <span>support@mtwo.in</span>
             <span className="text-zinc-300">|</span>
             <span>+91 98765 43210</span>
           </div>

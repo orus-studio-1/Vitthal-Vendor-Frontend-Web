@@ -37,7 +37,7 @@ const benefits = [
 
 export function VendorBenefits() {
   return (
-    <section className="bg-white border-t border-zinc-200">
+    <section id="benefits" className="bg-white border-t border-zinc-200">
       <div className="mx-auto w-full max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
           <h2 className="font-heading text-3xl font-bold text-zinc-900 sm:text-4xl">

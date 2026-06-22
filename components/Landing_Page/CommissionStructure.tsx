@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, HelpCircle } from "lucide-react";
+import Link from "next/link";
 
 const features = [
   "Zero registration fees",
@@ -75,13 +76,13 @@ export function CommissionStructure() {
             </div>
 
             <div className="mt-6 pt-6 border-t border-zinc-100">
-              <a
-                href="/pricing"
+              <Link
+                href="/register"
                 className="inline-flex items-center gap-2 text-sm font-medium text-emerald-700 hover:text-emerald-800 transition-colors"
               >
-                View detailed pricing
+                Register to view detailed pricing
                 <HelpCircle size={16} />
-              </a>
+              </Link>
             </div>
           </div>
         </div>

@@ -125,7 +125,7 @@ export function VendorFAQ() {
         <div className="mt-10 text-center">
           <p className="text-sm text-zinc-600 mb-3">Still have questions?</p>
           <a
-            href="/help"
+            href="mailto:support@mtwo.in"
             className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-6 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 transition-colors"
           >
             Contact Support

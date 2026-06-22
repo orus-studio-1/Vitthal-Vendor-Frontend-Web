@@ -23,9 +23,9 @@ export function VendorFooter() {
               Grow your business with verified buyers and seamless order management.
             </p>
             <div className="mt-6 space-y-2">
-              <a href="mailto:vendors@MTWO.com" className="flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition-colors">
+              <a href="mailto:support@mtwo.in" className="flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition-colors">
                 <Mail size={16} />
-                vendors@MTWO.com
+                support@mtwo.in
               </a>
               <a href="tel:+919876543210" className="flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition-colors">
                 <Phone size={16} />

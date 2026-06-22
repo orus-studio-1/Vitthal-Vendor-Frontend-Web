@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { TrendingUp, Users, Package, Wallet } from "lucide-react";
 
 export function VendorHero() {
@@ -27,14 +28,18 @@ export function VendorHero() {
           </p>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <button
-              type="button"
-              className="h-12 whitespace-nowrap rounded-lg bg-emerald-700 px-7 text-sm font-semibold text-white transition-colors hover:bg-emerald-800"
+            <Link
+              href="/register"
+              className="flex h-12 items-center justify-center whitespace-nowrap rounded-lg bg-emerald-700 px-7 text-sm font-semibold text-white transition-colors hover:bg-emerald-800"
             >
               Register as Vendor
-            </button>
+            </Link>
             <button
               type="button"
+              onClick={() => {
+                const element = document.getElementById("benefits");
+                element?.scrollIntoView({ behavior: "smooth" });
+              }}
               className="h-12 whitespace-nowrap rounded-lg border border-zinc-300 bg-white px-7 text-sm font-medium text-zinc-700 transition-colors hover:border-emerald-600 hover:text-emerald-700"
             >
               Learn More
