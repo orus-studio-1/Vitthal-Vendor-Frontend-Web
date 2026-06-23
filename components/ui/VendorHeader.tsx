@@ -99,7 +99,7 @@ export function VendorHeader() {
           <div className="hidden sm:flex items-center gap-4">
             <span>support@mtwo.in</span>
             <span className="text-zinc-300">|</span>
-            <span>+91 98765 43210</span>
+            <span>+91 85300 90303</span>
           </div>
         </div>
       </div>

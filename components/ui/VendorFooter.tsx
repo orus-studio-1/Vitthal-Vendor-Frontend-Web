@@ -27,9 +27,9 @@ export function VendorFooter() {
                 <Mail size={16} />
                 support@mtwo.in
               </a>
-              <a href="tel:+919876543210" className="flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition-colors">
+              <a href="tel:+918530090303" className="flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition-colors">
                 <Phone size={16} />
-                +91 98765 43210
+                +91 85300 90303
               </a>
               <p className="flex items-center gap-2 text-sm text-zinc-400">
                 <MapPin size={16} />
