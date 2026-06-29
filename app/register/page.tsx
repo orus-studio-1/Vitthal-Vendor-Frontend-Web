@@ -74,14 +74,6 @@ function validateGST(gst: string) {
   return gstRegex.test(gst);
 }
 
-function buildMockCertificateLink(file: File | null, uploadedAt: string) {
-  if (!file) {
-    return "";
-  }
-
-  return `mock-gst://${encodeURIComponent(file.name)}?uploadedBy=you&uploadedAt=${encodeURIComponent(uploadedAt)}`;
-}
-
 export default function RegisterPage() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("identity");
@@ -140,7 +132,9 @@ export default function RegisterPage() {
   const [gstCertificateFile, setGstCertificateFile] = useState<File | null>(
     null,
   );
-  const [gstUploadedAt, setGstUploadedAt] = useState("");
+  const [signatureImageFile, setSignatureImageFile] = useState<File | null>(
+    null,
+  );
   const [phone, setPhone] = useState("");
   const [alternatePhone, setAlternatePhone] = useState("");
   const [designation, setDesignation] = useState("");
@@ -326,8 +320,28 @@ export default function RegisterPage() {
     }
 
     setGstCertificateFile(file);
-    setGstUploadedAt(new Date().toISOString());
     toast.success("GST certificate selected");
+  }
+
+  function handleSignatureUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    const allowedTypes = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Please upload a JPG, PNG, or WEBP signature image");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Signature image must be less than 5MB");
+      return;
+    }
+
+    setSignatureImageFile(file);
+    toast.success("Signature image selected");
   }
 
   async function handleIdentitySubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -359,6 +373,11 @@ export default function RegisterPage() {
 
     if (!gstCertificateFile) {
       toast.error("Please upload GST certificate");
+      return;
+    }
+
+    if (!signatureImageFile) {
+      toast.error("Please upload your signature image");
       return;
     }
 
@@ -546,67 +565,48 @@ export default function RegisterPage() {
 
     setIsVerifyingOTP(true);
     try {
-      let uploadedCertificateLink = "";
+      const formData = new FormData();
+      formData.append("email", registeredEmail || email.trim());
+      formData.append("otp", otp);
+      formData.append("companyName", companyName.trim());
+      formData.append("businessType", businessType);
+      formData.append("gstNumber", gstNumber);
+      formData.append("companyWebsite", website.trim());
+      formData.append("phone", phone.trim());
+      formData.append("alternativeNumber", alternatePhone.trim());
+      formData.append(
+        "designation",
+        designation === "other" ? customDesignation.trim() : designation.trim(),
+      );
+      formData.append("businessDescription", businessDescription.trim());
+      formData.append("vendorCategories", JSON.stringify(selectedCategories));
+      formData.append("address", combinedAddress);
+      formData.append("city", city);
+      formData.append("state", state);
+      formData.append("country", country);
+      formData.append("pincode", pincode.trim());
+      formData.append("latitude", latitude);
+      formData.append("longitude", longitude);
+      formData.append(
+        "creditCycle",
+        creditCycle === "custom" ? customCreditCycle.trim() : creditCycle.trim(),
+      );
+      formData.append("minimumCommissionPercentage", String(parseInt(minCommission)));
+      formData.append("maximumCommissionPercentage", String(parseInt(maxCommission)));
       if (gstCertificateFile) {
-        const formData = new FormData();
-        formData.append("file", gstCertificateFile);
-        
-        try {
-          const uploadRes = await fetch(`${API_BASE}/api/upload`, {
-            method: "POST",
-            body: formData,
-          });
-          const uploadData = await uploadRes.json();
-          if (uploadRes.ok && uploadData.success) {
-            uploadedCertificateLink = uploadData.fileName;
-          } else {
-            toast.error(uploadData.message || "Failed to upload GST certificate. Please try again.");
-            setIsVerifyingOTP(false);
-            return;
-          }
-        } catch (uploadError) {
-          console.error("Upload error:", uploadError);
-          toast.error("Error uploading GST certificate.");
-          setIsVerifyingOTP(false);
-          return;
-        }
+        formData.append("gstCertificate", gstCertificateFile);
+      }
+      if (signatureImageFile) {
+        formData.append("signatureImage", signatureImageFile);
       }
 
       const res = await fetch(`${API_BASE}/api/auth/verify-registration`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
           "x-request-from": "vendor",
         },
         credentials: "include",
-        body: JSON.stringify({
-          email: registeredEmail || email.trim(),
-          otp,
-          companyName: companyName.trim(),
-          businessType,
-          gstNumber,
-          companyWebsite: website.trim(),
-          gstCertificateLink: uploadedCertificateLink,
-          phone: phone.trim(),
-          alternativeNumber: alternatePhone.trim(),
-          designation:
-            designation === "other" ? customDesignation.trim() : designation.trim(),
-          businessDescription: businessDescription.trim(),
-          vendorCategories: selectedCategories,
-          address: combinedAddress,
-          city,
-          state,
-          country,
-          pincode: pincode.trim(),
-          latitude,
-          longitude,
-          creditCycle:
-            creditCycle === "custom"
-              ? customCreditCycle.trim()
-              : creditCycle.trim(),
-          minimumCommissionPercentage: parseInt(minCommission),
-          maximumCommissionPercentage: parseInt(maxCommission),
-        }),
+        body: formData,
       });
 
       const data = await res.json();
@@ -936,6 +936,36 @@ export default function RegisterPage() {
                   </span>
                   <span className="mt-1 text-xs text-zinc-500">
                     PDF or image, max 5MB
+                  </span>
+                </label>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="signatureImage"
+                  className="mb-1.5 block text-sm font-medium text-zinc-800"
+                >
+                  Signature image
+                </label>
+                <input
+                  id="signatureImage"
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.webp"
+                  onChange={handleSignatureUpload}
+                  className="hidden"
+                />
+                <label
+                  htmlFor="signatureImage"
+                  className="flex cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-zinc-300 bg-zinc-50 p-6 transition-colors hover:border-[#1d4ed8] hover:bg-blue-50"
+                >
+                  <Upload className="mb-2 h-7 w-7 text-zinc-400" />
+                  <span className="text-sm font-medium text-zinc-700">
+                    {signatureImageFile
+                      ? signatureImageFile.name
+                      : "Click to upload signature image"}
+                  </span>
+                  <span className="mt-1 text-xs text-zinc-500">
+                    JPG, PNG or WEBP, max 5MB
                   </span>
                 </label>
               </div>

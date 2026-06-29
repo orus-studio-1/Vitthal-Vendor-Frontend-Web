@@ -393,13 +393,13 @@ export default function VendorStatusDisplay({
       case 'agreement':
         return {
           icon: FileText,
-          title: 'Agreement Sent',
-          description: 'We have sent you the vendor agreement. Please check your email and sign the agreement to proceed with the approval process.',
-          bgColor: 'bg-indigo-50',
-          iconColor: 'text-indigo-600',
-          titleColor: 'text-indigo-900',
-          descriptionColor: 'text-indigo-700',
-          borderColor: 'border-indigo-200'
+          title: 'Application Under Review',
+          description: 'Your uploaded documents and signature image are being reviewed by our team. We will notify you once there is an update.',
+          bgColor: 'bg-amber-50',
+          iconColor: 'text-amber-600',
+          titleColor: 'text-amber-900',
+          descriptionColor: 'text-amber-700',
+          borderColor: 'border-amber-200'
         };
       case 'approved':
         return {
