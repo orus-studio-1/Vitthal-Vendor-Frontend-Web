@@ -85,6 +85,26 @@ export function VendorHeader() {
     { href: "/payouts", label: "Payouts", icon: DollarSign },
     { href: "/analytics", label: "Analytics", icon: BarChart3 },
   ];
+
+  const mobileMainMenuLinks = [
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/products", label: "Products", icon: Package },
+    { href: "/orders", label: "Orders", icon: ShoppingBag },
+    { href: "/quotation-orders", label: "Quotation Orders", icon: FileCheck },
+    { href: "/analytics", label: "Analytics", icon: BarChart3 },
+  ];
+
+  const mobileSupportLinks = [
+    { href: "/chat", label: "Chat with Admin", icon: MessageSquare },
+    { href: "/help-support", label: "Help & Support", icon: HelpCircle },
+  ];
+
+  const mobileAccountLinks = [
+    { href: "/profile", label: "Profile Settings", icon: User },
+    { href: "/quotations", label: "Quotations", icon: FileText },
+    { href: "/payouts", label: "Payouts & Settlements", icon: DollarSign },
+    { href: "/settings", label: "Account Settings", icon: Settings },
+  ];
   if (isLoading && !isAuthenticated) {
     return <VendorHeaderSkeleton />;
   }
@@ -304,6 +324,14 @@ export function VendorHeader() {
                       <Settings size={18} className="text-zinc-400" />
                       Account Settings
                     </Link>
+                    <Link
+                      href="/help-support"
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
+                      onClick={() => setProfileDropdown(false)}
+                    >
+                      <HelpCircle size={18} className="text-zinc-400" />
+                      Help & Support
+                    </Link>
                     <div className="border-t border-zinc-100 mt-1 pt-1">
                       <button
                         onClick={handleLogout}
@@ -383,10 +411,11 @@ export function VendorHeader() {
         {/* Sidebar Content */}
         <nav className="h-[calc(100%-73px)] overflow-y-auto">
           <ul className="flex flex-col px-4 py-4 space-y-1 text-sm font-medium text-zinc-700">
+            {/* Main Menu Section */}
             <li>
               <p className="px-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Main Menu</p>
             </li>
-            {navLinks.map((link) => (
+            {mobileMainMenuLinks.map((link) => (
               <li key={link.href}>
                 <Link
                   href={link.href}
@@ -398,6 +427,25 @@ export function VendorHeader() {
                 </Link>
               </li>
             ))}
+
+            {/* Support Section */}
+            <li className="border-t border-zinc-200 mt-4 pt-4">
+              <p className="px-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Support</p>
+            </li>
+            {mobileSupportLinks.map((link) => (
+              <li key={link.href}>
+                <Link
+                  href={link.href}
+                  className="flex items-center gap-3 rounded-lg px-3 py-3 hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <link.icon size={18} />
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+
+            {/* Account Section */}
             <li className="border-t border-zinc-200 mt-4 pt-4">
               <p className="px-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Account</p>
             </li>
@@ -413,36 +461,20 @@ export function VendorHeader() {
               </>
             ) : isAuthenticated ? (
               <>
-                <li>
-                  <Link
-                    href="/profile"
-                    className="flex items-center gap-3 rounded-lg px-3 py-3 hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <User size={18} />
-                    Profile
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/quotations"
-                    className="flex items-center gap-3 rounded-lg px-3 py-3 hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <FileText size={18} />
-                    Quotations
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/chat"
-                    className="flex items-center gap-3 rounded-lg px-3 py-3 hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <MessageSquare size={18} />
-                    Chat with Admin
-                  </Link>
-                </li>
+                {mobileAccountLinks.map((link) => (
+                  <li key={link.href}>
+                    <Link
+                      href={link.href}
+                      className="flex items-center gap-3 rounded-lg px-3 py-3 hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <link.icon size={18} />
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+                
+                {/* Notifications link for mobile accessibility */}
                 <li>
                   <Link
                     href="/notifications"
@@ -458,20 +490,11 @@ export function VendorHeader() {
                     )}
                   </Link>
                 </li>
-                <li>
-                  <Link
-                    href="/settings"
-                    className="flex items-center gap-3 rounded-lg px-3 py-3 hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <Settings size={18} />
-                    Settings
-                  </Link>
-                </li>
+
                 <li className="border-t border-zinc-200 mt-4 pt-4">
                   <button
                     onClick={() => { handleLogout(); setMobileMenuOpen(false); }}
-                    className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-red-600 hover:bg-red-50 transition-colors"
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                   >
                     <LogOut size={18} />
                     Logout

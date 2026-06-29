@@ -87,7 +87,7 @@ export function VendorFooter() {
             <h4 className="text-sm font-semibold text-white">Support & Resources</h4>
             <ul className="mt-4 space-y-3 text-sm text-zinc-400">
               <li>
-                <Link href="/help" className="hover:text-white transition-colors">Help Center</Link>
+                <Link href="/help-support" className="hover:text-white transition-colors">Help Center</Link>
               </li>
               <li>
                 <Link href="/seller-guide" className="hover:text-white transition-colors">Seller Guidelines</Link>

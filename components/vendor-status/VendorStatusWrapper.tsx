@@ -31,7 +31,7 @@ export default function VendorStatusWrapper({ children }: { children: React.Reac
         },
       });
       const data = await response.json();
-      if(!response.ok){
+      if (!response.ok) {
         setError(true);
         toast.error(data?.message || "Unable to fetch vendor status");
         return;
@@ -56,7 +56,7 @@ export default function VendorStatusWrapper({ children }: { children: React.Reac
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
       </div>
     );
   }
