@@ -2,8 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { CheckCircle2, Download, FileSignature, Loader2, SendHorizontal, ShieldAlert, XCircle } from 'lucide-react';
-import SignaturePad from '@/components/quotation/signature-pad';
+import { CheckCircle2, Download, FileSignature, Loader2, SendHorizontal, ShieldAlert, Upload, XCircle } from 'lucide-react';
 import { PublicVendorQuotation, vendorQuotationApi } from '@/lib/api';
 import { toast } from 'sonner';
 
@@ -30,6 +29,7 @@ function VendorDocumentContent() {
   const [vendorNotes, setVendorNotes] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
   const [signatureData, setSignatureData] = useState<string | null>(null);
+  const [signatureFileName, setSignatureFileName] = useState('');
 
   const isExpired = useMemo(() => {
     if (!quotation?.token_expires_at) return false;
@@ -121,6 +121,39 @@ function VendorDocumentContent() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleSignatureImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Please upload a JPG, PNG, or WEBP signature image.');
+      event.target.value = '';
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Signature image must be less than 5MB.');
+      event.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result !== 'string') {
+        toast.error('Could not read signature image.');
+        return;
+      }
+      setSignatureData(reader.result);
+      setSignatureFileName(file.name);
+      toast.success('Signature image attached.');
+    };
+    reader.onerror = () => {
+      toast.error('Could not read signature image.');
+    };
+    reader.readAsDataURL(file);
   };
 
   if (loading) {
@@ -286,7 +319,25 @@ function VendorDocumentContent() {
                         <FileSignature className="h-4 w-4 text-slate-500" />
                         <span className="text-sm font-medium text-slate-700">Vendor signature</span>
                       </div>
-                      <SignaturePad onChange={setSignatureData} />
+                      <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center transition hover:border-blue-300 hover:bg-blue-50">
+                        <Upload className="mb-2 h-6 w-6 text-slate-500" />
+                        <span className="text-sm font-medium text-slate-700">
+                          {signatureFileName || 'Upload signature image'}
+                        </span>
+                        <span className="mt-1 text-xs text-slate-500">JPG, PNG, or WEBP, max 5MB</span>
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/jpg,image/png,image/webp"
+                          onChange={handleSignatureImageUpload}
+                          disabled={isFinal || isExpired}
+                          className="hidden"
+                        />
+                      </label>
+                      {signatureData ? (
+                        <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-3">
+                          <img src={signatureData} alt="Uploaded vendor signature" className="h-24 w-full object-contain" />
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 ) : (

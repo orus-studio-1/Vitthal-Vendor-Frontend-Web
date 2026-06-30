@@ -132,9 +132,6 @@ export default function RegisterPage() {
   const [gstCertificateFile, setGstCertificateFile] = useState<File | null>(
     null,
   );
-  const [signatureImageFile, setSignatureImageFile] = useState<File | null>(
-    null,
-  );
   const [phone, setPhone] = useState("");
   const [alternatePhone, setAlternatePhone] = useState("");
   const [designation, setDesignation] = useState("");
@@ -323,27 +320,6 @@ export default function RegisterPage() {
     toast.success("GST certificate selected");
   }
 
-  function handleSignatureUpload(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) {
-      return;
-    }
-
-    const allowedTypes = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
-    if (!allowedTypes.includes(file.type)) {
-      toast.error("Please upload a JPG, PNG, or WEBP signature image");
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Signature image must be less than 5MB");
-      return;
-    }
-
-    setSignatureImageFile(file);
-    toast.success("Signature image selected");
-  }
-
   async function handleIdentitySubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -373,11 +349,6 @@ export default function RegisterPage() {
 
     if (!gstCertificateFile) {
       toast.error("Please upload GST certificate");
-      return;
-    }
-
-    if (!signatureImageFile) {
-      toast.error("Please upload your signature image");
       return;
     }
 
@@ -596,10 +567,6 @@ export default function RegisterPage() {
       if (gstCertificateFile) {
         formData.append("gstCertificate", gstCertificateFile);
       }
-      if (signatureImageFile) {
-        formData.append("signatureImage", signatureImageFile);
-      }
-
       const res = await fetch(`${API_BASE}/api/auth/verify-registration`, {
         method: "POST",
         headers: {
@@ -937,36 +904,6 @@ export default function RegisterPage() {
                   </span>
                   <span className="mt-1 text-xs text-zinc-500">
                     PDF or image, max 5MB
-                  </span>
-                </label>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="signatureImage"
-                  className="mb-1.5 block text-sm font-medium text-zinc-800"
-                >
-                  Signature image
-                </label>
-                <input
-                  id="signatureImage"
-                  type="file"
-                  accept=".jpg,.jpeg,.png,.webp"
-                  onChange={handleSignatureUpload}
-                  className="hidden"
-                />
-                <label
-                  htmlFor="signatureImage"
-                  className="flex cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-zinc-300 bg-zinc-50 p-6 transition-colors hover:border-[#1d4ed8] hover:bg-blue-50"
-                >
-                  <Upload className="mb-2 h-7 w-7 text-zinc-400" />
-                  <span className="text-sm font-medium text-zinc-700">
-                    {signatureImageFile
-                      ? signatureImageFile.name
-                      : "Click to upload signature image"}
-                  </span>
-                  <span className="mt-1 text-xs text-zinc-500">
-                    JPG, PNG or WEBP, max 5MB
                   </span>
                 </label>
               </div>
