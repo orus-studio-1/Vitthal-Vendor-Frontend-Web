@@ -95,6 +95,8 @@ export default function VendorStatusDisplay({
   const [gstNumber, setGstNumber] = useState('');
   const [gstCertificateFile, setGstCertificateFile] = useState<File | null>(null);
   const [existingGstLink, setExistingGstLink] = useState('');
+  const [signatureImageFile, setSignatureImageFile] = useState<File | null>(null);
+  const [existingSignatureLink, setExistingSignatureLink] = useState('');
   const [companyWebsite, setCompanyWebsite] = useState('');
   const [phone, setPhone] = useState('');
   const [alternativeNumber, setAlternativeNumber] = useState('');
@@ -136,6 +138,7 @@ export default function VendorStatusDisplay({
         setBusinessType(d.vendor_business_type || '');
         setGstNumber(d.vendor_gst_number || '');
         setExistingGstLink(d.vendor_gst_certificate_link || '');
+        setExistingSignatureLink(d.vendor_signature_image_link || '');
         setCompanyWebsite(d.vendor_company_website || '');
         setPhone(d.vendor_phone || '');
         setAlternativeNumber(d.vendor_alternative_number || '');
@@ -224,6 +227,25 @@ export default function VendorStatusDisplay({
 
     setGstCertificateFile(file);
     toast.success("New GST certificate selected");
+  };
+
+  const handleSignatureUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Please upload a JPG, PNG, or WEBP signature image");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Signature image must be less than 5MB");
+      return;
+    }
+
+    setSignatureImageFile(file);
+    toast.success("Signature image selected");
   };
 
   const handleCategoryToggle = (code: string) => {
@@ -317,35 +339,44 @@ export default function VendorStatusDisplay({
         return;
       }
 
+      if (!existingSignatureLink && !signatureImageFile) {
+        toast.error("Signature image is required.");
+        setSubmitting(false);
+        return;
+      }
+
+      const setupFormData = new FormData();
+      setupFormData.append("companyName", companyName.trim());
+      setupFormData.append("businessType", businessType);
+      setupFormData.append("gstNumber", gstNumber.trim());
+      setupFormData.append("companyWebsite", companyWebsite.trim());
+      setupFormData.append("gstCertificateLink", uploadedCertificateLink);
+      setupFormData.append("phone", phone.trim());
+      setupFormData.append("alternativeNumber", alternativeNumber.trim());
+      setupFormData.append("designation", designation);
+      setupFormData.append("businessDescription", businessDescription.trim());
+      setupFormData.append("vendorCategories", JSON.stringify(selectedCategories));
+      setupFormData.append("address", address.trim());
+      setupFormData.append("city", city.trim());
+      setupFormData.append("state", stateName.trim());
+      setupFormData.append("country", country);
+      setupFormData.append("pincode", pincode.trim());
+      setupFormData.append("latitude", latitude);
+      setupFormData.append("longitude", longitude);
+      setupFormData.append("creditCycle", creditCycle.trim());
+      setupFormData.append("minimumCommissionPercentage", String(minComm));
+      setupFormData.append("maximumCommissionPercentage", String(maxComm));
+      if (signatureImageFile) {
+        setupFormData.append("signatureImage", signatureImageFile);
+      }
+
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/vendors/completeSetup`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
           "x-request-from": "vendor",
         },
         credentials: "include",
-        body: JSON.stringify({
-          companyName: companyName.trim(),
-          businessType,
-          gstNumber: gstNumber.trim(),
-          companyWebsite: companyWebsite.trim(),
-          gstCertificateLink: uploadedCertificateLink,
-          phone: phone.trim(),
-          alternativeNumber: alternativeNumber.trim(),
-          designation,
-          businessDescription: businessDescription.trim(),
-          vendorCategories: selectedCategories,
-          address: address.trim(),
-          city: city.trim(),
-          state: stateName.trim(),
-          country,
-          pincode: pincode.trim(),
-          latitude,
-          longitude,
-          creditCycle: creditCycle.trim(),
-          minimumCommissionPercentage: minComm,
-          maximumCommissionPercentage: maxComm,
-        }),
+        body: setupFormData,
       });
 
       const data = await res.json();
@@ -581,6 +612,48 @@ export default function VendorStatusDisplay({
                       </div>
                     ) : (
                       <p className="text-xs text-zinc-500">PDF, PNG, or JPEG format (max 5MB)</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl border border-zinc-200 bg-zinc-50/50 mt-4">
+                <span className="text-xs font-semibold text-zinc-600 block mb-2">Signature Image *</span>
+
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+                  <label className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50 cursor-pointer transition select-none">
+                    <Upload className="h-4 w-4 text-zinc-500" />
+                    <span className="text-sm font-medium">Choose signature</span>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/jpg,image/webp"
+                      onChange={handleSignatureUpload}
+                      className="hidden"
+                    />
+                  </label>
+
+                  <div className="flex-1 flex flex-col justify-center min-w-0">
+                    {signatureImageFile ? (
+                      <p className="text-xs font-semibold text-blue-600 truncate flex items-center gap-1.5">
+                        <Check className="h-3.5 w-3.5" />
+                        Selected: {signatureImageFile.name} ({(signatureImageFile.size / 1024 / 1024).toFixed(2)} MB)
+                      </p>
+                    ) : existingSignatureLink ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-zinc-500 truncate">
+                          Current signature image exists
+                        </span>
+                        <a
+                          href={existingSignatureLink}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                        >
+                          <Eye className="h-3 w-3" /> View
+                        </a>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-zinc-500">JPG, PNG, or WEBP format (max 5MB)</p>
                     )}
                   </div>
                 </div>
