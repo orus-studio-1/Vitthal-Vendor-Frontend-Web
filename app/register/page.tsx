@@ -620,7 +620,6 @@ export default function RegisterPage() {
       } else {
         toast.error(data.message || "Invalid OTP");
       }
-      setIsVerifyingOTP(false);
       if (data.user) {
         useAuthStore.getState().setUser(data.user);
         await useAuthStore.getState().fetchUser();
@@ -628,6 +627,8 @@ export default function RegisterPage() {
     } catch {
       toast.error("Failed to verify OTP. Please try again.");
       console.error("Error verifying OTP.");
+    } finally {
+      setIsVerifyingOTP(false);
     }
   }
 

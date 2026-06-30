@@ -27,16 +27,19 @@ interface VendorStatusDisplayProps {
 }
 
 const CATEGORY_OPTIONS = [
-  { code: 'plastic', label: 'Plastic', description: 'Polymers, granules, and molded plastic goods' },
-  { code: 'metal', label: 'Metal', description: 'Steel, aluminium, copper, and alloy products' },
-  { code: 'chemicals', label: 'Chemicals', description: 'Industrial chemicals, additives, and solvents' },
-  { code: 'construction', label: 'Construction', description: 'Cement, tiles, bricks, and building materials' },
-  { code: 'machinery', label: 'Machinery', description: 'Industrial equipment, tools, and machine parts' },
-  { code: 'packaging', label: 'Packaging', description: 'Boxes, containers, films, and packing supplies' },
-  { code: 'textiles', label: 'Textiles', description: 'Fabrics, yarns, and textile supplies' },
-  { code: 'automotive', label: 'Automotive', description: 'Vehicle parts and transport components' },
-  { code: 'agriculture', label: 'Agriculture', description: 'Seeds, fertilizers, and farm inputs' },
-  { code: 'electrical', label: 'Electrical', description: 'Cables, switches, wiring, and fittings' }
+  { code: 'metal_fabrication_parts', label: 'Metal & Fabrication Products', description: 'Steel, aluminium, copper, and fabricated parts' },
+  { code: 'electrical_automation_components', label: 'Electrical & Electronics Manufacturing', description: 'Cables, switches, panels, automation, and electronics' },
+  { code: 'industrial_machinery_equipment', label: 'Machinery & Industrial Equipment', description: 'Industrial equipment, tools, and machine parts' },
+  { code: 'construction_building_materials', label: 'Construction & Building Material', description: 'Cement, tiles, bricks, and building materials' },
+  { code: 'automotive_spare_parts', label: 'Automobile & Auto Parts', description: 'Vehicle parts and transport components' },
+  { code: 'plastic_polymer_components', label: 'Plastic & Polymer Products', description: 'Polymers, granules, and molded plastic goods' },
+  { code: 'food_agriculture_supplies', label: 'Food & Agriculture Processing', description: 'Seeds, fertilizers, farm inputs, and food processing supplies' },
+  { code: 'laboratory_pharma_consumables', label: 'Chemical & Pharma Manufacturing', description: 'Industrial chemicals, pharma supplies, and lab consumables' },
+  { code: 'modular_furniture_wood', label: 'Furniture & Wood Products', description: 'Furniture, wood products, and modular fittings' },
+  { code: 'renewable_energy_systems', label: 'Renewable Energy Products', description: 'Solar, energy storage, and renewable energy systems' },
+  { code: 'packaging_logistics_supplies', label: 'Packaging Industry', description: 'Boxes, containers, films, and packing supplies' },
+  { code: 'textile_garment_materials', label: 'Textile & Garments', description: 'Fabrics, yarns, garments, and textile supplies' },
+  { code: 'cnc_industrial_tooling', label: 'CNC & VMC Tooling Product Categories', description: 'CNC, VMC, tooling, fixtures, and machining supplies' }
 ];
 
 const BUSINESS_TYPES = [
@@ -398,6 +401,17 @@ export default function VendorStatusDisplay({
 
   const getStatusConfig = () => {
     switch (status) {
+      case 'setup_required':
+        return {
+          icon: AlertCircle,
+          title: 'Registration Incomplete',
+          description: 'Your account exists, but the vendor application was not completed. Please register again with OTP verification, GST certificate, signature image, categories, and contact details.',
+          bgColor: 'bg-amber-50',
+          iconColor: 'text-amber-600',
+          titleColor: 'text-amber-950',
+          descriptionColor: 'text-amber-800',
+          borderColor: 'border-amber-200'
+        };
       case 'pending':
         return {
           icon: Clock,
@@ -978,8 +992,20 @@ export default function VendorStatusDisplay({
           </button>
         )}
 
+        {status === 'setup_required' && (
+          <button
+            onClick={() => {
+              window.location.href = '/register';
+            }}
+            className="w-full h-11 flex items-center justify-center gap-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-md shadow-amber-600/10 hover:shadow-amber-700/20 transition active:scale-98"
+          >
+            Complete Vendor Registration
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        )}
+
         {/* Footer Support */}
-        {(status === 'pending' || status === 'agreement' || status === 'agreement_sent' || status === 'reconsideration') && (
+        {(status === 'pending' || status === 'agreement' || status === 'agreement_sent' || status === 'reconsideration' || status === 'setup_required') && (
           <div className="pt-4 border-t border-gray-200/60 text-center">
             <p className="text-[10px] text-gray-400 mb-1.5">
               Need help? Contact our support team
