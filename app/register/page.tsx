@@ -110,6 +110,7 @@ export default function RegisterPage() {
 
   const [companyName, setCompanyName] = useState("");
   const [businessType, setBusinessType] = useState("");
+  const [vendorType, setVendorType] = useState<"product" | "service">("product");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [gstState, setGstState] = useState("");
   const [gstPan, setGstPan] = useState("");
@@ -541,6 +542,7 @@ export default function RegisterPage() {
       formData.append("otp", otp);
       formData.append("companyName", companyName.trim());
       formData.append("businessType", businessType);
+      formData.append("vendorType", vendorType);
       formData.append("gstNumber", gstNumber);
       formData.append("companyWebsite", website.trim());
       formData.append("phone", phone.trim());
@@ -906,6 +908,50 @@ export default function RegisterPage() {
                     PDF or image, max 5MB
                   </span>
                 </label>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-zinc-800">
+                  Vendor type
+                </label>
+                <div className="grid grid-cols-2 gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setVendorType("product")}
+                    className={`flex items-center gap-3 rounded-lg border p-3.5 transition-all text-left ${
+                      vendorType === "product"
+                        ? "border-[#1d4ed8] bg-blue-50/30 text-[#1d4ed8] font-semibold"
+                        : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                    }`}
+                  >
+                    <div className={`flex h-4 w-4 items-center justify-center rounded-full border ${
+                      vendorType === "product" ? "border-[#1d4ed8]" : "border-zinc-300"
+                    }`}>
+                      {vendorType === "product" && (
+                        <div className="h-2 w-2 rounded-full bg-[#1d4ed8]" />
+                      )}
+                    </div>
+                    <span className="text-sm">Product Seller</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVendorType("service")}
+                    className={`flex items-center gap-3 rounded-lg border p-3.5 transition-all text-left ${
+                      vendorType === "service"
+                        ? "border-[#1d4ed8] bg-blue-50/30 text-[#1d4ed8] font-semibold"
+                        : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                    }`}
+                  >
+                    <div className={`flex h-4 w-4 items-center justify-center rounded-full border ${
+                      vendorType === "service" ? "border-[#1d4ed8]" : "border-zinc-300"
+                    }`}>
+                      {vendorType === "service" && (
+                        <div className="h-2 w-2 rounded-full bg-[#1d4ed8]" />
+                      )}
+                    </div>
+                    <span className="text-sm">Service Provider</span>
+                  </button>
+                </div>
               </div>
 
               <div className="flex gap-3">
