@@ -63,6 +63,7 @@ export default function VendorPayoutsPage() {
     const [trackingDetail, setTrackingDetail] = useState<any | null>(null);
     const [detailLoading, setDetailLoading] = useState(false);
     const [detailError, setDetailError] = useState<string | null>(null);
+    const [isServiceVendor, setIsServiceVendor] = useState(false);
 
     const getPayoutTimelineDetails = (payout: Payout) => {
         if (payout.payout_status === 'paid') {
@@ -171,7 +172,13 @@ export default function VendorPayoutsPage() {
 
             if (res.ok) {
                 const result = await res.json();
-                setPayouts(result.data || []);
+                const data = result.data || [];
+                setPayouts(data);
+                // Detect service vendor: service payouts have no due_date by design
+                if (data.length > 0) {
+                    const allNoDueDate = data.every((p: Payout) => !p.due_date);
+                    setIsServiceVendor(allNoDueDate);
+                }
             } else if (res.status === 401 || res.status === 403) {
                 router.push("/login");
             } else {
@@ -417,8 +424,8 @@ export default function VendorPayoutsPage() {
                                         <th className="pb-3 pl-2">Order Details</th>
                                         <th className="pb-3">Client Payment status</th>
                                         <th className="pb-3">Admin Settlement status</th>
-                                        <th className="pb-3 text-center">Days Remaining</th>
-                                        <th className="pb-3">Credit Cycle</th>
+                                        <th className="pb-3 text-center">{isServiceVendor ? 'Booking Status' : 'Days Remaining'}</th>
+                                        <th className="pb-3">{isServiceVendor ? 'Service Info' : 'Credit Cycle'}</th>
                                         <th className="pb-3 pr-2">Settlement Details</th>
                                     </tr>
                                 </thead>
@@ -488,21 +495,39 @@ export default function VendorPayoutsPage() {
                                                     </div>
                                                 </td>
 
-                                                {/* Days Remaining */}
+                                                {/* Days Remaining / Booking Status */}
                                                 <td className="py-4 text-center whitespace-nowrap">
-                                                    <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${daysBadge.color}`}>
-                                                        {daysBadge.text}
-                                                    </span>
+                                                    {isServiceVendor ? (
+                                                        <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${
+                                                            payout.order_status === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                                                            payout.order_status === 'in_progress' ? 'bg-blue-50 text-blue-700 border-blue-100 animate-pulse' :
+                                                            'bg-zinc-50 text-zinc-500 border-zinc-200'
+                                                        }`}>
+                                                            {payout.order_status === 'completed' ? 'Completed' :
+                                                             payout.order_status === 'in_progress' ? 'In Progress' :
+                                                             payout.order_status === 'confirmed' ? 'Confirmed' : payout.order_status}
+                                                        </span>
+                                                    ) : (
+                                                        <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${daysBadge.color}`}>
+                                                            {daysBadge.text}
+                                                        </span>
+                                                    )}
                                                 </td>
 
-                                                {/* Credit Cycle / Due Dates */}
+                                                {/* Credit Cycle / Service Info */}
                                                 <td className="py-4">
-                                                    <p className="font-bold text-gray-700">{payout.vendor_credit_cycle || 'Standard Terms'}</p>
-                                                    {payout.delivered_at && (
-                                                        <div className="mt-1 flex items-center gap-1 text-xs text-gray-400">
-                                                            <Calendar className="h-3.5 w-3.5" />
-                                                            <span>Delivered: {new Date(payout.delivered_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
-                                                        </div>
+                                                    {isServiceVendor ? (
+                                                        <p className="font-bold text-gray-700 capitalize">{payout.order_status || 'Booking'}</p>
+                                                    ) : (
+                                                        <>
+                                                        <p className="font-bold text-gray-700">{payout.vendor_credit_cycle || 'Standard Terms'}</p>
+                                                        {payout.delivered_at && (
+                                                            <div className="mt-1 flex items-center gap-1 text-xs text-gray-400">
+                                                                <Calendar className="h-3.5 w-3.5" />
+                                                                <span>Delivered: {new Date(payout.delivered_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
+                                                            </div>
+                                                        )}
+                                                        </>
                                                     )}
                                                 </td>
 

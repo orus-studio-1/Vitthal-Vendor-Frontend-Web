@@ -6,6 +6,7 @@ export type User = {
   email?: string;
   role: string;
   approvalStatus?: "setup_required" | "pending" | "agreement_sent" | "approved" | "rejected" | "reconsideration" | null;
+  vendorType?: string | null;
 };
 
 type AuthState = {

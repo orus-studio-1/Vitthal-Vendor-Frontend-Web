@@ -58,6 +58,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9000";
 export default function ProfilePage() {
   const { user, fetchUser, logout } = useAuthStore();
   const router = useRouter();
+  const isService = user?.vendorType === "service";
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
@@ -293,7 +294,7 @@ export default function ProfilePage() {
             {/* Vendor Quick Links */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
               <Link
-                href="/products"
+                href={isService ? "/services" : "/products"}
                 className="flex items-center justify-between p-5 rounded-xl border border-zinc-200 bg-white shadow-sm hover:border-zinc-300 hover:shadow-md transition-all group"
               >
                 <div className="flex items-center gap-4">
@@ -301,9 +302,11 @@ export default function ProfilePage() {
                     <Store size={24} />
                   </div>
                   <div>
-                    <p className="font-semibold text-zinc-900">My Products</p>
+                    <p className="font-semibold text-zinc-900">
+                      {isService ? "My Services" : "My Products"}
+                    </p>
                     <p className="text-xs text-zinc-500">
-                      Manage your products
+                      {isService ? "Manage your services" : "Manage your products"}
                     </p>
                   </div>
                 </div>
@@ -314,7 +317,7 @@ export default function ProfilePage() {
               </Link>
 
               <Link
-                href="/orders"
+                href={isService ? "/bookings" : "/orders"}
                 className="flex items-center justify-between p-5 rounded-xl border border-zinc-200 bg-white shadow-sm hover:border-zinc-300 hover:shadow-md transition-all group"
               >
                 <div className="flex items-center gap-4">
@@ -322,9 +325,11 @@ export default function ProfilePage() {
                     <ShoppingBag size={24} />
                   </div>
                   <div>
-                    <p className="font-semibold text-zinc-900">Store Orders</p>
+                    <p className="font-semibold text-zinc-900">
+                      {isService ? "Service Bookings" : "Store Orders"}
+                    </p>
                     <p className="text-xs text-zinc-500">
-                      View customer orders
+                      {isService ? "View service bookings" : "View customer orders"}
                     </p>
                   </div>
                 </div>

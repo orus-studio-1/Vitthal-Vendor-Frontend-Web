@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
   Loader2, Send, CheckCircle2, XCircle, FileText, ArrowLeft,
   Package, User, ShieldCheck, Clock, Truck, IndianRupee,
@@ -51,6 +51,13 @@ export default function VendorQuotationDetailPage() {
   const params = useParams();
   const quotationId = params.id as string;
   const { user } = useAuthStore();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (user && user.vendorType === "service") {
+      router.replace(`/service-quotations/${quotationId}`);
+    }
+  }, [user, quotationId, router]);
 
   const [loading, setLoading] = useState(true);
   const [quotation, setQuotation] = useState<VendorQuotationDetail | null>(null);

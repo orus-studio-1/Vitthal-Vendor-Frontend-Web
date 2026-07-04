@@ -33,8 +33,9 @@ export default function VendorChatPage() {
 
     // Setup native WebSocket
     const wsUrl = ADMIN_API_BASE_URL.replace("http://", "ws://").replace("https://", "wss://");
-    const token = typeof window !== 'undefined' ? localStorage.getItem('vendor_token') : null;
-    const ws = new WebSocket(`${wsUrl}?token=${token || ''}`);
+    const rawToken = typeof window !== 'undefined' ? localStorage.getItem('vendor_token') : null;
+    const token = rawToken && rawToken !== "null" && rawToken !== "undefined" ? rawToken : "";
+    const ws = new WebSocket(`${wsUrl}?token=${token}`);
     socketRef.current = ws;
 
     ws.onopen = () => {

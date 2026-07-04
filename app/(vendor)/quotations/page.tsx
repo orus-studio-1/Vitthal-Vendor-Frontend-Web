@@ -18,6 +18,8 @@ import {
   vendorQuotationApi,
   vendorNegotiationApi,
 } from "@/lib/api";
+import { useRouter } from "next/navigation";
+import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
 
 type FilterTab = "All" | "Action Needed" | "Pending Admin" | "Confirmed" | "Closed";
@@ -104,10 +106,18 @@ function getStatusInfo(status: string) {
 }
 
 export default function VendorQuotationsPage() {
+  const router = useRouter();
+  const { user } = useAuthStore();
   const [quotations, setQuotations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<FilterTab>("All");
   const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    if (user && user.vendorType === "service") {
+      router.replace("/service-quotations");
+    }
+  }, [user, router]);
 
   useEffect(() => {
     const loadQuotations = async () => {
