@@ -372,17 +372,15 @@ export default function BookingsPage() {
                                 Verify OTP
                               </button>
                             )}
-                            {booking.vendor_service_id && (
                               <button
                                 onClick={() =>
-                                  router.push(`/services/view/${booking.vendor_service_id}`)
+                                  router.push(`/bookings/${booking.id}`)
                                 }
                                 className="p-2 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                                title="View Offering Details"
+                                title="View Booking Details"
                               >
                                 <Eye className="w-4 h-4" />
                               </button>
-                            )}
                           </div>
                         </td>
                       </tr>
