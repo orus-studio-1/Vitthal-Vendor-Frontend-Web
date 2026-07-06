@@ -460,28 +460,11 @@ const OrdersPage = () => {
                           </td>
                           <td className="px-7 py-5 text-right">
                             <div className="flex items-center justify-end gap-2">
-                              {/* Status update buttons for non-pending orders */}
-                              {order.status !== "pending" && order.status !== "cancelled" && order.status !== "delivered" && (
-                                <>
-                                  {order.status === "processing" && (
-                                    <button
-                                      onClick={() => updateOrderStatus(order.order_id, "shipped")}
-                                      disabled={updatingOrderId === order.order_id}
-                                      className="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs font-bold disabled:opacity-50"
-                                    >
-                                      {updatingOrderId === order.order_id ? "Updating..." : "Mark Shipped"}
-                                    </button>
-                                  )}
-                                  {order.status === "shipped" && (
-                                    <button
-                                      onClick={() => updateOrderStatus(order.order_id, "delivered")}
-                                      disabled={updatingOrderId === order.order_id}
-                                      className="px-3 py-1 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-xs font-bold disabled:opacity-50"
-                                    >
-                                      {updatingOrderId === order.order_id ? "Updating..." : "Mark Delivered"}
-                                    </button>
-                                  )}
-                                </>
+                              {/* Shipping and delivery are now handled by the fulfillment center */}
+                              {order.status === "processing" && (
+                                <span className="px-3 py-1 bg-amber-50 text-amber-700 rounded-lg text-xs font-bold border border-amber-200">
+                                  Awaiting FC Pickup
+                                </span>
                               )}
                               <button
                                 onClick={() =>
@@ -548,30 +531,7 @@ const OrdersPage = () => {
                                         </button>
                                       </>
                                     )}
-                                    {order.status === 'processing' && (
-                                      <button
-                                        onClick={() => {
-                                          updateOrderStatus(order.order_id, 'shipped');
-                                          setActiveDropdown(null);
-                                        }}
-                                        className="w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 transition-colors flex items-center gap-2"
-                                      >
-                                        <Truck className="w-4 h-4" />
-                                        Mark Shipped
-                                      </button>
-                                    )}
-                                    {order.status === 'shipped' && (
-                                      <button
-                                        onClick={() => {
-                                          updateOrderStatus(order.order_id, 'delivered');
-                                          setActiveDropdown(null);
-                                        }}
-                                        className="w-full text-left px-4 py-2 text-sm text-emerald-600 hover:bg-emerald-50 transition-colors flex items-center gap-2"
-                                      >
-                                        <CheckCircle2 className="w-4 h-4" />
-                                        Mark Delivered
-                                      </button>
-                                    )}
+                                    {/* Shipped/Delivered are now handled by the fulfillment center pipeline */}
                                   </div>
                                 )}
                               </div>

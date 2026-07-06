@@ -24,6 +24,7 @@ import {
   Navigation,
   Send,
   ArrowRight,
+  Lock,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -43,6 +44,7 @@ interface Order {
   status: string;
   payment_status: string;
   total_amount: number;
+  pickup_otp: string | null;
   created_at: string;
   updated_at: string;
   address_line: string;
@@ -531,6 +533,33 @@ const OrderDetailPage = () => {
     }
   };
 
+  const downloadInvoice = async () => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/orders/${orderId}/invoice`,
+        {
+          credentials: "include",
+          headers: {
+            "x-request-from": "vendor",
+          },
+        }
+      );
+      if (!response.ok) throw new Error("Invoice download failed");
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `invoice-${orderId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Error downloading invoice:", err);
+      alert("Failed to download invoice PDF.");
+    }
+  };
+
   const getNextStatusOptions = () => {
     if (!order) return [];
     
@@ -540,10 +569,6 @@ const OrderDetailPage = () => {
     if (currentStatus === "pending") {
       options.push({ value: "processing", label: "Accept Order", color: "bg-emerald-600 hover:bg-emerald-700" });
       options.push({ value: "cancelled", label: "Reject Order", color: "bg-rose-600 hover:bg-rose-700" });
-    } else if (currentStatus === "processing") {
-      options.push({ value: "shipped", label: "Mark as Shipped", color: "bg-blue-600 hover:bg-blue-700" });
-    } else if (currentStatus === "shipped") {
-      options.push({ value: "delivered", label: "Mark as Delivered", color: "bg-emerald-600 hover:bg-emerald-700" });
     }
     
     return options;
@@ -623,6 +648,15 @@ const OrderDetailPage = () => {
               <Download className="w-4 h-4" />
               Export
             </button>
+            {order.status.toLowerCase() !== "pending" && order.status.toLowerCase() !== "cancelled" && (
+              <button
+                onClick={downloadInvoice}
+                className="px-4 py-2.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl hover:bg-emerald-100 transition-all text-sm font-semibold shadow-sm flex items-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                Download Invoice
+              </button>
+            )}
             {getNextStatusOptions().length > 0 && (
               <div className="flex items-center gap-2">
                 {getNextStatusOptions().map((option, idx) => (
@@ -649,7 +683,7 @@ const OrderDetailPage = () => {
         </div>
 
         {/* Status Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className={`grid grid-cols-1 md:grid-cols-${order.pickup_otp ? 4 : 3} gap-4`}>
           <div
             className={`${statusColors.bg} ${statusColors.border} border rounded-2xl p-5`}
           >
@@ -699,6 +733,23 @@ const OrderDetailPage = () => {
               </div>
             </div>
           </div>
+          {order.pickup_otp && (
+            <div className="bg-amber-50/50 border border-amber-200/80 rounded-2xl p-5">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-white rounded-xl text-amber-600 shadow-sm border border-amber-100">
+                  <Lock className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 font-medium">
+                    Pickup OTP Code
+                  </p>
+                  <p className="text-xl font-black text-amber-700 tracking-wider mt-0.5">
+                    {order.pickup_otp}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ── Route Journey Map ─────────────────────────────────────── */}
