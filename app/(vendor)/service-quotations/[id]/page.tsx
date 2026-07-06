@@ -120,7 +120,7 @@ export default function ServiceQuotationDetailPage() {
   };
 
   useEffect(() => {
-    if (user && user.role !== "vendor") {
+    if (user && (user.role !== "vendor" || (user.vendorType !== "service" && user.vendorType !== "both"))) {
       router.replace("/unauthorizedAccessed");
     }
   }, [user, router]);

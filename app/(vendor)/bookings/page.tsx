@@ -388,7 +388,7 @@ export default function BookingsPage() {
                   ) : (
                     <tr>
                       <td colSpan={7} className="px-7 py-16 text-center text-gray-500">
-                        No bookings yet. Bookings will appear here once customers start purchasing.
+                        No bookings yet. Bookings will appear here once clients book/schedule your services.
                       </td>
                     </tr>
                   )}

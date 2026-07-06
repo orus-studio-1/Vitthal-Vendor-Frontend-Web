@@ -501,7 +501,7 @@ export default function ServiceViewDetailPage() {
               onClick={() => setActiveTab("reviews")}
               className={`flex items-center px-1 py-4 border-b-2 text-sm font-semibold transition-colors ${
                 activeTab === "reviews"
-                  ? "border-gray-950 text-gray-955"
+                  ? "border-gray-950 text-gray-950"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
             >

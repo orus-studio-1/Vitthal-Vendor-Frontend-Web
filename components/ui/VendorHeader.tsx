@@ -77,21 +77,26 @@ export function VendorHeader() {
     router.push("/");
   }
 
-  const isService = user?.vendorType === "service";
+  const isService = user?.vendorType === "service" || user?.vendorType === "both";
+  const isProduct = user?.vendorType === "product" || user?.vendorType === "both";
 
   const navLinks = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    ...(isProduct
+      ? [
+          { href: "/products", label: "Products", icon: Package },
+          { href: "/orders", label: "Orders", icon: ShoppingBag },
+          { href: "/quotation-orders", label: "Quotation Orders", icon: FileCheck },
+        ]
+      : []
+    ),
     ...(isService
       ? [
           { href: "/services", label: "Services", icon: Package },
           { href: "/bookings", label: "Bookings", icon: ShoppingBag },
           { href: "/service-quotation-orders", label: "Quotation Orders", icon: FileCheck },
         ]
-      : [
-          { href: "/products", label: "Products", icon: Package },
-          { href: "/orders", label: "Orders", icon: ShoppingBag },
-          { href: "/quotation-orders", label: "Quotation Orders", icon: FileCheck },
-        ]
+      : []
     ),
     { href: "/payouts", label: "Payouts", icon: DollarSign },
     { href: "/analytics", label: "Analytics", icon: BarChart3 },
@@ -99,17 +104,21 @@ export function VendorHeader() {
 
   const mobileMainMenuLinks = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    ...(isProduct
+      ? [
+          { href: "/products", label: "Products", icon: Package },
+          { href: "/orders", label: "Orders", icon: ShoppingBag },
+          { href: "/quotation-orders", label: "Quotation Orders", icon: FileCheck },
+        ]
+      : []
+    ),
     ...(isService
       ? [
           { href: "/services", label: "Services", icon: Package },
           { href: "/bookings", label: "Bookings", icon: ShoppingBag },
           { href: "/service-quotation-orders", label: "Quotation Orders", icon: FileCheck },
         ]
-      : [
-          { href: "/products", label: "Products", icon: Package },
-          { href: "/orders", label: "Orders", icon: ShoppingBag },
-          { href: "/quotation-orders", label: "Quotation Orders", icon: FileCheck },
-        ]
+      : []
     ),
     { href: "/analytics", label: "Analytics", icon: BarChart3 },
   ];
