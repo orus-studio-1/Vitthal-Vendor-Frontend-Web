@@ -233,7 +233,7 @@ class ApiClient {
     return {
       'Content-Type': 'application/json',
       'x-request-from': 'vendor',
-      ...(token && { Authorization: `Bearer ${token}` }),
+      ...(token && token !== "null" && token !== "undefined" && { Authorization: `Bearer ${token}` }),
     };
   }
 
@@ -509,7 +509,7 @@ export const vendorChatApi = {
       headers: {
         'Content-Type': 'application/json',
         'x-request-from': 'vendor',
-        ...(token && { Authorization: `Bearer ${token}` }),
+        ...(token && token !== "null" && token !== "undefined" && { Authorization: `Bearer ${token}` }),
       },
       credentials: 'include',
     });
@@ -525,7 +525,7 @@ export const vendorChatApi = {
       headers: {
         'Content-Type': 'application/json',
         'x-request-from': 'vendor',
-        ...(token && { Authorization: `Bearer ${token}` }),
+        ...(token && token !== "null" && token !== "undefined" && { Authorization: `Bearer ${token}` }),
       },
       body: JSON.stringify({ body }),
       credentials: 'include',

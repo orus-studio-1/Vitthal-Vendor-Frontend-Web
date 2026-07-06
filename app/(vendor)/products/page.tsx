@@ -14,6 +14,8 @@ import {
   ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuthStore } from "@/store/authStore";
 
 type VendorProductVariant = {
   vendor_product_id: string;
@@ -43,8 +45,17 @@ type VendorProduct = {
 };
 
 const ProductsPage = () => {
+  const router = useRouter();
+  const { user } = useAuthStore();
   const [products, setProducts] = useState<VendorProduct[]>([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user && user.vendorType === "service") {
+      router.replace("/unauthorizedAccessed");
+    }
+  }, [user, router]);
+
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);

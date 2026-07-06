@@ -77,24 +77,26 @@ function validateGST(gst: string) {
 export default function RegisterPage() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("identity");
+  const [vendorType, setVendorType] = useState<"product" | "service" | "both">("product");
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [categoriesOptions, setCategoriesOptions] = useState<any[]>([]);
 
   useEffect(() => {
     async function fetchCategories() {
       try {
-        const res = await fetch(`${API_BASE}/api/products/getCategories`);
+        const res = await fetch(`${API_BASE}/api/products/getCategories?type=${vendorType}`);
         if (res.ok) {
           const resData = await res.json();
-          if (resData.data && resData.data.length > 0) {
-            setCategoriesOptions(resData.data);
-          }
+          setCategoriesOptions(resData.data && resData.data.length > 0 ? resData.data : []);
         }
       } catch (err) {
         console.error("Failed to fetch categories:", err);
       }
     }
+    // Clear previously selected categories whenever vendor type changes
+    setSelectedCategories([]);
     fetchCategories();
-  }, []);
+  }, [vendorType]);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -110,7 +112,7 @@ export default function RegisterPage() {
 
   const [companyName, setCompanyName] = useState("");
   const [businessType, setBusinessType] = useState("");
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  // vendorType and selectedCategories are declared earlier (above the useEffect that depends on them)
   const [gstState, setGstState] = useState("");
   const [gstPan, setGstPan] = useState("");
   const [gstEntity, setGstEntity] = useState("");
@@ -541,6 +543,7 @@ export default function RegisterPage() {
       formData.append("otp", otp);
       formData.append("companyName", companyName.trim());
       formData.append("businessType", businessType);
+      formData.append("vendorType", vendorType);
       formData.append("gstNumber", gstNumber);
       formData.append("companyWebsite", website.trim());
       formData.append("phone", phone.trim());
@@ -656,7 +659,7 @@ export default function RegisterPage() {
                 : step === "business"
                   ? "Business Profile"
                   : step === "categories"
-                    ? "Select Your Categories"
+                    ? vendorType === "both" ? "Select Your Categories" : vendorType === "service" ? "Select Your Service Categories" : "Select Your Product Categories"
                     : step === "contact"
                       ? "Contact & Location"
                       : step === "password"
@@ -669,7 +672,11 @@ export default function RegisterPage() {
                 : step === "business"
                   ? "Tell us about your company. Add your GST certificate and business details."
                   : step === "categories"
-                    ? "Choose up to 3 product categories that best represent your business."
+                    ? vendorType === "both"
+                      ? "Choose up to 3 product/service categories that best represent your business."
+                      : vendorType === "service"
+                        ? "Choose up to 3 service categories that best represent what you offer."
+                        : "Choose up to 3 product categories that best represent your business."
                     : step === "contact"
                       ? "Provide your contact information, location, and commission preferences."
                       : step === "password"
@@ -908,6 +915,68 @@ export default function RegisterPage() {
                 </label>
               </div>
 
+              <div>
+                <label className="mb-2 block text-sm font-medium text-zinc-800">
+                  Vendor type
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setVendorType("product")}
+                    className={`flex items-center gap-3 rounded-lg border p-3.5 transition-all text-left ${
+                      vendorType === "product"
+                        ? "border-[#1d4ed8] bg-blue-50/30 text-[#1d4ed8] font-semibold"
+                        : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                    }`}
+                  >
+                    <div className={`flex h-4 w-4 items-center justify-center rounded-full border ${
+                      vendorType === "product" ? "border-[#1d4ed8]" : "border-zinc-300"
+                    }`}>
+                      {vendorType === "product" && (
+                        <div className="h-2 w-2 rounded-full bg-[#1d4ed8]" />
+                      )}
+                    </div>
+                    <span className="text-sm">Product Seller</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVendorType("service")}
+                    className={`flex items-center gap-3 rounded-lg border p-3.5 transition-all text-left ${
+                      vendorType === "service"
+                        ? "border-[#1d4ed8] bg-blue-50/30 text-[#1d4ed8] font-semibold"
+                        : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                    }`}
+                  >
+                    <div className={`flex h-4 w-4 items-center justify-center rounded-full border ${
+                      vendorType === "service" ? "border-[#1d4ed8]" : "border-zinc-300"
+                    }`}>
+                      {vendorType === "service" && (
+                        <div className="h-2 w-2 rounded-full bg-[#1d4ed8]" />
+                      )}
+                    </div>
+                    <span className="text-sm">Service Provider</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVendorType("both")}
+                    className={`flex items-center gap-3 rounded-lg border p-3.5 transition-all text-left ${
+                      vendorType === "both"
+                        ? "border-[#1d4ed8] bg-blue-50/30 text-[#1d4ed8] font-semibold"
+                        : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                    }`}
+                  >
+                    <div className={`flex h-4 w-4 items-center justify-center rounded-full border ${
+                      vendorType === "both" ? "border-[#1d4ed8]" : "border-zinc-300"
+                    }`}>
+                      {vendorType === "both" && (
+                        <div className="h-2 w-2 rounded-full bg-[#1d4ed8]" />
+                      )}
+                    </div>
+                    <span className="text-sm">Both</span>
+                  </button>
+                </div>
+              </div>
+
               <div className="flex gap-3">
                 <button
                   type="button"
@@ -935,11 +1004,10 @@ export default function RegisterPage() {
               <div className="flex items-center justify-between gap-3 rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3">
                 <div>
                   <p className="text-sm font-medium text-zinc-800">
-                    Select categories
+                    Select {vendorType === "both" ? "product & service" : vendorType === "service" ? "service" : "product"} categories
                   </p>
                   <p className="text-xs text-zinc-500">
-                    Pick up to 3 categories. Required before registration
-                    completes.
+                    Pick up to 3 {vendorType === "both" ? "product & service" : vendorType === "service" ? "service" : "product"} categories. Required before registration completes.
                   </p>
                 </div>
                 <div className="rounded-full bg-white px-3 py-1 text-xs font-medium text-zinc-700 ring-1 ring-zinc-200">
@@ -948,38 +1016,45 @@ export default function RegisterPage() {
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
-                {categoriesOptions.map((category) => {
-                  const isSelected = selectedCategories.includes(category.code);
-                  return (
-                    <button
-                      key={category.code}
-                      type="button"
-                      onClick={() => toggleCategory(category.code)}
-                      className={`rounded-lg border p-4 text-left transition-all ${isSelected ? "border-[#1d4ed8] bg-blue-50 shadow-sm" : "border-zinc-200 bg-white hover:border-zinc-300 hover:bg-zinc-50"}`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-semibold text-zinc-900">
-                            {category.label}
-                          </p>
-                          <p className="mt-1 text-xs leading-5 text-zinc-500">
-                            {category.description}
-                          </p>
-                          {category.min_commision_percentage !== undefined && (
-                            <span className="mt-2 inline-block rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 border border-zinc-200">
-                              Commission: {category.min_commision_percentage}% - {category.max_commision_percentage}%
-                            </span>
-                          )}
+                {categoriesOptions.length === 0 ? (
+                  <div className="col-span-2 rounded-lg border border-zinc-200 bg-zinc-50 py-10 text-center">
+                    <p className="text-sm font-medium text-zinc-700">No {vendorType === "both" ? "product & service" : vendorType === "service" ? "service" : "product"} categories available</p>
+                    <p className="mt-1 text-xs text-zinc-400">Please contact the administrator to add {vendorType === "both" ? "product & service" : vendorType === "service" ? "service" : "product"} categories.</p>
+                  </div>
+                ) : (
+                  categoriesOptions.map((category) => {
+                    const isSelected = selectedCategories.includes(category.code);
+                    return (
+                      <button
+                        key={category.code}
+                        type="button"
+                        onClick={() => toggleCategory(category.code)}
+                        className={`rounded-lg border p-4 text-left transition-all ${isSelected ? "border-[#1d4ed8] bg-blue-50 shadow-sm" : "border-zinc-200 bg-white hover:border-zinc-300 hover:bg-zinc-50"}`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold text-zinc-900">
+                              {category.label}
+                            </p>
+                            <p className="mt-1 text-xs leading-5 text-zinc-500">
+                              {category.description}
+                            </p>
+                            {category.min_commision_percentage !== undefined && (
+                              <span className="mt-2 inline-block rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 border border-zinc-200">
+                                Commission: {category.min_commision_percentage}% - {category.max_commision_percentage}%
+                              </span>
+                            )}
+                          </div>
+                          <span
+                            className={`mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full border text-[10px] font-bold ${isSelected ? "border-[#1d4ed8] bg-[#1d4ed8] text-white" : "border-zinc-300 text-transparent"}`}
+                          >
+                            ✓
+                          </span>
                         </div>
-                        <span
-                          className={`mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full border text-[10px] font-bold ${isSelected ? "border-[#1d4ed8] bg-[#1d4ed8] text-white" : "border-zinc-300 text-transparent"}`}
-                        >
-                          ✓
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
+                      </button>
+                    );
+                  })
+                )}
               </div>
 
               <div className="flex gap-3">

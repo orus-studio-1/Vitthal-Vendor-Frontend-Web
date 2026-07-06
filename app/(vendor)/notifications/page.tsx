@@ -117,7 +117,7 @@ function groupByDate(notifications: Notification[]) {
 
 export default function NotificationsPage() {
   const router = useRouter();
-  const { isAuthenticated, isLoading: authLoading } = useAuthStore();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuthStore();
   const {
     notifications,
     unreadCount,
@@ -190,7 +190,8 @@ export default function NotificationsPage() {
     if (n.reference_type === "product" && n.reference_id) {
       router.push(`/products`);
     } else if (n.reference_type === "quotation" && n.reference_id) {
-      router.push(`/quotations/${n.reference_id}`);
+      const isServiceQuote = n.title?.toLowerCase().includes("service") || n.body?.toLowerCase().includes("service");
+      router.push(isServiceQuote ? `/service-quotations/${n.reference_id}` : `/quotations/${n.reference_id}`);
     }
   }
 
@@ -205,10 +206,12 @@ export default function NotificationsPage() {
     );
   }
 
+  const isService = user?.vendorType === "service";
+
   const tabs: { key: FilterTab; label: string; count?: number }[] = [
     { key: "all", label: "All", count: notifications.length },
     { key: "unread", label: "Unread", count: unreadCount },
-    { key: "product", label: "Product", count: productCount },
+    { key: "product", label: isService ? "Service" : "Product", count: productCount },
     { key: "quotation", label: "Quotation", count: quotationCount },
   ];
 
@@ -234,7 +237,9 @@ export default function NotificationsPage() {
                     </span>
                   )}
                 </div>
-                <p className="mt-0.5 text-sm text-zinc-500">Stay updated with your product approvals and quotations</p>
+                <p className="mt-0.5 text-sm text-zinc-500">
+                  {isService ? "Stay updated with your service bookings and quotations" : "Stay updated with your product approvals and quotations"}
+                </p>
               </div>
             </div>
             {unreadCount > 0 && (
@@ -333,7 +338,7 @@ export default function NotificationsPage() {
               {activeTab === "unread"
                 ? "You're all caught up!"
                 : activeTab === "product"
-                ? "No product notifications"
+                ? (isService ? "No service notifications" : "No product notifications")
                 : activeTab === "quotation"
                 ? "No quotation notifications"
                 : searchQuery
@@ -343,7 +348,7 @@ export default function NotificationsPage() {
             <p className="mt-2 max-w-sm text-center text-sm text-zinc-500">
               {activeTab === "unread"
                 ? "There are no unread notifications. All updates have been reviewed."
-                : "When there are updates about your products or quotations, they'll appear here."}
+                : `When there are updates about your ${isService ? "services" : "products"} or quotations, they'll appear here.`}
             </p>
           </div>
         ) : (
@@ -430,7 +435,7 @@ export default function NotificationsPage() {
                                     : "bg-zinc-100 text-zinc-500"
                                 }`}
                               >
-                                {isProductType(n.type) ? "Product" : isQuotationType(n.type) ? "Quotation" : "General"}
+                                {isProductType(n.type) ? (isService ? "Service" : "Product") : isQuotationType(n.type) ? "Quotation" : "General"}
                               </span>
                               {!n.is_read && (
                                 <button
