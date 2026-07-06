@@ -73,6 +73,7 @@ interface TopProduct {
 }
 
 interface AnalyticsData {
+  vendorType?: 'service' | 'product';
   kpi: KPIData;
   revenueChart: {
     labels: string[];
@@ -354,6 +355,7 @@ const AnalyticsPage = () => {
   }
 
   const kpi = analyticsData?.kpi;
+  const isServiceVendor = analyticsData?.vendorType === 'service';
   const totalTonnage =
     analyticsData?.categoryDistribution.reduce(
       (sum, cat) => sum + cat.quantity,
@@ -367,10 +369,10 @@ const AnalyticsPage = () => {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
-              Industrial Analytics
+              {isServiceVendor ? 'Service Analytics' : 'Industrial Analytics'}
             </h1>
             <p className="text-gray-500 mt-1.5 font-medium">
-              B2B Performance tracking for Metals, Plastics & Chemicals.
+              {isServiceVendor ? 'B2B Service performance tracking and booking insights.' : 'B2B Performance tracking for Metals, Plastics & Chemicals.'}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -405,10 +407,13 @@ const AnalyticsPage = () => {
             </div>
             <div>
               <p className="text-sm font-medium text-gray-500">
-                Total Quantity Sold
+                {isServiceVendor ? 'Total Bookings' : 'Total Quantity Sold'}
               </p>
               <h3 className="text-2xl font-bold text-gray-900 mt-1">
-                {kpi?.totalQuantity.toLocaleString() || 0} units
+                {isServiceVendor
+                  ? `${(kpi?.totalQuantity ?? 0).toLocaleString()} bookings`
+                  : `${(kpi?.totalQuantity ?? 0).toLocaleString()} units`
+                }
               </h3>
               {kpi && (
                 <p
@@ -430,7 +435,7 @@ const AnalyticsPage = () => {
             </div>
             <div>
               <p className="text-sm font-medium text-gray-500">
-                Avg. Order Value
+                {isServiceVendor ? 'Avg. Booking Value' : 'Avg. Order Value'}
               </p>
               <h3 className="text-2xl font-bold text-gray-900 mt-1">
                 {formatCurrency(kpi?.avgOrderValue || 0)}
@@ -498,10 +503,10 @@ const AnalyticsPage = () => {
           <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-7 flex flex-col">
             <div className="mb-4">
               <h2 className="text-xl font-bold text-gray-900">
-                Category Distribution
+                {isServiceVendor ? 'Service Distribution' : 'Category Distribution'}
               </h2>
               <p className="text-sm text-gray-500 font-medium mt-1">
-                Sales volume by product category
+                {isServiceVendor ? 'Bookings by service type' : 'Sales volume by product category'}
               </p>
             </div>
             <div className="flex-1 min-h-[280px] relative">
@@ -521,7 +526,7 @@ const AnalyticsPage = () => {
                         {totalTonnage.toLocaleString()}
                       </span>
                       <span className="block text-xs font-medium text-gray-500">
-                        Total Units
+                        {isServiceVendor ? 'Total Bookings' : 'Total Units'}
                       </span>
                     </div>
                   </div>
@@ -536,10 +541,10 @@ const AnalyticsPage = () => {
           <div className="flex justify-between items-center mb-6">
             <div>
               <h2 className="text-xl font-bold text-gray-900">
-                Top Selling Products
+                {isServiceVendor ? 'Top Booked Services' : 'Top Selling Products'}
               </h2>
               <p className="text-sm text-gray-500 font-medium mt-1">
-                Best performing products by sales volume
+                {isServiceVendor ? 'Best performing services by booking count' : 'Best performing products by sales volume'}
               </p>
             </div>
           </div>
@@ -552,9 +557,9 @@ const AnalyticsPage = () => {
               <table className="w-full text-left text-sm">
                 <thead className="bg-gray-50 text-gray-500 text-xs uppercase font-bold tracking-wider rounded-xl">
                   <tr>
-                    <th className="px-6 py-4 rounded-l-xl">Product</th>
+                    <th className="px-6 py-4 rounded-l-xl">{isServiceVendor ? 'Service' : 'Product'}</th>
                     <th className="px-6 py-4">Category</th>
-                    <th className="px-6 py-4">Quantity Sold</th>
+                    <th className="px-6 py-4">{isServiceVendor ? 'Bookings' : 'Quantity Sold'}</th>
                     <th className="px-6 py-4">Revenue</th>
                     <th className="px-6 py-4 rounded-r-xl">Growth</th>
                   </tr>
@@ -581,7 +586,7 @@ const AnalyticsPage = () => {
                           {product.category}
                         </td>
                         <td className="px-6 py-4 font-bold text-gray-900">
-                          {product.sales.toLocaleString()} units
+                          {product.sales.toLocaleString()} {isServiceVendor ? 'bookings' : 'units'}
                         </td>
                         <td className="px-6 py-4 font-bold text-gray-900">
                           {formatCurrency(product.revenue)}

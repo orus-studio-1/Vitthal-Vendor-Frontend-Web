@@ -2,15 +2,19 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   Wallet,
   Package,
   ShoppingCart,
   Users,
+  User,
   ArrowUpRight,
   ArrowDownRight,
   MoreHorizontal,
-  Download
+  Download,
+  Wrench,
+  Calendar
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -281,6 +285,7 @@ const DEFAULT_DASHBOARD_DATA: DashboardData = {
 const DashboardPage = () => {
   const router = useRouter();
   const { user } = useAuthStore();
+  const isService = user?.vendorType === "service";
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [isLoadingDashboard, setIsLoadingDashboard] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -399,10 +404,20 @@ const DashboardPage = () => {
               <Download className="w-4 h-4" />
               Export Report
             </button>
-            <button className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all text-sm font-semibold shadow-sm shadow-emerald-200 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 outline-none flex items-center gap-2">
-              <Package className="w-4 h-4" />
-              Add Product
-            </button>
+            {isService ? (
+              <Link
+                href="/services"
+                className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all text-sm font-semibold shadow-sm shadow-emerald-200 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 outline-none flex items-center gap-2"
+              >
+                <Wrench className="w-4 h-4" />
+                Manage Offerings
+              </Link>
+            ) : (
+              <button className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all text-sm font-semibold shadow-sm shadow-emerald-200 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 outline-none flex items-center gap-2">
+                <Package className="w-4 h-4" />
+                Add Product
+              </button>
+            )}
           </div>
         </div>
 
@@ -432,25 +447,25 @@ const DashboardPage = () => {
               trendValue={stats?.totalRevenue ? `${((stats.totalRevenue / Math.max(stats.totalRevenue, 1)) * 100).toFixed(1)}%` : '0%'}
             />
             <StatCard
-              title="Total Orders"
+              title={isService ? "Total Bookings" : "Total Orders"}
               value={stats?.totalOrders?.toLocaleString() || '0'}
-              icon={ShoppingCart}
+              icon={isService ? Calendar : ShoppingCart}
               trend={stats?.totalOrders && stats.totalOrders > 0 ? 'up' : 'down'}
-              trendValue={stats?.totalOrders ? `${stats.totalOrders} orders` : '0 orders'}
+              trendValue={stats?.totalOrders ? `${stats.totalOrders} ${isService ? 'bookings' : 'orders'}` : `0 ${isService ? 'bookings' : 'orders'}`}
             />
             <StatCard
-              title="Active Products"
+              title={isService ? "Active Services" : "Active Products"}
               value={stats?.activeProducts?.toLocaleString() || '0'}
-              icon={Package}
+              icon={isService ? Wrench : Package}
               trend={stats?.activeProducts && stats.activeProducts > 0 ? 'up' : 'down'}
-              trendValue={stats?.activeProducts ? `${stats.activeProducts} listed` : '0 listed'}
+              trendValue={stats?.activeProducts ? `${stats.activeProducts} ${isService ? 'active' : 'listed'}` : `0 ${isService ? 'active' : 'listed'}`}
             />
             <StatCard
               title="Total Customers"
               value={stats?.totalCustomers?.toLocaleString() || '0'}
-              icon={Users}
+              icon={isService ? User : Users}
               trend={stats?.totalCustomers && stats.totalCustomers > 0 ? 'up' : 'down'}
-              trendValue={stats?.totalCustomers ? `${stats.totalCustomers} buyers` : '0 buyers'}
+              trendValue={stats?.totalCustomers ? `${stats.totalCustomers} ${isService ? 'clients' : 'buyers'}` : `0 ${isService ? 'clients' : 'buyers'}`}
             />
           </div>
         )}
@@ -489,8 +504,8 @@ const DashboardPage = () => {
           <div className="bg-white rounded-3xl border border-gray-100/80 shadow-sm p-7 flex flex-col">
             <div className="flex justify-between items-center mb-6">
               <div>
-                <h2 className="text-xl font-bold text-gray-900 tracking-tight">Top Products</h2>
-                <p className="text-sm text-gray-500 font-medium mt-1">Best selling items</p>
+                <h2 className="text-xl font-bold text-gray-900 tracking-tight">{isService ? "Top Services" : "Top Products"}</h2>
+                <p className="text-sm text-gray-500 font-medium mt-1">{isService ? "Most booked services" : "Best selling items"}</p>
               </div>
               <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors">
                 <MoreHorizontal className="w-5 h-5" />
@@ -515,11 +530,11 @@ const DashboardPage = () => {
                   <div key={idx} className="flex items-center justify-between group cursor-pointer">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-400 group-hover:bg-emerald-50 group-hover:text-emerald-600 group-hover:border-emerald-100 transition-colors">
-                        <Package className="w-5 h-5" />
+                        {isService ? <Wrench className="w-5 h-5" /> : <Package className="w-5 h-5" />}
                       </div>
                       <div>
                         <h4 className="text-sm font-bold text-gray-900 group-hover:text-emerald-600 transition-colors">{product.name}</h4>
-                        <p className="text-xs font-medium text-gray-500 mt-0.5">{product.sales} sales</p>
+                        <p className="text-xs font-medium text-gray-500 mt-0.5">{product.sales} {isService ? 'bookings' : 'sales'}</p>
                       </div>
                     </div>
                     <span className="text-sm font-bold text-gray-900">{formatCurrency(product.revenue)}</span>
@@ -531,9 +546,12 @@ const DashboardPage = () => {
                 </div>
               )}
             </div>
-            <button className="w-full mt-8 py-3 bg-gray-50 text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-100 hover:text-gray-900 transition-colors border border-gray-100/50">
-              View All Products
-            </button>
+            <Link
+              href={isService ? "/services" : "/products"}
+              className="w-full mt-8 py-3 bg-gray-50 text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-100 hover:text-gray-900 transition-colors border border-gray-100/50 text-center block"
+            >
+              {isService ? "View All Services" : "View All Products"}
+            </Link>
           </div>
         </div>
 
@@ -541,12 +559,15 @@ const DashboardPage = () => {
         <div className="bg-white rounded-3xl border border-gray-100/80 shadow-sm overflow-hidden">
           <div className="p-7 border-b border-gray-100/80 flex justify-between items-center">
             <div>
-              <h2 className="text-xl font-bold text-gray-900 tracking-tight">Recent Orders</h2>
-              <p className="text-sm text-gray-500 font-medium mt-1">Latest transactions across your store</p>
+              <h2 className="text-xl font-bold text-gray-900 tracking-tight">{isService ? "Recent Bookings" : "Recent Orders"}</h2>
+              <p className="text-sm text-gray-500 font-medium mt-1">{isService ? "Latest scheduled bookings across your store" : "Latest transactions across your store"}</p>
             </div>
-            <button className="text-sm font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-4 py-2 rounded-xl transition-colors">
-              View All Orders
-            </button>
+            <Link
+              href={isService ? "/bookings" : "/orders"}
+              className="text-sm font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-4 py-2 rounded-xl transition-colors text-center"
+            >
+              {isService ? "View All Bookings" : "View All Orders"}
+            </Link>
           </div>
           <div className="overflow-x-auto">
             {isLoadingDashboard ? (
@@ -568,9 +589,9 @@ const DashboardPage = () => {
               <table className="w-full text-left text-sm text-gray-600">
                 <thead className="bg-gray-50/50 text-gray-500 text-xs uppercase font-bold tracking-wider">
                   <tr>
-                    <th className="px-7 py-4">Order ID</th>
+                    <th className="px-7 py-4">{isService ? "Booking ID" : "Order ID"}</th>
                     <th className="px-7 py-4">Customer</th>
-                    <th className="px-7 py-4">Product</th>
+                    <th className="px-7 py-4">{isService ? "Service" : "Product"}</th>
                     <th className="px-7 py-4">Date</th>
                     <th className="px-7 py-4">Amount</th>
                     <th className="px-7 py-4">Status</th>
@@ -600,7 +621,10 @@ const DashboardPage = () => {
               </table>
             ) : (
               <div className="p-12 text-center text-gray-400 text-sm">
-                No orders yet. Orders will appear here once customers start purchasing.
+                {isService 
+                  ? "No bookings yet. Bookings will appear here once clients start booking services."
+                  : "No orders yet. Orders will appear here once customers start purchasing."
+                }
               </div>
             )}
           </div>

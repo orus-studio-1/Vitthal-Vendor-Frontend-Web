@@ -77,20 +77,49 @@ export function VendorHeader() {
     router.push("/");
   }
 
+  const isService = user?.vendorType === "service" || user?.vendorType === "both";
+  const isProduct = user?.vendorType === "product" || user?.vendorType === "both";
+
   const navLinks = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/products", label: "Products", icon: Package },
-    { href: "/orders", label: "Orders", icon: ShoppingBag },
-    { href: "/quotation-orders", label: "Quotation Orders", icon: FileCheck },
+    ...(isProduct
+      ? [
+          { href: "/products", label: "Products", icon: Package },
+          { href: "/orders", label: "Orders", icon: ShoppingBag },
+          { href: "/quotation-orders", label: "Quotation Orders", icon: FileCheck },
+        ]
+      : []
+    ),
+    ...(isService
+      ? [
+          { href: "/services", label: "Services", icon: Package },
+          { href: "/bookings", label: "Bookings", icon: ShoppingBag },
+          { href: "/service-quotation-orders", label: "Quotation Orders", icon: FileCheck },
+        ]
+      : []
+    ),
     { href: "/payouts", label: "Payouts", icon: DollarSign },
     { href: "/analytics", label: "Analytics", icon: BarChart3 },
   ];
 
   const mobileMainMenuLinks = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/products", label: "Products", icon: Package },
-    { href: "/orders", label: "Orders", icon: ShoppingBag },
-    { href: "/quotation-orders", label: "Quotation Orders", icon: FileCheck },
+    ...(isProduct
+      ? [
+          { href: "/products", label: "Products", icon: Package },
+          { href: "/orders", label: "Orders", icon: ShoppingBag },
+          { href: "/quotation-orders", label: "Quotation Orders", icon: FileCheck },
+        ]
+      : []
+    ),
+    ...(isService
+      ? [
+          { href: "/services", label: "Services", icon: Package },
+          { href: "/bookings", label: "Bookings", icon: ShoppingBag },
+          { href: "/service-quotation-orders", label: "Quotation Orders", icon: FileCheck },
+        ]
+      : []
+    ),
     { href: "/analytics", label: "Analytics", icon: BarChart3 },
   ];
 
@@ -101,7 +130,7 @@ export function VendorHeader() {
 
   const mobileAccountLinks = [
     { href: "/profile", label: "Profile Settings", icon: User },
-    { href: "/quotations", label: "Quotations", icon: FileText },
+    { href: isService ? "/service-quotations" : "/quotations", label: "Quotations", icon: FileText },
     { href: "/payouts", label: "Payouts & Settlements", icon: DollarSign },
     { href: "/settings", label: "Account Settings", icon: Settings },
   ];
@@ -237,7 +266,8 @@ export function VendorHeader() {
                                 if (!n.is_read) markRead(n.id);
                                 setNotifDropdown(false);
                                 if (n.reference_type === "quotation" && n.reference_id) {
-                                  router.push(`/quotations/${n.reference_id}`);
+                                  const isServiceQuote = n.title?.toLowerCase().includes("service") || n.body?.toLowerCase().includes("service");
+                                  router.push(isServiceQuote ? `/service-quotations/${n.reference_id}` : `/quotations/${n.reference_id}`);
                                 } else if (n.reference_type === "product" && n.reference_id) {
                                   router.push(`/products`);
                                 }
@@ -309,7 +339,7 @@ export function VendorHeader() {
                       Profile Settings
                     </Link>
                     <Link
-                      href="/quotations"
+                      href={isService ? "/service-quotations" : "/quotations"}
                       className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
                       onClick={() => setProfileDropdown(false)}
                     >

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useAuthStore } from "@/store/authStore";
 import {
   Search,
   Filter,
@@ -47,7 +48,15 @@ interface Order {
 
 const OrdersPage = () => {
   const router = useRouter();
+  const { user } = useAuthStore();
   const [searchTerm, setSearchTerm] = useState("");
+
+  useEffect(() => {
+    if (user && user.vendorType === "service") {
+      router.replace("/unauthorizedAccessed");
+    }
+  }, [user, router]);
+
   const [statusFilter, setStatusFilter] = useState("All Orders");
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
