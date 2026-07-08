@@ -228,10 +228,10 @@ export default function RegisterPage() {
       if (response.ok && data?.success) {
         const places = Array.isArray(data.places)
           ? (data.places as Array<{
-              city?: unknown;
-              state?: unknown;
-              label?: unknown;
-            }>)
+            city?: unknown;
+            state?: unknown;
+            label?: unknown;
+          }>)
           : [];
         const normalizedPlaces = places
           .filter(
@@ -923,15 +923,13 @@ export default function RegisterPage() {
                   <button
                     type="button"
                     onClick={() => setVendorType("product")}
-                    className={`flex items-center gap-3 rounded-lg border p-3.5 transition-all text-left ${
-                      vendorType === "product"
+                    className={`flex items-center gap-3 rounded-lg border p-3.5 transition-all text-left ${vendorType === "product"
                         ? "border-[#1d4ed8] bg-blue-50/30 text-[#1d4ed8] font-semibold"
                         : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
-                    }`}
+                      }`}
                   >
-                    <div className={`flex h-4 w-4 items-center justify-center rounded-full border ${
-                      vendorType === "product" ? "border-[#1d4ed8]" : "border-zinc-300"
-                    }`}>
+                    <div className={`flex h-4 w-4 items-center justify-center rounded-full border ${vendorType === "product" ? "border-[#1d4ed8]" : "border-zinc-300"
+                      }`}>
                       {vendorType === "product" && (
                         <div className="h-2 w-2 rounded-full bg-[#1d4ed8]" />
                       )}
@@ -941,38 +939,18 @@ export default function RegisterPage() {
                   <button
                     type="button"
                     onClick={() => setVendorType("service")}
-                    className={`flex items-center gap-3 rounded-lg border p-3.5 transition-all text-left ${
-                      vendorType === "service"
+                    className={`flex items-center gap-3 rounded-lg border p-3.5 transition-all text-left ${vendorType === "service"
                         ? "border-[#1d4ed8] bg-blue-50/30 text-[#1d4ed8] font-semibold"
                         : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
-                    }`}
+                      }`}
                   >
-                    <div className={`flex h-4 w-4 items-center justify-center rounded-full border ${
-                      vendorType === "service" ? "border-[#1d4ed8]" : "border-zinc-300"
-                    }`}>
+                    <div className={`flex h-4 w-4 items-center justify-center rounded-full border ${vendorType === "service" ? "border-[#1d4ed8]" : "border-zinc-300"
+                      }`}>
                       {vendorType === "service" && (
                         <div className="h-2 w-2 rounded-full bg-[#1d4ed8]" />
                       )}
                     </div>
                     <span className="text-sm">Service Provider</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setVendorType("both")}
-                    className={`flex items-center gap-3 rounded-lg border p-3.5 transition-all text-left ${
-                      vendorType === "both"
-                        ? "border-[#1d4ed8] bg-blue-50/30 text-[#1d4ed8] font-semibold"
-                        : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
-                    }`}
-                  >
-                    <div className={`flex h-4 w-4 items-center justify-center rounded-full border ${
-                      vendorType === "both" ? "border-[#1d4ed8]" : "border-zinc-300"
-                    }`}>
-                      {vendorType === "both" && (
-                        <div className="h-2 w-2 rounded-full bg-[#1d4ed8]" />
-                      )}
-                    </div>
-                    <span className="text-sm">Both</span>
                   </button>
                 </div>
               </div>
@@ -1720,9 +1698,13 @@ export default function RegisterPage() {
                       Terms and Conditions
                     </span>{" "}
                     and{" "}
-                    <span className="font-semibold text-[#1d4ed8]">
+                    <Link
+                      href="/privacy"
+                      target="_blank"
+                      className="font-semibold text-[#1d4ed8] hover:underline"
+                    >
                       Privacy Policy
-                    </span>
+                    </Link>
                     . I understand that by registering as a vendor, I am
                     agreeing to comply with all marketplace policies and
                     regulations.
