@@ -15,7 +15,9 @@ import {
   ChevronRight,
   ShieldCheck,
   CheckCircle2,
+  Trash2,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
 
 type Category = {
@@ -58,7 +60,8 @@ type VendorDetails = {
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9000";
 
 export default function SettingsPage() {
-  const { user, fetchUser } = useAuthStore();
+  const { user, fetchUser, deleteAccount } = useAuthStore();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"profile" | "agreement">("profile");
   const [vendorDetails, setVendorDetails] = useState<VendorDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -94,6 +97,16 @@ export default function SettingsPage() {
 
     fetchVendorDetails();
   }, []);
+
+  async function handleDeleteAccount() {
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete your vendor account? This will deactivate your account immediately and permanently delete all your data in 14 days."
+    );
+    if (confirmDelete) {
+      await deleteAccount();
+      router.push("/login");
+    }
+  }
 
   return (
     <main className="flex-1 bg-zinc-50 min-h-screen font-sans">
@@ -285,6 +298,28 @@ export default function SettingsPage() {
                     ) : (
                       <p className="text-sm text-zinc-500">No registered address listed.</p>
                     )}
+                  </div>
+                </div>
+
+                {/* Danger Zone */}
+                <div className="bg-red-50 rounded-2xl border border-red-200 p-6 shadow-sm space-y-4">
+                  <h2 className="text-lg font-bold text-red-900 flex items-center gap-2 border-b border-red-100 pb-3">
+                    <Trash2 className="text-red-700" size={20} />
+                    Danger Zone
+                  </h2>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                      <h3 className="text-sm font-bold text-red-900">Delete Account</h3>
+                      <p className="text-xs text-red-700 mt-1">
+                        Permanently delete your vendor account and all associated inventory listings.
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleDeleteAccount}
+                      className="inline-flex items-center justify-center rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700 active:scale-[0.98]"
+                    >
+                      Delete Account
+                    </button>
                   </div>
                 </div>
 

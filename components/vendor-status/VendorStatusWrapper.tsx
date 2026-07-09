@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import VendorStatusDisplay from './VendorStatusDisplay';
 import { toast } from 'sonner';
+import { useAuthStore } from '@/store/authStore';
+import DeletionRecoveryOverlay from './DeletionRecoveryOverlay';
 
 interface VendorStatusData {
   id: string;
@@ -13,6 +15,7 @@ interface VendorStatusData {
 }
 
 export default function VendorStatusWrapper({ children }: { children: React.ReactNode }) {
+  const user = useAuthStore((state) => state.user);
   const [vendorStatus, setVendorStatus] = useState<string | null>(null);
   const [isBlocked, setIsBlocked] = useState<boolean>(false);
   const [applicationNumber, setApplicationNumber] = useState<string | null>(null);
@@ -70,6 +73,11 @@ export default function VendorStatusWrapper({ children }: { children: React.Reac
         </div>
       </div>
     );
+  }
+
+  // Show recovery screen if account deletion is pending
+  if (user?.deletionRequestedAt) {
+    return <DeletionRecoveryOverlay />;
   }
 
   // Show blocked screen if vendor is blocked
