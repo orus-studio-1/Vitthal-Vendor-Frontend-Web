@@ -94,7 +94,7 @@ export function VendorHeader() {
       ? [
           { href: "/services", label: "Services", icon: Package },
           { href: "/bookings", label: "Bookings", icon: ShoppingBag },
-          { href: "/service-quotation-orders", label: "Quotation Orders", icon: FileCheck },
+          { href: "/service-quotations", label: "Quotations", icon: FileText },
         ]
       : []
     ),
@@ -116,7 +116,7 @@ export function VendorHeader() {
       ? [
           { href: "/services", label: "Services", icon: Package },
           { href: "/bookings", label: "Bookings", icon: ShoppingBag },
-          { href: "/service-quotation-orders", label: "Quotation Orders", icon: FileCheck },
+          { href: "/service-quotations", label: "Quotations", icon: FileText },
         ]
       : []
     ),
@@ -130,7 +130,10 @@ export function VendorHeader() {
 
   const mobileAccountLinks = [
     { href: "/profile", label: "Profile Settings", icon: User },
-    { href: isService ? "/service-quotations" : "/quotations", label: "Quotations", icon: FileText },
+    ...(!isService
+      ? [{ href: "/quotations", label: "Quotations", icon: FileText }]
+      : []
+    ),
     { href: "/payouts", label: "Payouts & Settlements", icon: DollarSign },
     { href: "/settings", label: "Account Settings", icon: Settings },
   ];
@@ -338,14 +341,16 @@ export function VendorHeader() {
                       <User size={18} className="text-zinc-400" />
                       Profile Settings
                     </Link>
-                    <Link
-                      href={isService ? "/service-quotations" : "/quotations"}
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
-                      onClick={() => setProfileDropdown(false)}
-                    >
-                      <FileText size={18} className="text-zinc-400" />
-                      Quotations
-                    </Link>
+                    {!isService && (
+                      <Link
+                        href="/quotations"
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
+                        onClick={() => setProfileDropdown(false)}
+                      >
+                        <FileText size={18} className="text-zinc-400" />
+                        Quotations
+                      </Link>
+                    )}
                     <Link
                       href="/settings"
                       className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"

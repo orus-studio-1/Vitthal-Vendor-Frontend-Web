@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "cbf88de9-f7c3-4f62-bcf9-a7f38cc33bdc"
+      }
+    },
+    "android": {
+      "package": "com.gurudas_dev.vitthalvendorfrontend"
+    }
+  }
+}

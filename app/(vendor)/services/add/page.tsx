@@ -299,6 +299,11 @@ export default function AddServicePage() {
   const [uploadedVideo, setUploadedVideo] = useState<File | null>(null);
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
 
+  const [subcategories, setSubcategories] = useState<{ id: string; name: string }[]>([]);
+  const [customSubcategoryId, setCustomSubcategoryId] = useState("");
+  const [isCreatingCustomSubcategory, setIsCreatingCustomSubcategory] = useState(false);
+  const [newSubcategoryName, setNewSubcategoryName] = useState("");
+
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -306,6 +311,34 @@ export default function AddServicePage() {
       router.replace("/unauthorizedAccessed");
     }
   }, [user, router]);
+
+  useEffect(() => {
+    async function fetchSubcategories() {
+      if (!customCategoryId) {
+        setSubcategories([]);
+        return;
+      }
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9000";
+        const res = await fetch(`${apiUrl}/api/services/subcategories?categoryId=${customCategoryId}`, {
+          credentials: "include",
+          headers: {
+            "x-request-from": "vendor",
+          }
+        });
+        if (res.ok) {
+          const json = await res.json();
+          setSubcategories(json.data || []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch subcategories:", err);
+      }
+    }
+    fetchSubcategories();
+    setCustomSubcategoryId("");
+    setIsCreatingCustomSubcategory(false);
+    setNewSubcategoryName("");
+  }, [customCategoryId]);
 
   const fetchData = async () => {
     try {
@@ -498,6 +531,8 @@ export default function AddServicePage() {
             description: compiledDescription,
             categoryId: customCategoryId,
             specifications,
+            subcategoryId: customSubcategoryId || undefined,
+            newSubcategoryName: newSubcategoryName.trim() || undefined,
           }),
         });
 
@@ -900,6 +935,59 @@ export default function AddServicePage() {
                     />
                   </div>
                 </div>
+
+                {/* Subcategory selection / creation */}
+                {customCategoryId && (
+                  <div className="bg-gray-50 p-4 rounded-xl border border-gray-200/60 space-y-4 animate-in fade-in">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-bold text-gray-750 uppercase tracking-wide">
+                        Subcategory
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsCreatingCustomSubcategory(!isCreatingCustomSubcategory);
+                          setCustomSubcategoryId("");
+                          setNewSubcategoryName("");
+                        }}
+                        className="text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline bg-transparent border-none cursor-pointer"
+                      >
+                        {isCreatingCustomSubcategory ? "Select Existing Subcategory" : "Create New Subcategory"}
+                      </button>
+                    </div>
+
+                    {isCreatingCustomSubcategory ? (
+                      <div>
+                        <input
+                          type="text"
+                          required
+                          value={newSubcategoryName}
+                          onChange={(e) => setNewSubcategoryName(e.target.value)}
+                          className="w-full border border-gray-300 bg-white rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600 font-medium text-gray-800"
+                          placeholder="Enter new subcategory name (e.g. TV Repair)..."
+                        />
+                        <p className="text-[11px] text-gray-400 mt-1">
+                          This subcategory will be created dynamically under the selected parent category.
+                        </p>
+                      </div>
+                    ) : (
+                      <div>
+                        <select
+                          value={customSubcategoryId}
+                          onChange={(e) => setCustomSubcategoryId(e.target.value)}
+                          className="w-full border border-gray-300 bg-white rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600 font-medium text-gray-800"
+                        >
+                          <option value="">None (No Subcategory)</option>
+                          {subcategories.map((sub) => (
+                            <option key={sub.id} value={sub.id}>
+                              {sub.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Markdown Rich Editor Description with preview block side-by-side */}
                 <div>
