@@ -16,9 +16,12 @@ import {
   ShieldCheck,
   CheckCircle2,
   Trash2,
+  AlertTriangle,
+  Loader2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
+import { toast } from "sonner";
 
 type Category = {
   code: string;
@@ -98,13 +101,26 @@ export default function SettingsPage() {
     fetchVendorDetails();
   }, []);
 
-  async function handleDeleteAccount() {
-    const confirmDelete = window.confirm(
-      "Are you sure you want to delete your vendor account? This will deactivate your account immediately and permanently delete all your data in 14 days."
-    );
-    if (confirmDelete) {
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [agreeDeleteTerms, setAgreeDeleteTerms] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  async function confirmAccountDeletion() {
+    if (!agreeDeleteTerms) {
+      toast.error("Please confirm that you understand the 14-day deletion policy.");
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
       await deleteAccount();
+      toast.success("Your vendor account has been deactivated.");
       router.push("/login");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to process deletion request.");
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteModal(false);
     }
   }
 
@@ -315,8 +331,8 @@ export default function SettingsPage() {
                       </p>
                     </div>
                     <button
-                      onClick={handleDeleteAccount}
-                      className="inline-flex items-center justify-center rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700 active:scale-[0.98]"
+                      onClick={() => setShowDeleteModal(true)}
+                      className="inline-flex items-center justify-center rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700 active:scale-[0.98] cursor-pointer"
                     >
                       Delete Account
                     </button>
@@ -418,6 +434,92 @@ export default function SettingsPage() {
         )}
 
       </div>
+
+      {/* Delete Account Modal with 14-Day Cycle Policy */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-zinc-100 space-y-5 animate-in zoom-in-95 duration-200">
+            <div className="flex items-start gap-3.5 border-b border-zinc-100 pb-4">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-600">
+                <AlertTriangle size={24} />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-zinc-900">
+                  Delete Vendor Account
+                </h3>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  14-Day Cycle & Data Purge Policy
+                </p>
+              </div>
+            </div>
+
+            {/* Policy Explanations */}
+            <div className="space-y-3 rounded-xl bg-amber-50/70 border border-amber-200/60 p-4 text-xs text-amber-900 leading-relaxed">
+              <div className="flex items-start gap-2">
+                <div className="h-2 w-2 rounded-full bg-amber-500 mt-1.5 shrink-0" />
+                <p>
+                  <strong>Immediate Deactivation:</strong> Your vendor storefront, products, and active quotations will be hidden from buyers immediately.
+                </p>
+              </div>
+              <div className="flex items-start gap-2">
+                <div className="h-2 w-2 rounded-full bg-amber-500 mt-1.5 shrink-0" />
+                <p>
+                  <strong>14-Day Recovery Cycle:</strong> If you change your mind, simply log back into this portal within <strong>14 days</strong> to automatically restore and reactivate your account.
+                </p>
+              </div>
+              <div className="flex items-start gap-2">
+                <div className="h-2 w-2 rounded-full bg-red-500 mt-1.5 shrink-0" />
+                <p>
+                  <strong>Permanent Data Deletion:</strong> After the 14-day cycle expires, all your business listings, catalog images, and profile data will be permanently purged from our database.
+                </p>
+              </div>
+            </div>
+
+            {/* Confirmation Checkbox */}
+            <label className="flex items-start gap-3 text-xs text-zinc-700 cursor-pointer pt-1">
+              <input
+                type="checkbox"
+                checked={agreeDeleteTerms}
+                onChange={(e) => setAgreeDeleteTerms(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-red-600 focus:ring-red-500 cursor-pointer"
+              />
+              <span>
+                I understand that my vendor account will be deactivated now and permanently deleted after 14 days if not recovered.
+              </span>
+            </label>
+
+            {/* Actions */}
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setAgreeDeleteTerms(false);
+                }}
+                disabled={isDeleting}
+                className="flex-1 rounded-xl border border-zinc-200 bg-white py-2.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmAccountDeletion}
+                disabled={!agreeDeleteTerms || isDeleting}
+                className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 py-2.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-sm cursor-pointer"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  "Confirm Deletion"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

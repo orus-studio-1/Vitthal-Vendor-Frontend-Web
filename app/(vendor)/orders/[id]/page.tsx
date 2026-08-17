@@ -26,6 +26,7 @@ import {
   ArrowRight,
   Lock,
 } from "lucide-react";
+import { downloadPdfReport } from "@/lib/export-utils";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -533,31 +534,96 @@ const OrderDetailPage = () => {
     }
   };
 
-  const downloadInvoice = async () => {
-    try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/orders/${orderId}/invoice`,
-        {
-          credentials: "include",
-          headers: {
-            "x-request-from": "vendor",
-          },
-        }
-      );
-      if (!response.ok) throw new Error("Invoice download failed");
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `invoice-${orderId}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("Error downloading invoice:", err);
-      alert("Failed to download invoice PDF.");
-    }
+  const downloadOrderReport = () => {
+    if (!order) return;
+
+    const itemRows = order.items.map((it) => [
+      it.product_name,
+      it.quantity,
+      `INR ${Number(it.price).toLocaleString("en-IN")}`,
+      `INR ${(Number(it.price) * it.quantity).toLocaleString("en-IN")}`,
+    ]);
+
+    const fullAddress = [order.address_line, order.city, order.state, order.pincode]
+      .filter(Boolean)
+      .join(", ");
+
+    const sections = [
+      {
+        heading: `Order Overview - #${order.order_id.slice(0, 8).toUpperCase()}`,
+        rows: [
+          ["Order Reference", `#${order.order_id.toUpperCase()}`],
+          ["Order Date", order.created_at ? new Date(order.created_at).toLocaleString("en-IN") : "N/A"],
+          ["Customer Name", order.customer_name || "N/A"],
+          ["Customer Email", order.customer_email || "N/A"],
+          ["Customer Phone", order.customer_phone || "N/A"],
+          ["Delivery Address", fullAddress || "N/A"],
+          ["Order Status", order.status.toUpperCase()],
+          ["Payment Status", (order.payment_status || "N/A").toUpperCase()],
+          ["Grand Total", `INR ${Number(order.total_amount).toLocaleString("en-IN")}`],
+        ],
+      },
+      {
+        heading: "Purchased Items",
+        headers: ["Product", "Qty", "Unit Price", "Subtotal"],
+        rows: itemRows,
+      },
+    ];
+
+    downloadPdfReport(
+      `Order Manifest - #${order.order_id.slice(0, 8).toUpperCase()}`,
+      sections,
+      `Order_${order.order_id.slice(0, 8).toUpperCase()}.pdf`
+    );
+  };
+
+  const downloadInvoice = () => {
+    if (!order) return;
+
+    const itemRows = order.items.map((it) => [
+      it.product_name,
+      it.quantity,
+      `INR ${Number(it.price).toLocaleString("en-IN")}`,
+      `INR ${(Number(it.price) * it.quantity).toLocaleString("en-IN")}`,
+    ]);
+
+    const fullAddress = [order.address_line, order.city, order.state, order.pincode]
+      .filter(Boolean)
+      .join(", ");
+
+    const sections = [
+      {
+        heading: "Tax Invoice Details",
+        rows: [
+          ["Invoice No.", `INV-${order.order_id.slice(0, 8).toUpperCase()}`],
+          ["Date of Issue", new Date().toLocaleDateString("en-IN")],
+          ["Order Date", order.created_at ? new Date(order.created_at).toLocaleString("en-IN") : "N/A"],
+          ["Billed To (Customer)", order.customer_name || "N/A"],
+          ["Contact Info", `${order.customer_phone || "N/A"} / ${order.customer_email || "N/A"}`],
+          ["Shipping / Billing Address", fullAddress || "N/A"],
+          ["Payment Status", (order.payment_status || "PAID").toUpperCase()],
+        ],
+      },
+      {
+        heading: "Line Items & Charges",
+        headers: ["Item Description", "Qty", "Rate (INR)", "Amount (INR)"],
+        rows: itemRows,
+      },
+      {
+        heading: "Payment Summary",
+        rows: [
+          ["Subtotal", `INR ${Number(order.total_amount).toLocaleString("en-IN")}`],
+          ["Taxes (Included)", "18% GST Applicable"],
+          ["Total Payable Amount", `INR ${Number(order.total_amount).toLocaleString("en-IN")}`],
+        ],
+      },
+    ];
+
+    downloadPdfReport(
+      `Tax Invoice - INV-${order.order_id.slice(0, 8).toUpperCase()}`,
+      sections,
+      `Invoice_INV-${order.order_id.slice(0, 8).toUpperCase()}.pdf`
+    );
   };
 
   const getNextStatusOptions = () => {
@@ -640,20 +706,26 @@ const OrderDetailPage = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <button className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all text-sm font-semibold shadow-sm flex items-center gap-2">
+            <button
+              onClick={() => window.print()}
+              className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all text-sm font-semibold shadow-sm flex items-center gap-2 cursor-pointer"
+            >
               <Printer className="w-4 h-4" />
               Print
             </button>
-            <button className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all text-sm font-semibold shadow-sm flex items-center gap-2">
-              <Download className="w-4 h-4" />
+            <button
+              onClick={downloadOrderReport}
+              className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all text-sm font-semibold shadow-sm flex items-center gap-2 cursor-pointer"
+            >
+              <Download className="w-4 h-4 text-blue-600" />
               Export
             </button>
             {order.status.toLowerCase() !== "pending" && order.status.toLowerCase() !== "cancelled" && (
               <button
                 onClick={downloadInvoice}
-                className="px-4 py-2.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl hover:bg-emerald-100 transition-all text-sm font-semibold shadow-sm flex items-center gap-2"
+                className="px-4 py-2.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl hover:bg-emerald-100 transition-all text-sm font-semibold shadow-sm flex items-center gap-2 cursor-pointer"
               >
-                <Download className="w-4 h-4" />
+                <Download className="w-4 h-4 text-emerald-600" />
                 Download Invoice
               </button>
             )}

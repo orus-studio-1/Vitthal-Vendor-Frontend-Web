@@ -10,10 +10,8 @@ import {
   Building2,
   LogOut,
   ChevronRight,
-  Edit2,
   Camera,
   X,
-  Check,
   MapPin,
   Star,
   Plus,
@@ -21,9 +19,15 @@ import {
   Store,
   ShoppingBag,
   FileText,
+  AlertTriangle,
+  Loader2,
+  CheckCircle2,
+  ShieldCheck,
+  Lock,
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
+import MapPicker, { MapLocationData } from "@/components/shared/MapPicker";
 
 type Address = {
   id: string | number;
@@ -32,6 +36,8 @@ type Address = {
   state: string;
   country: string;
   pincode: string;
+  latitude?: number;
+  longitude?: number;
   is_default?: boolean;
 };
 
@@ -56,34 +62,32 @@ type VendorDetails = {
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9000";
 
 export default function ProfilePage() {
-  const { user, fetchUser, logout } = useAuthStore();
+  const { user, fetchUser, logout, deleteAccount } = useAuthStore();
   const router = useRouter();
   const isService = user?.vendorType === "service";
-  const [isEditing, setIsEditing] = useState(false);
-  const [editName, setEditName] = useState("");
-  const [editEmail, setEditEmail] = useState("");
-  const [editPhone, setEditPhone] = useState("");
-  const [editCompany, setEditCompany] = useState("");
   const [profileImage, setProfileImage] = useState<string | null>(null);
 
   // Vendor details from backend
-  const [vendorDetails, setVendorDetails] = useState<VendorDetails | null>(
-    null,
-  );
+  const [vendorDetails, setVendorDetails] = useState<VendorDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Delete Account Modal State
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [agreeDeleteTerms, setAgreeDeleteTerms] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Address management
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [isAddingAddress, setIsAddingAddress] = useState(false);
-  const [editingAddressId, setEditingAddressId] = useState<
-    string | number | null
-  >(null);
+  const [editingAddressId, setEditingAddressId] = useState<string | number | null>(null);
   const [addressForm, setAddressForm] = useState({
     address: "",
     city: "",
     state: "",
-    country: "",
+    country: "India",
     pincode: "",
+    latitude: 0,
+    longitude: 0,
   });
 
   useEffect(() => {
@@ -94,38 +98,32 @@ export default function ProfilePage() {
   useLayoutEffect(() => {
     async function fetchVendorDetails() {
       try {
-        const response = await fetch(
-          `${API_BASE}/api/vendors/getVendorDetails`,
-          {
-            credentials: "include",
-            headers: {
-              "Content-Type": "application/json",
-              "x-request-from": "vendor",
-            },
+        const response = await fetch(`${API_BASE}/api/vendors/getVendorDetails`, {
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            "x-request-from": "vendor",
           },
-        );
+        });
 
         if (response.ok) {
           const data = await response.json();
           setVendorDetails(data.data);
 
-          // Handle address from the single address record
           if (data.data?.vendor_address) {
             const addressObj: Address = {
-              id: 1, // Since it's a one-to-one relationship, we use a fixed ID
+              id: 1,
               address: data.data.vendor_address,
-              city: data.data.vendor_city,
-              state: data.data.vendor_state,
-              country: data.data.vendor_country,
-              pincode: data.data.vendor_pincode,
+              city: data.data.vendor_city || "",
+              state: data.data.vendor_state || "",
+              country: data.data.vendor_country || "India",
+              pincode: data.data.vendor_pincode || "",
+              latitude: data.data.vendor_latitude || 0,
+              longitude: data.data.vendor_longitude || 0,
               is_default: true,
             };
             setAddresses([addressObj]);
           }
-
-          if (data.data?.vendor_phone) setEditPhone(data.data.vendor_phone);
-          if (data.data?.vendor_company_name)
-            setEditCompany(data.data.vendor_company_name);
         }
       } catch (error) {
         console.error("Failed to fetch vendor details:", error);
@@ -143,25 +141,23 @@ export default function ProfilePage() {
     router.push("/");
   }
 
-  function handleEdit() {
-    setEditName(user?.username || "");
-    setEditEmail(user?.email || "");
-    setEditPhone(vendorDetails?.vendor_phone || "");
-    setEditCompany(vendorDetails?.vendor_company_name || "");
-    setIsEditing(true);
-  }
+  async function confirmAccountDeletion() {
+    if (!agreeDeleteTerms) {
+      toast.error("Please confirm that you understand the 14-day deletion policy.");
+      return;
+    }
 
-  function handleCancel() {
-    setIsEditing(false);
-    setEditName(user?.username || "");
-    setEditEmail(user?.email || "");
-    setEditPhone(vendorDetails?.vendor_phone || "");
-    setEditCompany(vendorDetails?.vendor_company_name || "");
-  }
-
-  async function handleSave() {
-    setIsEditing(false);
-    toast.success("Profile updated successfully");
+    setIsDeleting(true);
+    try {
+      await deleteAccount();
+      toast.success("Your vendor account has been deactivated.");
+      router.push("/login");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to process deletion request.");
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteModal(false);
+    }
   }
 
   function resetAddressForm() {
@@ -169,42 +165,50 @@ export default function ProfilePage() {
       address: "",
       city: "",
       state: "",
-      country: "",
+      country: "India",
       pincode: "",
+      latitude: 0,
+      longitude: 0,
     });
     setEditingAddressId(null);
     setIsAddingAddress(false);
   }
 
+  const handleMapLocationChange = (lat: number, lng: number, locData?: MapLocationData) => {
+    setAddressForm((prev) => ({
+      ...prev,
+      latitude: lat,
+      longitude: lng,
+      address: locData?.addressDetails?.road || locData?.displayName || prev.address,
+      city: locData?.addressDetails?.city || prev.city,
+      state: locData?.addressDetails?.state || prev.state,
+      country: locData?.addressDetails?.country || prev.country,
+      pincode: locData?.addressDetails?.postcode || prev.pincode,
+    }));
+  };
+
   async function handleAddAddress() {
     try {
-      const response = await fetch(
-        `${API_BASE}/api/vendors/createVendorAddress`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-request-from": "vendor",
-          },
-          credentials: "include",
-          body: JSON.stringify({
-            ...addressForm,
-            latitude: 0,
-            longitude: 0,
-          }),
+      const response = await fetch(`${API_BASE}/api/vendors/createVendorAddress`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-request-from": "vendor",
         },
-      );
+        credentials: "include",
+        body: JSON.stringify(addressForm),
+      });
 
       if (response.ok) {
-        toast.success("Address added successfully");
+        toast.success("Address saved successfully");
         const data = await response.json();
-        setAddresses((prev) => [...prev, data.vendorAddress]);
+        setAddresses((prev) => [...prev, data.vendorAddress || addressForm]);
         resetAddressForm();
       } else {
         const error = await response.json();
         toast.error(error.message || "Failed to add address");
       }
-    } catch (error) {
+    } catch {
       toast.error("Something went wrong");
     }
   }
@@ -213,42 +217,33 @@ export default function ProfilePage() {
     if (!editingAddressId) return;
 
     try {
-      const response = await fetch(
-        `${API_BASE}/api/vendors/updateVendorAddress`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            "x-request-from": "vendor",
-          },
-          credentials: "include",
-          body: JSON.stringify({
-            ...addressForm,
-            latitude: 0,
-            longitude: 0,
-          }),
+      const response = await fetch(`${API_BASE}/api/vendors/updateVendorAddress`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "x-request-from": "vendor",
         },
-      );
+        credentials: "include",
+        body: JSON.stringify(addressForm),
+      });
 
       if (response.ok) {
         toast.success("Address updated successfully");
         const data = await response.json();
         setAddresses((prev) =>
-          prev.map((addr) =>
-            addr.id === editingAddressId ? data.vendorAddress : addr,
-          ),
+          prev.map((addr) => (addr.id === editingAddressId ? data.vendorAddress || addressForm : addr))
         );
         resetAddressForm();
       } else {
         toast.error("Failed to update address");
       }
-    } catch (error) {
+    } catch {
       toast.error("Something went wrong");
     }
   }
 
   async function handleDeleteAddress(addressId: string | number) {
-    toast.error("Address deletion is not available yet.");
+    toast.error("Address deletion is restricted. Contact admin to change registered address.");
   }
 
   function startEditAddress(address: Address) {
@@ -259,6 +254,8 @@ export default function ProfilePage() {
       state: address.state,
       country: address.country,
       pincode: address.pincode,
+      latitude: address.latitude || 0,
+      longitude: address.longitude || 0,
     });
   }
 
@@ -274,7 +271,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <main className="flex-1 bg-zinc-50">
+    <main className="flex-1 bg-zinc-50 min-h-screen">
       <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
@@ -310,10 +307,7 @@ export default function ProfilePage() {
                     </p>
                   </div>
                 </div>
-                <ChevronRight
-                  size={20}
-                  className="text-zinc-400 group-hover:text-zinc-600"
-                />
+                <ChevronRight size={20} className="text-zinc-400 group-hover:text-zinc-600" />
               </Link>
 
               <Link
@@ -333,17 +327,14 @@ export default function ProfilePage() {
                     </p>
                   </div>
                 </div>
-                <ChevronRight
-                  size={20}
-                  className="text-zinc-400 group-hover:text-zinc-600"
-                />
+                <ChevronRight size={20} className="text-zinc-400 group-hover:text-zinc-600" />
               </Link>
             </div>
 
             {/* Profile Header Card */}
             <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden">
               {/* Header Banner */}
-              <div className="h-28 bg-linear-to-r from-[#1d4ed8] to-[#3b82f6]" />
+              <div className="h-28 bg-gradient-to-r from-[#1d4ed8] to-[#3b82f6]" />
 
               <div className="px-6 pb-6 sm:px-8">
                 {/* Avatar + Info Row */}
@@ -351,11 +342,7 @@ export default function ProfilePage() {
                   <div className="relative group">
                     <div className="flex h-24 w-24 items-center justify-center rounded-full border-4 border-white bg-zinc-100 text-zinc-600 shadow-lg overflow-hidden">
                       {profileImage ? (
-                        <img
-                          src={profileImage}
-                          alt="Profile"
-                          className="h-full w-full object-cover"
-                        />
+                        <img src={profileImage} alt="Profile" className="h-full w-full object-cover" />
                       ) : (
                         <User size={40} />
                       )}
@@ -372,139 +359,95 @@ export default function ProfilePage() {
                   </div>
 
                   <div className="flex-1 flex flex-col justify-center text-center sm:text-left pt-3">
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        className="text-xl font-bold text-white border-b-2 border-[#1d4ed8] focus:outline-none bg-transparent text-center sm:text-left w-full sm:w-auto"
-                        placeholder="Your Name"
-                      />
-                    ) : (
-                      <h1 className="text-xl font-bold text-white">
+                    <div className="flex items-center justify-center sm:justify-start gap-2">
+                      <h1 className="text-xl font-bold text-zinc-900">
                         {user?.username || "Vendor"}
                       </h1>
-                    )}
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 border border-emerald-200">
+                        <ShieldCheck size={12} /> Verified Seller
+                      </span>
+                    </div>
                     <p className="text-sm text-zinc-500 mt-0.5">
                       {user?.email || "—"}
                     </p>
                   </div>
 
-                  <button
-                    onClick={isEditing ? handleSave : handleEdit}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1d4ed8] text-white hover:bg-[#1e40af] transition-colors font-medium text-sm"
-                  >
-                    {isEditing ? <Check size={16} /> : <Edit2 size={16} />}
-                    {isEditing ? "Save Changes" : "Edit Profile"}
-                  </button>
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-100 text-zinc-600 text-xs font-semibold">
+                    <Lock size={13} /> Official Merchant Identity
+                  </div>
                 </div>
 
-                {/* Account Information */}
+                {/* Account Information (Read-only for Name, Email, Phone) */}
                 <div className="mt-6">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-base font-semibold text-zinc-900">
-                      Account Details
+                      Merchant Credentials
                     </h2>
-                    {isEditing && (
-                      <button
-                        onClick={handleCancel}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-300 text-zinc-700 hover:bg-zinc-50 transition-colors text-sm"
-                      >
-                        <X size={14} />
-                        Cancel
-                      </button>
-                    )}
+                    <span className="text-xs text-zinc-400">Identity details are verified & protected</span>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {/* Full Name */}
-                    <div className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-4">
-                      <div className="flex items-center gap-2 text-xs text-zinc-500 mb-1.5">
-                        <User size={14} />
-                        Full Name
+                    <div className="rounded-lg border border-zinc-200 bg-zinc-50/70 p-4">
+                      <div className="flex items-center justify-between text-xs text-zinc-500 mb-1.5">
+                        <span className="flex items-center gap-1.5 font-medium">
+                          <User size={14} /> Full Name
+                        </span>
+                        <span className="text-[10px] text-zinc-400 bg-white border border-zinc-200 px-1.5 py-0.5 rounded font-mono">Protected</span>
                       </div>
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          className="w-full text-sm font-medium text-zinc-900 border-b border-zinc-300 focus:outline-none focus:border-[#1d4ed8] bg-transparent py-1"
-                        />
-                      ) : (
-                        <p className="text-sm font-medium text-zinc-900">
-                          {user?.username || "—"}
-                        </p>
-                      )}
+                      <p className="text-sm font-semibold text-zinc-900">
+                        {user?.username || "—"}
+                      </p>
                     </div>
 
                     {/* Email */}
-                    <div className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-4">
-                      <div className="flex items-center gap-2 text-xs text-zinc-500 mb-1.5">
-                        <Mail size={14} />
-                        Email Address
+                    <div className="rounded-lg border border-zinc-200 bg-zinc-50/70 p-4">
+                      <div className="flex items-center justify-between text-xs text-zinc-500 mb-1.5">
+                        <span className="flex items-center gap-1.5 font-medium">
+                          <Mail size={14} /> Email Address
+                        </span>
+                        <span className="text-[10px] text-zinc-400 bg-white border border-zinc-200 px-1.5 py-0.5 rounded font-mono">Verified</span>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium text-zinc-900">
-                          {user?.email || "—"}
-                        </p>
-                        {isEditing && (
-                          <span className="text-[10px] text-zinc-400 bg-zinc-100 px-1.5 py-0.5 rounded font-medium">Locked</span>
-                        )}
-                      </div>
+                      <p className="text-sm font-semibold text-zinc-900">
+                        {user?.email || "—"}
+                      </p>
                     </div>
 
                     {/* Phone */}
-                    <div className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-4">
-                      <div className="flex items-center gap-2 text-xs text-zinc-500 mb-1.5">
-                        <Phone size={14} />
-                        Phone Number
+                    <div className="rounded-lg border border-zinc-200 bg-zinc-50/70 p-4">
+                      <div className="flex items-center justify-between text-xs text-zinc-500 mb-1.5">
+                        <span className="flex items-center gap-1.5 font-medium">
+                          <Phone size={14} /> Registered Mobile
+                        </span>
+                        <span className="text-[10px] text-zinc-400 bg-white border border-zinc-200 px-1.5 py-0.5 rounded font-mono">Verified</span>
                       </div>
-                      {isEditing ? (
-                        <input
-                          type="tel"
-                          value={editPhone}
-                          onChange={(e) => setEditPhone(e.target.value)}
-                          className="w-full text-sm font-medium text-zinc-900 border-b border-zinc-300 focus:outline-none focus:border-[#1d4ed8] bg-transparent py-1"
-                          placeholder="Add phone number"
-                        />
-                      ) : (
-                        <p className="text-sm font-medium text-zinc-900">
-                          {vendorDetails?.vendor_phone || "—"}
-                        </p>
-                      )}
+                      <p className="text-sm font-semibold text-zinc-900">
+                        {vendorDetails?.vendor_phone || "—"}
+                      </p>
                     </div>
 
                     {/* Company */}
-                    <div className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-4">
-                      <div className="flex items-center gap-2 text-xs text-zinc-500 mb-1.5">
-                        <Building2 size={14} />
-                        Business Name
+                    <div className="rounded-lg border border-zinc-200 bg-zinc-50/70 p-4">
+                      <div className="flex items-center justify-between text-xs text-zinc-500 mb-1.5">
+                        <span className="flex items-center gap-1.5 font-medium">
+                          <Building2 size={14} /> Business / Entity Name
+                        </span>
+                        <span className="text-[10px] text-zinc-400 bg-white border border-zinc-200 px-1.5 py-0.5 rounded font-mono">Onboarded</span>
                       </div>
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          value={editCompany}
-                          onChange={(e) => setEditCompany(e.target.value)}
-                          className="w-full text-sm font-medium text-zinc-900 border-b border-zinc-300 focus:outline-none focus:border-[#1d4ed8] bg-transparent py-1"
-                          placeholder="Add business name"
-                        />
-                      ) : (
-                        <p className="text-sm font-medium text-zinc-900">
-                          {vendorDetails?.vendor_company_name ||
-                            editCompany ||
-                            "—"}
-                        </p>
-                      )}
+                      <p className="text-sm font-semibold text-zinc-900">
+                        {vendorDetails?.vendor_company_name || "—"}
+                      </p>
                     </div>
 
                     {/* Application ID */}
                     {vendorDetails?.vendor_application_number && (
-                      <div className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-4">
-                        <div className="flex items-center gap-2 text-xs text-zinc-500 mb-1.5">
-                          <FileText size={14} />
-                          Application ID
+                      <div className="rounded-lg border border-zinc-200 bg-zinc-50/70 p-4 sm:col-span-2">
+                        <div className="flex items-center justify-between text-xs text-zinc-500 mb-1.5">
+                          <span className="flex items-center gap-1.5 font-medium">
+                            <FileText size={14} /> Vendor License / Application Number
+                          </span>
                         </div>
-                        <p className="text-sm font-mono font-semibold text-blue-600">
+                        <p className="text-sm font-mono font-bold text-blue-700">
                           {vendorDetails.vendor_application_number}
                         </p>
                       </div>
@@ -515,13 +458,16 @@ export default function ProfilePage() {
                 {/* Address Section */}
                 <div className="mt-6 pt-6 border-t border-zinc-200">
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-base font-semibold text-zinc-900">
-                      My Addresses ({addresses.length})
-                    </h2>
-                    {!isAddingAddress && editingAddressId === null && (
+                    <div>
+                      <h2 className="text-base font-semibold text-zinc-900">
+                        Registered Warehouse & Billing Location
+                      </h2>
+                      <p className="text-xs text-zinc-500">Pick-up and dispatch point used for deliveries</p>
+                    </div>
+                    {!isAddingAddress && editingAddressId === null && addresses.length === 0 && (
                       <button
                         onClick={() => setIsAddingAddress(true)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1d4ed8] text-white hover:bg-[#1e40af] transition-colors text-sm"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1d4ed8] text-white hover:bg-[#1e40af] transition-colors text-sm font-semibold cursor-pointer"
                       >
                         <Plus size={14} />
                         Add Address
@@ -529,25 +475,38 @@ export default function ProfilePage() {
                     )}
                   </div>
 
-                  {/* Add/Edit Address Form */}
+                  {/* Add/Edit Address Form with OpenStreetMap */}
                   {(isAddingAddress || editingAddressId !== null) && (
-                    <div className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-4 space-y-3 mb-4">
+                    <div className="rounded-2xl border border-zinc-200 bg-zinc-50/80 p-5 space-y-4 mb-4">
                       <div className="flex items-center justify-between mb-2">
-                        <h3 className="font-medium text-zinc-900">
-                          {editingAddressId
-                            ? "Edit Address"
-                            : "Add New Address"}
+                        <h3 className="font-bold text-zinc-900 text-sm flex items-center gap-2">
+                          <MapPin className="text-emerald-600" size={16} />
+                          {editingAddressId ? "Update Location & Address" : "Set Warehouse Location"}
                         </h3>
                         <button
                           onClick={resetAddressForm}
-                          className="p-1 rounded hover:bg-zinc-200 text-zinc-500"
+                          className="p-1 rounded-lg hover:bg-zinc-200 text-zinc-500 cursor-pointer"
                         >
                           <X size={16} />
                         </button>
                       </div>
+
+                      {/* Integrated OpenStreetMap MapPicker */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-zinc-700 block">
+                          Pinpoint on Map (OpenStreetMap)
+                        </label>
+                        <MapPicker
+                          latitude={addressForm.latitude}
+                          longitude={addressForm.longitude}
+                          onChange={handleMapLocationChange}
+                          height="240px"
+                        />
+                      </div>
+
                       <div>
-                        <label className="text-xs text-zinc-500 mb-1 block">
-                          Street Address
+                        <label className="text-xs font-semibold text-zinc-700 mb-1 block">
+                          Street / Facility Address
                         </label>
                         <input
                           type="text"
@@ -558,15 +517,14 @@ export default function ProfilePage() {
                               address: e.target.value,
                             })
                           }
-                          className="w-full px-3 py-2 rounded-lg border border-zinc-300 text-sm focus:outline-none focus:border-[#1d4ed8]"
-                          placeholder="Enter street address"
+                          className="w-full px-3 py-2.5 rounded-xl border border-zinc-300 text-sm bg-white focus:outline-none focus:border-[#1d4ed8]"
+                          placeholder="e.g. Plot 42, MIDC Industrial Area"
                         />
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         <div>
-                          <label className="text-xs text-zinc-500 mb-1 block">
-                            City
-                          </label>
+                          <label className="text-xs font-semibold text-zinc-700 mb-1 block">City</label>
                           <input
                             type="text"
                             value={addressForm.city}
@@ -576,14 +534,12 @@ export default function ProfilePage() {
                                 city: e.target.value,
                               })
                             }
-                            className="w-full px-3 py-2 rounded-lg border border-zinc-300 text-sm focus:outline-none focus:border-[#1d4ed8]"
+                            className="w-full px-3 py-2.5 rounded-xl border border-zinc-300 text-sm bg-white focus:outline-none focus:border-[#1d4ed8]"
                             placeholder="City"
                           />
                         </div>
                         <div>
-                          <label className="text-xs text-zinc-500 mb-1 block">
-                            State
-                          </label>
+                          <label className="text-xs font-semibold text-zinc-700 mb-1 block">State</label>
                           <input
                             type="text"
                             value={addressForm.state}
@@ -593,16 +549,12 @@ export default function ProfilePage() {
                                 state: e.target.value,
                               })
                             }
-                            className="w-full px-3 py-2 rounded-lg border border-zinc-300 text-sm focus:outline-none focus:border-[#1d4ed8]"
+                            className="w-full px-3 py-2.5 rounded-xl border border-zinc-300 text-sm bg-white focus:outline-none focus:border-[#1d4ed8]"
                             placeholder="State"
                           />
                         </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="text-xs text-zinc-500 mb-1 block">
-                            Country
-                          </label>
+                          <label className="text-xs font-semibold text-zinc-700 mb-1 block">Country</label>
                           <input
                             type="text"
                             value={addressForm.country}
@@ -612,14 +564,12 @@ export default function ProfilePage() {
                                 country: e.target.value,
                               })
                             }
-                            className="w-full px-3 py-2 rounded-lg border border-zinc-300 text-sm focus:outline-none focus:border-[#1d4ed8]"
+                            className="w-full px-3 py-2.5 rounded-xl border border-zinc-300 text-sm bg-white focus:outline-none focus:border-[#1d4ed8]"
                             placeholder="Country"
                           />
                         </div>
                         <div>
-                          <label className="text-xs text-zinc-500 mb-1 block">
-                            Pincode
-                          </label>
+                          <label className="text-xs font-semibold text-zinc-700 mb-1 block">Pincode</label>
                           <input
                             type="text"
                             value={addressForm.pincode}
@@ -629,25 +579,22 @@ export default function ProfilePage() {
                                 pincode: e.target.value,
                               })
                             }
-                            className="w-full px-3 py-2 rounded-lg border border-zinc-300 text-sm focus:outline-none focus:border-[#1d4ed8]"
+                            className="w-full px-3 py-2.5 rounded-xl border border-zinc-300 text-sm bg-white focus:outline-none focus:border-[#1d4ed8]"
                             placeholder="Pincode"
                           />
                         </div>
                       </div>
+
                       <div className="flex gap-2 pt-2">
                         <button
-                          onClick={
-                            editingAddressId
-                              ? handleUpdateAddress
-                              : handleAddAddress
-                          }
-                          className="flex-1 py-2 rounded-lg bg-[#1d4ed8] text-white text-sm font-medium hover:bg-[#1e40af] transition-colors"
+                          onClick={editingAddressId ? handleUpdateAddress : handleAddAddress}
+                          className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors shadow-sm cursor-pointer"
                         >
                           {editingAddressId ? "Update Address" : "Save Address"}
                         </button>
                         <button
                           onClick={resetAddressForm}
-                          className="px-4 py-2 rounded-lg border border-zinc-300 text-zinc-700 text-sm font-medium hover:bg-zinc-50 transition-colors"
+                          className="px-5 py-2.5 rounded-xl border border-zinc-300 text-zinc-700 text-sm font-medium hover:bg-zinc-100 transition-colors cursor-pointer"
                         >
                           Cancel
                         </button>
@@ -655,61 +602,48 @@ export default function ProfilePage() {
                     </div>
                   )}
 
-                  {/* Address List */}
+                  {/* Address Display */}
                   {addresses.length > 0 ? (
                     <div className="space-y-3">
                       {addresses.map((addr) => (
                         <div
                           key={addr.id}
-                          className={`rounded-lg border p-4 ${
-                            addr.is_default
-                              ? "border-blue-300 bg-blue-50/30"
-                              : "border-zinc-200 bg-zinc-50/50"
-                          }`}
+                          className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm"
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex items-start gap-3">
-                              <div
-                                className={`p-2 rounded-lg ${
-                                  addr.is_default
-                                    ? "bg-blue-100 text-blue-600"
-                                    : "bg-zinc-100 text-zinc-600"
-                                }`}
-                              >
-                                <MapPin size={18} />
+                              <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600">
+                                <MapPin size={20} />
                               </div>
                               <div>
-                                <p className="font-medium text-zinc-900">
+                                <p className="font-bold text-zinc-900 text-sm">
                                   {addr.address}
                                 </p>
                                 <p className="text-sm text-zinc-600 mt-0.5">
                                   {addr.city}, {addr.state} - {addr.pincode}
                                 </p>
-                                <p className="text-sm text-zinc-500">
+                                <p className="text-xs text-zinc-400 mt-0.5">
                                   {addr.country}
                                 </p>
-                                {addr.is_default && (
-                                  <span className="inline-flex items-center gap-1 mt-2 text-xs font-medium text-blue-600">
-                                    <Star size={12} fill="currentColor" />
-                                    Default Address
+                                <div className="flex items-center gap-2 mt-2">
+                                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                                    <Star size={11} fill="currentColor" /> Primary Location
                                   </span>
-                                )}
+                                  {addr.latitude && addr.longitude ? (
+                                    <span className="text-[11px] font-mono text-zinc-400">
+                                      GPS: {Number(addr.latitude).toFixed(4)}, {Number(addr.longitude).toFixed(4)}
+                                    </span>
+                                  ) : null}
+                                </div>
                               </div>
                             </div>
                             <div className="flex items-center gap-1">
                               <button
                                 onClick={() => startEditAddress(addr)}
-                                className="p-2 rounded-lg hover:bg-zinc-100 text-zinc-500 hover:text-zinc-700 transition-colors"
+                                className="p-2 rounded-lg hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer"
                                 title="Edit address"
                               >
-                                <Edit2 size={16} />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteAddress(addr.id)}
-                                className="p-2 rounded-lg hover:bg-red-50 text-zinc-500 hover:text-red-600 transition-colors"
-                                title="Delete address"
-                              >
-                                <Trash2 size={16} />
+                                <MapPin size={16} />
                               </button>
                             </div>
                           </div>
@@ -717,32 +651,50 @@ export default function ProfilePage() {
                       ))}
                     </div>
                   ) : (
-                    <div className="rounded-lg border border-dashed border-zinc-300 p-6 text-center">
-                      <MapPin
-                        size={32}
-                        className="mx-auto text-zinc-300 mb-2"
-                      />
-                      <p className="text-sm text-zinc-500">
-                        No addresses saved yet
-                      </p>
+                    <div className="rounded-xl border border-dashed border-zinc-300 p-6 text-center">
+                      <MapPin size={32} className="mx-auto text-zinc-300 mb-2" />
+                      <p className="text-sm text-zinc-500">No warehouse address saved yet</p>
                       {!isAddingAddress && (
                         <button
                           onClick={() => setIsAddingAddress(true)}
-                          className="mt-2 text-[#1d4ed8] text-sm font-medium hover:underline"
+                          className="mt-2 text-[#1d4ed8] text-sm font-semibold hover:underline cursor-pointer"
                         >
-                          Add your first address
+                          Add warehouse address with map
                         </button>
                       )}
                     </div>
                   )}
                 </div>
+
+                {/* Danger Zone: Delete Account */}
+                <div className="mt-8 pt-6 border-t border-red-100">
+                  <div className="rounded-2xl border border-red-200 bg-red-50/60 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                      <h3 className="text-sm font-bold text-red-900 flex items-center gap-2">
+                        <AlertTriangle size={16} className="text-red-600" />
+                        Danger Zone: Delete Vendor Account
+                      </h3>
+                      <p className="text-xs text-red-700 mt-1 max-w-xl">
+                        Request permanent deactivation and deletion of your vendor profile and product catalogs under the 14-day recovery cycle policy.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setShowDeleteModal(true)}
+                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-red-700 transition shadow-sm whitespace-nowrap cursor-pointer"
+                    >
+                      <Trash2 size={14} />
+                      Delete Account
+                    </button>
+                  </div>
+                </div>
+
               </div>
             </div>
 
             {/* Logout */}
             <button
               onClick={handleLogout}
-              className="mt-6 w-full flex items-center justify-center gap-2 p-3 rounded-xl border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 transition-colors font-medium text-sm"
+              className="mt-6 w-full flex items-center justify-center gap-2 p-3 rounded-xl border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 hover:text-red-600 transition-colors font-semibold text-sm shadow-xs cursor-pointer"
             >
               <LogOut size={18} />
               Sign Out
@@ -750,6 +702,92 @@ export default function ProfilePage() {
           </>
         )}
       </div>
+
+      {/* Delete Account Modal with 14-Day Cycle Policy */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-zinc-100 space-y-5 animate-in zoom-in-95 duration-200">
+            <div className="flex items-start gap-3.5 border-b border-zinc-100 pb-4">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-600">
+                <AlertTriangle size={24} />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-zinc-900">
+                  Delete Vendor Account
+                </h3>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  14-Day Cycle & Data Purge Policy
+                </p>
+              </div>
+            </div>
+
+            {/* Policy Explanations */}
+            <div className="space-y-3 rounded-xl bg-amber-50/70 border border-amber-200/60 p-4 text-xs text-amber-900 leading-relaxed">
+              <div className="flex items-start gap-2">
+                <div className="h-2 w-2 rounded-full bg-amber-500 mt-1.5 shrink-0" />
+                <p>
+                  <strong>Immediate Deactivation:</strong> Your vendor storefront, products, and active quotations will be hidden from buyers immediately.
+                </p>
+              </div>
+              <div className="flex items-start gap-2">
+                <div className="h-2 w-2 rounded-full bg-amber-500 mt-1.5 shrink-0" />
+                <p>
+                  <strong>14-Day Recovery Cycle:</strong> If you change your mind, simply log back into this portal within <strong>14 days</strong> to automatically restore and reactivate your account.
+                </p>
+              </div>
+              <div className="flex items-start gap-2">
+                <div className="h-2 w-2 rounded-full bg-red-500 mt-1.5 shrink-0" />
+                <p>
+                  <strong>Permanent Data Deletion:</strong> After the 14-day cycle expires, all your business listings, catalog images, and profile data will be permanently purged from our database.
+                </p>
+              </div>
+            </div>
+
+            {/* Confirmation Checkbox */}
+            <label className="flex items-start gap-3 text-xs text-zinc-700 cursor-pointer pt-1">
+              <input
+                type="checkbox"
+                checked={agreeDeleteTerms}
+                onChange={(e) => setAgreeDeleteTerms(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-red-600 focus:ring-red-500 cursor-pointer"
+              />
+              <span>
+                I understand that my vendor account will be deactivated now and permanently deleted after 14 days if not recovered.
+              </span>
+            </label>
+
+            {/* Actions */}
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setAgreeDeleteTerms(false);
+                }}
+                disabled={isDeleting}
+                className="flex-1 rounded-xl border border-zinc-200 bg-white py-2.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmAccountDeletion}
+                disabled={!agreeDeleteTerms || isDeleting}
+                className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 py-2.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-sm cursor-pointer"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  "Confirm Deletion"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

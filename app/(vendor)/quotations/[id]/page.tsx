@@ -72,7 +72,7 @@ export default function VendorQuotationDetailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [vendorActionTab, setVendorActionTab] = useState<"accept" | "counter" | "reject">("counter");
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   const isClosed = useMemo(
     () => Boolean(quotation && ["client_accepted", "client_rejected", "vendor_rejected", "cancelled", "expired", "admin_confirmation_pending", "admin_confirmed", "admin_confirmation_rejected"].includes(quotation.quotation.status)),
@@ -120,7 +120,9 @@ export default function VendorQuotationDetailPage() {
   }, [quotationId]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
   }, [quotation?.messages]);
   const submitResponse = async (action: "offer" | "counter" | "reject" | "accept") => {
     if (!canVendorRespond) {
@@ -375,8 +377,8 @@ export default function VendorQuotationDetailPage() {
               </div>
             </div>
 
-            {/* Chat Area */}
-            <div className="flex-1 overflow-y-auto p-6 bg-gradient-to-b from-zinc-50/50 to-white">
+            {/* ─── Messages Area ─── */}
+            <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-6 bg-gradient-to-b from-zinc-50/50 to-white">
               <div className="max-w-4xl mx-auto w-full space-y-5">
                 {displayMessages.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-zinc-400">
@@ -480,7 +482,6 @@ export default function VendorQuotationDetailPage() {
                     );
                   })
                 )}
-                <div ref={messagesEndRef} />
               </div>
             </div>
 

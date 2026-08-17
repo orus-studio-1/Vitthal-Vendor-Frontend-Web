@@ -88,7 +88,7 @@ export default function ServiceQuotationDetailPage() {
     [quotation]
   );
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   const fetchDetails = async () => {
     try {
@@ -132,7 +132,9 @@ export default function ServiceQuotationDetailPage() {
   }, [id]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
   }, [messages]);
 
   const submitResponse = async (action: "offer" | "counter" | "reject" | "accept") => {
@@ -412,7 +414,7 @@ export default function ServiceQuotationDetailPage() {
             </div>
 
             {/* Chat Area */}
-            <div className="flex-1 overflow-y-auto p-6 bg-gradient-to-b from-zinc-50/50 to-white">
+            <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-6 bg-gradient-to-b from-zinc-50/50 to-white">
               <div className="max-w-4xl mx-auto w-full space-y-5">
                 {messages.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-zinc-400 py-20">
@@ -471,7 +473,6 @@ export default function ServiceQuotationDetailPage() {
                     );
                   })
                 )}
-                <div ref={messagesEndRef} />
               </div>
             </div>
 

@@ -13,8 +13,10 @@ import {
   ChevronLeft,
   ChevronRight,
   MessageSquare,
+  FileText,
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
+import { downloadCsv, downloadPdfReport } from "@/lib/export-utils";
 
 type ServiceQuotation = {
   id: string;
@@ -171,38 +173,58 @@ export default function ServiceQuotationsPage() {
   };
 
   const handleExportCSV = () => {
-    if (quotations.length === 0) return;
+    if (filteredQuotations.length === 0) return;
     const headers = [
       "Quotation ID",
       "Customer",
       "Requested Date",
       "Service Name",
       "Target Price",
-      "Current Offer",
+      "Agreed Price",
       "Status",
     ];
-    const rows = quotations.map((q) => [
+    const rows = filteredQuotations.map((q) => [
       `#${q.id.slice(0, 8).toUpperCase()}`,
       q.client_name,
-      new Date(q.created_at).toLocaleDateString(),
+      new Date(q.created_at).toLocaleDateString("en-IN"),
       q.service_name,
-      q.requested_price ? `₹${parseFloat(q.requested_price).toFixed(2)}` : "N/A",
-      q.agreed_price ? `₹${parseFloat(q.agreed_price).toFixed(2)}` : "N/A",
-      q.status,
+      q.requested_price ? `INR ${parseFloat(q.requested_price).toFixed(2)}` : "N/A",
+      q.agreed_price ? `INR ${parseFloat(q.agreed_price).toFixed(2)}` : "N/A",
+      q.status.toUpperCase(),
     ]);
-    const csvContent =
-      "data:text/csv;charset=utf-8," +
-      [
-        headers.join(","),
-        ...rows.map((e) => e.map((val) => `"${val.replace(/"/g, '""')}"`).join(",")),
-      ].join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `service_quotations_${Date.now()}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+
+    downloadCsv(
+      `service_quotations_${new Date().toISOString().split("T")[0]}.csv`,
+      headers,
+      rows
+    );
+  };
+
+  const handleExportPDF = () => {
+    if (filteredQuotations.length === 0) return;
+    const rows = filteredQuotations.map((q) => [
+      `#${q.id.slice(0, 8).toUpperCase()}`,
+      q.client_name,
+      new Date(q.created_at).toLocaleDateString("en-IN"),
+      q.service_name,
+      q.requested_price ? `INR ${parseFloat(q.requested_price).toFixed(2)}` : "N/A",
+      q.agreed_price ? `INR ${parseFloat(q.agreed_price).toFixed(2)}` : "N/A",
+      q.status.toUpperCase(),
+    ]);
+
+    const sections = [
+      {
+        heading: `Vendor Service Quotations (${filteredQuotations.length} Requests)`,
+        headers: ["ID", "Customer", "Date", "Service", "Target Price", "Agreed Price", "Status"],
+        rows,
+      },
+    ];
+
+    downloadPdfReport(
+      "Vendor Service Quotations Report",
+      sections,
+      `Service_Quotations_${new Date().toISOString().split("T")[0]}.pdf`
+    );
   };
 
   // Filter Quotations
@@ -255,11 +277,19 @@ export default function ServiceQuotationsPage() {
           <div className="flex items-center gap-3">
             <button
               onClick={handleExportCSV}
-              disabled={quotations.length === 0}
-              className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 disabled:opacity-50 transition-all text-sm font-semibold shadow-sm flex items-center gap-2"
+              disabled={filteredQuotations.length === 0}
+              className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 disabled:opacity-50 transition-all text-sm font-semibold shadow-sm flex items-center gap-2 cursor-pointer"
             >
-              <Download className="w-4 h-4" />
+              <Download className="w-4 h-4 text-blue-600" />
               Export CSV
+            </button>
+            <button
+              onClick={handleExportPDF}
+              disabled={filteredQuotations.length === 0}
+              className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 disabled:opacity-50 transition-all text-sm font-semibold shadow-sm flex items-center gap-2 cursor-pointer"
+            >
+              <FileText className="w-4 h-4 text-rose-600" />
+              Export PDF
             </button>
           </div>
         </div>

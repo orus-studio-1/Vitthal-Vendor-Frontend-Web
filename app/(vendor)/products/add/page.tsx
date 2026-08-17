@@ -28,6 +28,7 @@ import {
 import Link from "next/link";
 import { toast } from "sonner";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
+import { NotionEditor } from "@/components/notion-editor/NotionEditor";
 
 // Define types for data
 type ProductResult = {
@@ -1775,117 +1776,26 @@ export default function AddProductPage() {
                   />
                 </div>
 
-                {/* Rich Description Editor */}
+                {/* Notion Style Rich Description Editor */}
                 <div className="md:col-span-2 space-y-2 mt-2">
-                  <label className="block text-sm font-bold text-gray-900">
-                    Product Description
-                  </label>
-                  <p className="text-[11px] text-gray-500">
-                    Write detailed characteristics. Highlight text and use formatting tools to style sections.
+                  <div className="flex items-center justify-between">
+                    <label className="block text-sm font-bold text-gray-900">
+                      Product Description &amp; Technical Documentation
+                    </label>
+                    <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                      Notion / Sanity Style Editor
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-500 mb-2">
+                    Create rich product documents with headings, bullet lists, specification tables, callout boxes, and blueprints. Type <code className="bg-gray-100 px-1 rounded text-blue-700 font-mono">/</code> for quick blocks.
                   </p>
 
-                  <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr] border border-gray-200 rounded-xl overflow-hidden bg-gray-50/50 p-3.5">
-                    {/* Left: Input Textarea with toolbar */}
-                    <div className="flex flex-col rounded-lg border border-gray-200 bg-white p-3 shadow-xs">
-                      <div className="mb-2.5 flex flex-wrap items-center gap-1.5 rounded-lg border border-gray-100 bg-gray-50 p-1.5">
-                        <button
-                          type="button"
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => applyMarkdown("bold")}
-                          className={toolbarButtonClass}
-                          title="Bold"
-                        >
-                          <Bold className="h-3.5 w-3.5 text-gray-600" />
-                        </button>
-                        <button
-                          type="button"
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => applyMarkdown("italic")}
-                          className={toolbarButtonClass}
-                          title="Italic"
-                        >
-                          <Italic className="h-3.5 w-3.5 text-gray-600" />
-                        </button>
-                        <span className="w-[1px] h-4 bg-gray-200 mx-1" />
-                        <button
-                          type="button"
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => applyMarkdown("heading1")}
-                          className={toolbarButtonClass}
-                        >
-                          H1
-                        </button>
-                        <button
-                          type="button"
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => applyMarkdown("heading2")}
-                          className={toolbarButtonClass}
-                        >
-                          H2
-                        </button>
-                        <button
-                          type="button"
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => applyMarkdown("heading3")}
-                          className={toolbarButtonClass}
-                        >
-                          H3
-                        </button>
-                        <span className="w-[1px] h-4 bg-gray-200 mx-1" />
-                        <button
-                          type="button"
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => applyMarkdown("bullet")}
-                          className={toolbarButtonClass}
-                          title="Bullet List"
-                        >
-                          <List className="h-3.5 w-3.5 text-gray-600" />
-                        </button>
-                        <button
-                          type="button"
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => applyMarkdown("ordered")}
-                          className={toolbarButtonClass}
-                          title="Numbered List"
-                        >
-                          <ListOrdered className="h-3.5 w-3.5 text-gray-600" />
-                        </button>
-                      </div>
-                      <textarea
-                        ref={descriptionRef}
-                        rows={8}
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        className="w-full rounded-lg border border-gray-200 px-3.5 py-2.5 font-mono text-xs focus:border-blue-600 focus:ring-1 focus:ring-blue-600/30 outline-none resize-y min-h-48"
-                        placeholder={`Start writing technical product specifications using markdown...\n\nUse headings to divide details.`}
-                      />
-                    </div>
-
-                    {/* Right: Live Preview */}
-                    <div className="flex flex-col rounded-lg border border-gray-200 bg-white p-4 shadow-xs max-h-72 overflow-y-auto">
-                      <div className="flex items-center justify-between border-b border-gray-100 pb-2 mb-3">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                          Live Render Preview
-                        </span>
-                        <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-semibold">
-                          Markdown Active
-                        </span>
-                      </div>
-                      <div className="flex-1">
-                        {description ? (
-                          <MarkdownRenderer
-                            content={description}
-                            className="prose prose-sm max-w-none text-xs text-gray-700"
-                          />
-                        ) : (
-                          <p className="text-xs text-gray-400 italic">
-                            Your product description preview will render here in real-time.
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                  </div>
+                  <NotionEditor
+                    value={description}
+                    onChange={setDescription}
+                    placeholder="Type '/' to insert headings, spec tables, callouts, or choose a pre-made industrial template..."
+                    minHeight="min-h-[260px]"
+                  />
                 </div>
 
                 {/* Technical Specifications Matrix Builder */}

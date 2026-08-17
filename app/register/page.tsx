@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuthStore } from "@/store/authStore";
+import MapPicker, { MapLocationData } from "@/components/shared/MapPicker";
 
 type Step =
   | "identity"
@@ -1265,61 +1266,58 @@ export default function RegisterPage() {
                 />
               </div>
 
-              <div className="rounded-md border border-zinc-200 bg-zinc-50 p-4">
-                <div className="mb-3 flex items-center justify-between gap-2">
-                  <p className="text-sm font-medium text-zinc-800">
-                    Location coordinates
+              {/* OpenStreetMap MapPicker for Warehouse / Office Pinpointing */}
+              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 space-y-3">
+                <div>
+                  <label className="text-xs font-semibold text-zinc-800 uppercase tracking-wider block">
+                    Warehouse / Office Location (OpenStreetMap)
+                  </label>
+                  <p className="text-[11px] text-zinc-500 mt-0.5">
+                    Search your location, use GPS, or drag the pin to set your dispatch and pickup coordinates.
                   </p>
-                  <button
-                    type="button"
-                    onClick={captureCurrentLocation}
-                    disabled={isLocating}
-                    className="inline-flex items-center gap-2 rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {isLocating ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <MapPin className="h-3.5 w-3.5" />
-                    )}
-                    {isLocating ? "Fetching..." : "Use current location"}
-                  </button>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2">
+                <MapPicker
+                  latitude={latitude}
+                  longitude={longitude}
+                  onChange={(lat, lng, locData) => {
+                    setLatitude(String(lat));
+                    setLongitude(String(lng));
+                    if (locData?.addressDetails) {
+                      if (locData.addressDetails.city && !city) setCity(locData.addressDetails.city);
+                      if (locData.addressDetails.state && !state) setState(locData.addressDetails.state);
+                      if (locData.addressDetails.postcode && !pincode) setPincode(locData.addressDetails.postcode);
+                      if (locData.addressDetails.road && !addressLine1) setAddressLine1(locData.addressDetails.road);
+                    }
+                  }}
+                  height="260px"
+                />
+
+                <div className="grid grid-cols-2 gap-3 pt-1">
                   <div>
-                    <label
-                      htmlFor="latitude"
-                      className="mb-1 block text-xs font-medium text-zinc-700"
-                    >
+                    <label htmlFor="latitude" className="mb-1 block text-xs font-medium text-zinc-600">
                       Latitude
                     </label>
                     <input
                       id="latitude"
-                      type="number"
-                      step="any"
-                      required
-                      value={latitude}
-                      onChange={(event) => setLatitude(event.target.value)}
-                      placeholder="19.076090"
-                      className="h-10 w-full rounded-md border border-zinc-300 px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-[#1d4ed8] focus:ring-1 focus:ring-[#1d4ed8]/30"
+                      type="text"
+                      readOnly
+                      value={latitude || ""}
+                      placeholder="Coordinates set from map"
+                      className="h-9 w-full rounded-md border border-zinc-200 bg-white px-3 text-xs text-zinc-700 outline-none font-mono"
                     />
                   </div>
                   <div>
-                    <label
-                      htmlFor="longitude"
-                      className="mb-1 block text-xs font-medium text-zinc-700"
-                    >
+                    <label htmlFor="longitude" className="mb-1 block text-xs font-medium text-zinc-600">
                       Longitude
                     </label>
                     <input
                       id="longitude"
-                      type="number"
-                      step="any"
-                      required
-                      value={longitude}
-                      onChange={(event) => setLongitude(event.target.value)}
-                      placeholder="72.877426"
-                      className="h-10 w-full rounded-md border border-zinc-300 px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-[#1d4ed8] focus:ring-1 focus:ring-[#1d4ed8]/30"
+                      type="text"
+                      readOnly
+                      value={longitude || ""}
+                      placeholder="Coordinates set from map"
+                      className="h-9 w-full rounded-md border border-zinc-200 bg-white px-3 text-xs text-zinc-700 outline-none font-mono"
                     />
                   </div>
                 </div>

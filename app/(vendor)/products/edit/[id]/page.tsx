@@ -20,6 +20,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
+import { RichDescriptionRenderer } from "@/components/notion-editor/RichDescriptionRenderer";
 
 interface ProductImage {
   image_url: string;
@@ -327,11 +328,10 @@ export default function EditProductPage() {
 
           {product.description && (
             <div className="mt-4 pt-4 border-t border-gray-100">
-              <p className="text-sm text-gray-500 mb-1">Description</p>
-              <MarkdownRenderer
-                content={product.description}
-                className="prose prose-sm max-w-none text-gray-700 text-sm leading-relaxed"
-              />
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Description</p>
+              <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4">
+                <RichDescriptionRenderer content={product.description} />
+              </div>
             </div>
           )}
         </div>

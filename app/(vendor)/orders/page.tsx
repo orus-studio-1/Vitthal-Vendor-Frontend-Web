@@ -19,7 +19,9 @@ import {
   X,
   Bell,
   Truck,
+  FileText,
 } from "lucide-react";
+import { downloadCsv, downloadPdfReport } from "@/lib/export-utils";
 
 interface OrderItem {
   product_id: string;
@@ -255,6 +257,135 @@ const OrdersPage = () => {
     return () => document.removeEventListener('click', handleClickOutside);
   }, [activeDropdown]);
 
+  const exportOrdersCSV = () => {
+    if (!filteredOrders || filteredOrders.length === 0) {
+      return;
+    }
+
+    const headers = [
+      "Order ID",
+      "Customer Name",
+      "Customer Email",
+      "Customer Phone",
+      "Date",
+      "Status",
+      "Payment Status",
+      "Items",
+      "Total Amount (INR)",
+      "Delivery Address",
+      "City",
+      "State",
+      "Pincode",
+    ];
+
+    const rows = filteredOrders.map((order) => {
+      const itemsSummary = (order.items || [])
+        .map((it) => `${it.product_name || "Product"} (x${it.quantity})`)
+        .join("; ");
+      const address = [order.address_line, order.city, order.state, order.pincode]
+        .filter(Boolean)
+        .join(", ");
+
+      return [
+        `#${order.order_id.slice(0, 8).toUpperCase()}`,
+        order.customer_name || "N/A",
+        order.customer_email || "N/A",
+        order.customer_phone || "N/A",
+        order.created_at ? new Date(order.created_at).toLocaleDateString("en-IN") : "N/A",
+        order.status.toUpperCase(),
+        (order.payment_status || "N/A").toUpperCase(),
+        itemsSummary || "N/A",
+        order.total_amount,
+        address || "N/A",
+        order.city || "",
+        order.state || "",
+        order.pincode || "",
+      ];
+    });
+
+    downloadCsv(
+      `MTWO_Vendor_Orders_${new Date().toISOString().split("T")[0]}.csv`,
+      headers,
+      rows
+    );
+  };
+
+  const exportOrdersPDF = () => {
+    if (!filteredOrders || filteredOrders.length === 0) {
+      return;
+    }
+
+    const rows = filteredOrders.map((order) => {
+      const itemsSummary = (order.items || [])
+        .map((it) => `${it.product_name || "Product"} (x${it.quantity})`)
+        .join("; ");
+
+      return [
+        `#${order.order_id.slice(0, 8).toUpperCase()}`,
+        order.customer_name || "N/A",
+        order.created_at ? new Date(order.created_at).toLocaleDateString("en-IN") : "N/A",
+        order.status.toUpperCase(),
+        (order.payment_status || "N/A").toUpperCase(),
+        itemsSummary || "N/A",
+        `INR ${Number(order.total_amount).toLocaleString("en-IN")}`,
+      ];
+    });
+
+    const sections = [
+      {
+        heading: `Vendor Orders Summary (${filteredOrders.length} Orders)`,
+        headers: ["Order ID", "Customer", "Date", "Status", "Payment", "Items Summary", "Total"],
+        rows,
+      },
+    ];
+
+    downloadPdfReport(
+      "Vendor Customer Orders Report",
+      sections,
+      `MTWO_Vendor_Orders_${new Date().toISOString().split("T")[0]}.pdf`
+    );
+  };
+
+  const exportSingleOrderPDF = (order: Order) => {
+    const itemRows = (order.items || []).map((it) => [
+      it.product_name || "Product",
+      it.quantity,
+      `INR ${Number(it.price).toLocaleString("en-IN")}`,
+      `INR ${(Number(it.price) * it.quantity).toLocaleString("en-IN")}`,
+    ]);
+
+    const fullAddress = [order.address_line, order.city, order.state, order.pincode]
+      .filter(Boolean)
+      .join(", ");
+
+    const sections = [
+      {
+        heading: `Order Details - #${order.order_id.slice(0, 8).toUpperCase()}`,
+        rows: [
+          ["Order Reference", `#${order.order_id.toUpperCase()}`],
+          ["Order Date", order.created_at ? new Date(order.created_at).toLocaleString("en-IN") : "N/A"],
+          ["Customer Name", order.customer_name || "N/A"],
+          ["Customer Contact", `${order.customer_phone || "N/A"} (${order.customer_email || "N/A"})`],
+          ["Shipping Address", fullAddress || "N/A"],
+          ["Order Status", order.status.toUpperCase()],
+          ["Payment Status", (order.payment_status || "N/A").toUpperCase()],
+          ["Total Amount", `INR ${Number(order.total_amount).toLocaleString("en-IN")}`],
+        ],
+      },
+      {
+        heading: "Ordered Items",
+        headers: ["Item Name", "Quantity", "Unit Price", "Total"],
+        rows: itemRows,
+      },
+    ];
+
+    downloadPdfReport(
+      `Order Manifest - #${order.order_id.slice(0, 8).toUpperCase()}`,
+      sections,
+      `Order_${order.order_id.slice(0, 8).toUpperCase()}.pdf`
+    );
+  };
+
   return (
     <div className="min-h-screen bg-[#fafafa] p-6 md:p-8 lg:p-10 font-sans">
       <div className="max-w-[1400px] mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -269,9 +400,21 @@ const OrdersPage = () => {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <button className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all text-sm font-semibold shadow-sm flex items-center gap-2">
-              <Download className="w-4 h-4" />
+            <button
+              onClick={exportOrdersCSV}
+              disabled={filteredOrders.length === 0}
+              className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all text-sm font-semibold shadow-sm flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Download className="w-4 h-4 text-blue-600" />
               Export CSV
+            </button>
+            <button
+              onClick={exportOrdersPDF}
+              disabled={filteredOrders.length === 0}
+              className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all text-sm font-semibold shadow-sm flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <FileText className="w-4 h-4 text-rose-600" />
+              Export PDF
             </button>
           </div>
         </div>
@@ -506,16 +649,16 @@ const OrdersPage = () => {
                                       <Eye className="w-4 h-4" />
                                       View Details
                                     </button>
-                                    <button
-                                      onClick={() => {
-                                        // Add print functionality
-                                        setActiveDropdown(null);
-                                      }}
-                                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
-                                    >
-                                      <Download className="w-4 h-4" />
-                                      Export Order
-                                    </button>
+                                     <button
+                                       onClick={() => {
+                                         exportSingleOrderPDF(order);
+                                         setActiveDropdown(null);
+                                       }}
+                                       className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2 cursor-pointer"
+                                     >
+                                       <Download className="w-4 h-4 text-blue-600" />
+                                       Export Order (PDF)
+                                     </button>
                                     {order.status === 'pending' && (
                                       <>
                                         <button
