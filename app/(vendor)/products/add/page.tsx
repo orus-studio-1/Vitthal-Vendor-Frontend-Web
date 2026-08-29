@@ -420,6 +420,9 @@ export default function AddProductPage() {
   const [itemCode, setItemCode] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
+  const [subcategoryId, setSubcategoryId] = useState("");
+  const [subcategories, setSubcategories] = useState<Array<{ id: string; name: string; description?: string }>>([]);
+  const [isLoadingSubcategories, setIsLoadingSubcategories] = useState(false);
   const [productType, setProductType] = useState("");
   const [productTypes, setProductTypes] = useState<string[]>([]);
   const [attributes, setAttributes] = useState<AttributeDraft[]>([
@@ -567,6 +570,41 @@ export default function AddProductPage() {
     fetchProductTypes();
   }, [apiBase]);
 
+  // Fetch predefined subcategories when category changes
+  useEffect(() => {
+    if (!category) {
+      setSubcategories([]);
+      setSubcategoryId("");
+      return;
+    }
+
+    const fetchSubcategories = async () => {
+      setIsLoadingSubcategories(true);
+      try {
+        const res = await fetch(`${apiBase}/api/products/subcategories?categoryId=${encodeURIComponent(category)}`, {
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            "x-request-from": "vendor",
+          },
+        });
+        const data = await parseApiResponse(res);
+        if (res.ok && Array.isArray(data.data)) {
+          setSubcategories(data.data);
+        } else {
+          setSubcategories([]);
+        }
+      } catch (err) {
+        console.error("Failed to load subcategories:", err);
+        setSubcategories([]);
+      } finally {
+        setIsLoadingSubcategories(false);
+      }
+    };
+
+    void fetchSubcategories();
+  }, [category, apiBase]);
+
   // Debounced search effect connected to DB
   useEffect(() => {
     if (searchQuery.length > 1 && !selectedProduct && !isCreatingNew) {
@@ -697,6 +735,8 @@ export default function AddProductPage() {
     setUploadedImages([]);
     setUploadedVideo(null);
     setPrimaryImageIndex(0);
+    setSubcategoryId("");
+    setSubcategories([]);
     setItemCode("");
     setQuotationLimit("");
     setGstPercentage("0.00");
@@ -1139,6 +1179,7 @@ export default function AddProductPage() {
             name: productName,
             description,
             category,
+            subcategoryId: subcategoryId || undefined,
             productType,
             grade: gradeVal,
             material: materialVal,
@@ -1729,6 +1770,37 @@ export default function AddProductPage() {
                         </option>
                       ))}
                   </select>
+                </div>
+
+                {/* Subcategory Select (Predefined only) */}
+                <div>
+                  <label className="block text-sm font-bold text-gray-900 mb-1.5">
+                    Subcategory (Predefined)
+                  </label>
+                  <select
+                    value={subcategoryId}
+                    onChange={(e) => setSubcategoryId(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 bg-white text-sm outline-none transition-all disabled:bg-gray-100 disabled:text-gray-400"
+                    disabled={!category || isLoadingSubcategories}
+                  >
+                    <option value="">
+                      {!category
+                        ? "Select a category first"
+                        : isLoadingSubcategories
+                          ? "Loading subcategories..."
+                          : subcategories.length > 0
+                            ? "Select Subcategory (Predefined)"
+                            : "No predefined subcategories for this category"}
+                    </option>
+                    {subcategories.map((sub) => (
+                      <option key={sub.id} value={sub.id}>
+                        {sub.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    Vendors can select predefined subcategories created by Admin.
+                  </p>
                 </div>
 
                 {/* Product Type Custom Input with Datalist */}

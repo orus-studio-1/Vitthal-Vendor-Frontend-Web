@@ -84,9 +84,45 @@ export default function ServiceQuotationDetailPage() {
   const [submittingAction, setSubmittingAction] = useState(false);
 
   const isFirstOffer = React.useMemo(
-    () => Boolean(quotation && quotation.status === "pending_vendor"),
+    () => Boolean(quotation && (quotation.status === "pending_vendor" || quotation.status === "broadcasted")),
     [quotation]
   );
+
+  const formatINR = (val: string | number | null | undefined): string => {
+    if (val === null || val === undefined || val === "") return "₹0.00";
+    const num = Number(val);
+    if (isNaN(num)) return "₹0.00";
+    return `₹${num.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  const computedSubtotal = React.useMemo(() => {
+    const p = parseFloat(priceInput);
+    return isNaN(p) ? 0 : p;
+  }, [priceInput]);
+
+  const computedGST = React.useMemo(() => {
+    return computedSubtotal * 0.18;
+  }, [computedSubtotal]);
+
+  const computedTotal = React.useMemo(() => {
+    return computedSubtotal + computedGST;
+  }, [computedSubtotal, computedGST]);
+
+  const computedTokenAmount = React.useMemo(() => {
+    const pct = parseFloat(tokenPercentageInput);
+    if (isNaN(pct) || pct <= 0) return 0;
+    return (computedTotal * pct) / 100;
+  }, [computedTotal, tokenPercentageInput]);
+
+  const isTerminal = React.useMemo(() => {
+    if (!quotation) return false;
+    return ["completed", "client_rejected", "vendor_rejected", "cancelled"].includes(quotation.status);
+  }, [quotation]);
+
+  const isWaitingForClient = React.useMemo(() => {
+    if (!quotation) return false;
+    return ["vendor_offered", "vendor_countered", "quoted"].includes(quotation.status);
+  }, [quotation]);
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
@@ -219,26 +255,7 @@ export default function ServiceQuotationDetailPage() {
     );
   }
 
-  const isTerminal = ["client_accepted", "client_rejected", "vendor_rejected", "cancelled"].includes(quotation.status);
-  const isWaitingForClient = ["vendor_offered", "vendor_countered"].includes(quotation.status);
   const canRespond = !isTerminal && !isWaitingForClient;
-
-  // Live Quote calculations
-  const parsedPrice = parseFloat(priceInput) || 0;
-  const computedSubtotal = parsedPrice;
-  const computedGST = computedSubtotal * 0.18;
-  const computedTotal = computedSubtotal + computedGST;
-  const computedTokenAmount = (parseFloat(tokenPercentageInput) || 0) / 100 * computedTotal;
-
-  function formatINR(amount: number | string | null | undefined) {
-    if (amount == null) return "₹0.00";
-    const numeric = typeof amount === "string" ? parseFloat(amount) : amount;
-    if (isNaN(numeric)) return "₹0.00";
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-    }).format(numeric);
-  }
 
   return (
     <div className="min-h-screen bg-zinc-50/50 px-4 py-8 lg:px-8">
@@ -263,13 +280,12 @@ export default function ServiceQuotationDetailPage() {
             </p>
           </div>
           <span
-            className={`self-start sm:self-center inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-extrabold tracking-wider uppercase border shadow-sm ${
-              quotation.status === "client_accepted"
-                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                : isTerminal
+            className={`self-start sm:self-center inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-extrabold tracking-wider uppercase border shadow-sm ${quotation.status === "client_accepted"
+              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+              : isTerminal
                 ? "bg-rose-50 text-rose-700 border-rose-200"
                 : "bg-blue-50 text-blue-700 border-blue-200 animate-pulse"
-            }`}
+              }`}
           >
             {quotation.status === "pending_vendor" ? "Action Needed" : quotation.status.replace("_", " ")}
           </span>
@@ -442,7 +458,7 @@ export default function ServiceQuotationDetailPage() {
                           <div className={`rounded-2xl border overflow-hidden ${isVendor
                             ? "bg-gradient-to-br from-emerald-600 to-emerald-700 border-emerald-500 text-white shadow-sm"
                             : "bg-white border-zinc-200 text-zinc-900 shadow-sm"
-                          }`}>
+                            }`}>
                             <div className={`px-4 py-2 text-xs font-bold uppercase tracking-widest border-b ${isVendor ? "border-emerald-500/30 text-emerald-100 bg-emerald-700/50" : "border-zinc-100 text-zinc-500 bg-zinc-50"}`}>
                               {msg.action === "request" && "📋 Service Booking Request"}
                               {msg.action === "offer" && "💰 Offer Sent"}
@@ -490,6 +506,72 @@ export default function ServiceQuotationDetailPage() {
                     <p className="text-sm font-medium">Waiting for client to review and respond to your offer...</p>
                     <p className="text-xs text-amber-600 mt-0.5">The client will accept, counter, or reject your offer.</p>
                   </div>
+                </div>
+              ) : (quotation.status === "client_accepted" || quotation.status === "accepted" || quotation.status === "confirmed" || quotation.status === "in_progress") ? (
+                /* When Status is Accepted / Confirmed / In Progress: Verify Customer Completion OTP */
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-6 space-y-4">
+                  <div className="flex items-center gap-2 text-emerald-900">
+                    <ShieldCheck className="h-5 w-5 text-emerald-600" />
+                    <div>
+                      <h3 className="font-heading text-sm font-bold">Verify Customer OTP & Complete Job</h3>
+                      <p className="text-xs text-emerald-700 mt-0.5">
+                        Ask the customer for their 6-digit Completion PIN once the service/delivery is completed on site.
+                      </p>
+                    </div>
+                  </div>
+
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      if (!noteInput.trim()) return;
+                      try {
+                        setSubmittingAction(true);
+                        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9000";
+                        const res = await fetch(`${apiUrl}/api/service-hub/tickets/${id}/complete-otp`, {
+                          method: "POST",
+                          credentials: "include",
+                          headers: {
+                            "Content-Type": "application/json",
+                            "x-request-from": "vendor",
+                          },
+                          body: JSON.stringify({ otp: noteInput.trim() }),
+                        });
+                        const json = await res.json();
+                        if (!res.ok) throw new Error(json.message || "Failed to verify OTP.");
+                        toast.success("Job marked as completed successfully!");
+                        fetchDetails();
+                      } catch (err: any) {
+                        toast.error(err.message || "Invalid OTP code.");
+                      } finally {
+                        setSubmittingAction(false);
+                      }
+                    }}
+                    className="space-y-3 pt-2"
+                  >
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-600 mb-1">
+                        6-Digit Customer Completion OTP *
+                      </label>
+                      <input
+                        type="text"
+                        maxLength={6}
+                        required
+                        placeholder="Enter 6-digit PIN from customer"
+                        value={noteInput}
+                        onChange={(e) => setNoteInput(e.target.value)}
+                        className="w-full rounded-xl border border-emerald-300 bg-white py-2.5 px-4 font-mono text-center text-lg tracking-widest text-zinc-900 focus:border-emerald-600 focus:outline-none shadow-2xs"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={submittingAction || !noteInput.trim()}
+                      className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white shadow-xs hover:bg-emerald-700 disabled:opacity-50 transition"
+                    >
+                      {submittingAction ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle2 size={18} />}
+                      Verify OTP & Complete Service Order
+                    </button>
+                  </form>
                 </div>
               ) : (
                 <div className="space-y-5">

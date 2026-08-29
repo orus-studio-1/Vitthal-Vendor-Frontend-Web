@@ -336,7 +336,7 @@ export default function VendorQuotationsPage() {
                       </div>
                     </div>
 
-                    <p className="mt-4 text-sm text-zinc-500">
+                    <p className="mt-4 text-xs text-zinc-500 line-clamp-2 overflow-hidden text-ellipsis leading-relaxed">
                       {quotation.is_admin_quote
                         ? (quotation.status === "sent" || quotation.status === "vendor_opened"
                           ? "Respond from the secure quotation link sent to your email."
