@@ -61,8 +61,6 @@ export default function ServicesPage() {
 
   const [serviceCategories, setServiceCategories] = useState<{ id: string; code: string; label: string }[]>([]);
 
-
-
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);

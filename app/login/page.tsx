@@ -50,6 +50,10 @@ export default function LoginPage() {
       if (res.ok) {
         toast.success(data.message || "Login successful");
 
+        if (data.accessToken) {
+          localStorage.setItem("vendor_token", data.accessToken);
+        }
+
         if (data.user) {
           useAuthStore.getState().setUser(data.user);
         }

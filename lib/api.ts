@@ -1,6 +1,5 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9000';
-const QUOTATION_API_BASE_URL =
-  process.env.NEXT_PUBLIC_ADMIN_API_URL || 'http://localhost:9001';
+const QUOTATION_API_BASE_URL = process.env.NEXT_PUBLIC_ADMIN_API_URL || 'http://localhost:9001';
 
 export interface ApiResponse<T = any> {
   message: string;
