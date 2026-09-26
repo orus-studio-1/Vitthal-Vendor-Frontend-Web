@@ -36,8 +36,13 @@ function getStatusInfo(status: string) {
       return { label: "Accepted — Awaiting Admin", bg: "bg-indigo-100", text: "text-indigo-800", icon: ShieldCheck };
     case "admin_confirmation_pending":
       return { label: "Admin Reviewing", bg: "bg-orange-100", text: "text-orange-800", icon: ShieldCheck };
+    case "token_paid":
+      return { label: "Token Paid (10%) — Ready to Request Dispatch", bg: "bg-blue-100", text: "text-blue-800", icon: Clock };
+    case "dispatch_requested":
+      return { label: "Dispatch Payment Requested", bg: "bg-orange-100", text: "text-orange-800", icon: Clock };
+    case "dispatched":
     case "admin_confirmed":
-      return { label: "Fully Confirmed ✓", bg: "bg-emerald-100", text: "text-emerald-800", icon: CheckCircle2 };
+      return { label: "Dispatched ✓", bg: "bg-emerald-100", text: "text-emerald-800", icon: CheckCircle2 };
     case "client_rejected":
     case "vendor_rejected":
     case "admin_confirmation_rejected":
@@ -166,6 +171,21 @@ export default function VendorQuotationDetailPage() {
       await loadQuotation();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to submit response";
+      toast.error(message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleRequestDispatchPayment = async () => {
+    setSubmitting(true);
+    try {
+      await vendorNegotiationApi.requestDispatchPayment(quotationId, note.trim() || undefined);
+      toast.success("Dispatch payment request sent to client successfully!");
+      setNote("");
+      await loadQuotation();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to send dispatch payment request";
       toast.error(message);
     } finally {
       setSubmitting(false);
@@ -360,8 +380,14 @@ export default function VendorQuotationDetailPage() {
                   <p className={`text-sm font-semibold ${info.status.includes("accepted") || (info as any).admin_confirmation_status ? "text-zinc-900" : "text-zinc-400"}`}>Client Accepted</p>
                 </div>
                 <div className="relative">
-                  <div className={`absolute -left-6 top-1 h-3 w-3 rounded-full ${(info as any).admin_confirmation_status === "confirmed" ? "bg-emerald-500 ring-4 ring-emerald-50" : (info as any).admin_confirmation_status === "rejected" ? "bg-rose-500 ring-4 ring-rose-50" : "bg-zinc-200"}`} />
-                  <p className={`text-sm font-semibold ${(info as any).admin_confirmation_status === "confirmed" ? "text-emerald-600" : (info as any).admin_confirmation_status === "rejected" ? "text-rose-600" : "text-zinc-400"}`}>Admin Confirmed</p>
+                  <div className={`absolute -left-6 top-1 h-3 w-3 rounded-full ${["token_paid", "dispatch_requested", "dispatched", "admin_confirmed"].includes(info.status) ? "bg-blue-600 ring-4 ring-blue-50" : "bg-zinc-200"}`} />
+                  <p className={`text-sm font-semibold ${["token_paid", "dispatch_requested", "dispatched", "admin_confirmed"].includes(info.status) ? "text-blue-900" : "text-zinc-400"}`}>Token Paid (10%)</p>
+                </div>
+                <div className="relative">
+                  <div className={`absolute -left-6 top-1 h-3 w-3 rounded-full ${info.status === "dispatched" ? "bg-emerald-500 ring-4 ring-emerald-50" : info.status === "dispatch_requested" ? "bg-orange-500 ring-4 ring-orange-50 animate-pulse" : "bg-zinc-200"}`} />
+                  <p className={`text-sm font-semibold ${info.status === "dispatched" ? "text-emerald-600 font-bold" : info.status === "dispatch_requested" ? "text-orange-700 font-bold" : "text-zinc-400"}`}>
+                    {info.status === "dispatched" ? "Dispatched ✓" : "Confirm Dispatch"}
+                  </p>
                 </div>
               </div>
             </div>
@@ -417,6 +443,9 @@ export default function VendorQuotationDetailPage() {
                               {msg.action === "counter" && (isVendor ? "↩️ Your Counter" : "↩️ Client Counter")}
                               {msg.action === "accept" && "✅ Accepted"}
                               {msg.action === "reject" && "❌ Rejected"}
+                              {msg.action === "token_paid" && "💳 Token Money Paid"}
+                              {msg.action === "dispatch_requested" && "🚚 Dispatch Payment Requested"}
+                              {msg.action === "dispatched" && "✅ Order Dispatched"}
                               {msg.action === "note" && "📝 Note"}
                             </div>
 
@@ -487,7 +516,76 @@ export default function VendorQuotationDetailPage() {
 
             {/* ─── Action Area ─── */}
             <div className="bg-white border-t border-zinc-200 p-6">
-              {isClosed ? (
+              {info.status === "token_paid" || info.status === "admin_confirmed" ? (
+                <div className="space-y-4 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 p-5">
+                  <div className="flex items-center gap-3 text-blue-900">
+                    <CheckCircle2 size={20} className="text-blue-600 shrink-0" />
+                    <div>
+                      <h4 className="text-sm font-bold">Step 4: Request Dispatch Payment</h4>
+                      <p className="text-xs text-blue-700 mt-0.5">
+                        Client token money payment (10%) verified. When your order is packed and ready for shipment, request the remaining dispatch amount (80%).
+                      </p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider block mb-1">Message / Instructions for Client (Optional)</label>
+                    <input
+                      type="text"
+                      value={note}
+                      onChange={(e) => setNote(e.target.value)}
+                      placeholder="e.g. Your bulk order is packed and ready for dispatch. Please complete the remaining payment..."
+                      className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <button
+                    onClick={() => void handleRequestDispatchPayment()}
+                    disabled={submitting}
+                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-bold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50 transition-colors cursor-pointer"
+                  >
+                    {submitting ? <Loader2 className="animate-spin" size={18} /> : <Truck size={18} />}
+                    Request Dispatch Payment from Client
+                  </button>
+                </div>
+              ) : info.status === "dispatch_requested" ? (
+                <div className="flex items-center gap-3 rounded-xl bg-orange-50 border border-orange-200 p-5 text-orange-900">
+                  <Clock className="text-orange-600 animate-pulse shrink-0" size={20} />
+                  <div>
+                    <p className="text-sm font-bold">Dispatch Payment Requested</p>
+                    <p className="text-xs text-orange-800 mt-0.5">
+                      You have requested dispatch payment from the client. Waiting for client to complete payment (80%) before warehouse dispatch.
+                    </p>
+                  </div>
+                </div>
+              ) : info.status === "dispatched" ? (
+                <div className="space-y-4 rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200 p-5">
+                  <div className="flex items-center gap-3 text-emerald-900">
+                    <CheckCircle2 className="text-emerald-600 shrink-0" size={20} />
+                    <div>
+                      <p className="text-sm font-bold">Order Dispatched from Warehouse ✓</p>
+                      <p className="text-xs text-emerald-800 mt-0.5">
+                        Dispatch payment has been verified. The order is now dispatched and scheduled for rider pickup and fulfillment delivery.
+                      </p>
+                    </div>
+                  </div>
+                  {info.order_id ? (
+                    <Link
+                      href={`/orders/${info.order_id}`}
+                      className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white shadow-sm hover:bg-emerald-700 transition-colors cursor-pointer"
+                    >
+                      <Package size={18} /> View & Manage Order Details →
+                    </Link>
+                  ) : (
+                    <Link
+                      href="/quotation-orders"
+                      className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white shadow-sm hover:bg-emerald-700 transition-colors cursor-pointer"
+                    >
+                      <Package size={18} /> Go to Quotation Orders Section →
+                    </Link>
+                  )}
+                </div>
+              ) : isClosed ? (
                 <div className="flex items-center gap-3 rounded-xl bg-zinc-50 border border-zinc-200 p-4 text-zinc-600">
                   <CheckCircle2 className="text-zinc-400 shrink-0" />
                   <p className="text-sm font-medium">This negotiation is closed. Terms have been agreed upon or rejected.</p>
