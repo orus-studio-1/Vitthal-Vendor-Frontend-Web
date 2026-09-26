@@ -27,6 +27,7 @@ import {
   Lock,
 } from "lucide-react";
 import { downloadPdfReport } from "@/lib/export-utils";
+import { toast } from "sonner";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -105,6 +106,50 @@ interface RoutePlanStop {
   status: string;
 }
 
+interface DispatchInfo {
+  order_id: string;
+  quotation_request_id: string | null;
+  token_percentage: number | null;
+  token_amount_expected: number | null;
+  total_order_amount_excl_gst: number;
+  total_with_gst: number;
+  dispatch_amount_expected: number | null;
+  dispatch_percentage: number | null;
+  total_amount_paid: number;
+  remaining_balance: number;
+  is_fully_paid: boolean;
+  can_vendor_request_dispatch: boolean;
+  can_client_pay_dispatch: boolean;
+  latest_dispatch_request: any | null;
+  successful_payments: any[];
+}
+
+interface Order {
+  order_id: string;
+  status: string;
+  payment_status: string;
+  total_amount: number;
+  pickup_otp: string | null;
+  created_at: string;
+  updated_at: string;
+  address_line: string;
+  city: string;
+  state: string;
+  country: string;
+  pincode: string;
+  latitude: string;
+  langitude: string;
+  vendor_city: string | null;
+  vendor_state: string | null;
+  vendor_latitude: number | null;
+  vendor_longitude: number | null;
+  customer_name: string;
+  customer_email: string;
+  customer_phone: string | null;
+  items: OrderItem[];
+  dispatch?: DispatchInfo;
+}
+
 interface TrackingData {
   order: {
     order_id: string;
@@ -168,6 +213,9 @@ const getStatusLabel = (status: string): string => {
     shipped: "Shipped",
     delivered: "Delivered",
     cancelled: "Cancelled",
+    awaiting_dispatch: "Awaiting Dispatch",
+    dispatch_payment_pending: "Dispatch Payment Pending",
+    ready_for_pickup: "Ready for Pickup",
   };
   return map[status.toLowerCase()] || status.charAt(0).toUpperCase() + status.slice(1);
 };
@@ -178,6 +226,9 @@ const getStatusIcon = (status: string) => {
   if (normalized === "processing") return <CheckCircle2 className="w-5 h-5" />;
   if (normalized === "shipped") return <Truck className="w-5 h-5" />;
   if (normalized === "cancelled") return <XCircle className="w-5 h-5" />;
+  if (normalized === "ready_for_pickup") return <CheckCircle2 className="w-5 h-5" />;
+  if (normalized === "dispatch_payment_pending") return <Clock className="w-5 h-5" />;
+  if (normalized === "awaiting_dispatch") return <Clock className="w-5 h-5" />;
   return <Clock className="w-5 h-5" />;
 };
 
@@ -191,6 +242,15 @@ const getStatusColor = (status: string) => {
   }
   if (normalized === "cancelled") {
     return { bg: "bg-rose-50", text: "text-rose-700", border: "border-rose-200", icon: "text-rose-600" };
+  }
+  if (normalized === "ready_for_pickup") {
+    return { bg: "bg-indigo-50", text: "text-indigo-700", border: "border-indigo-200", icon: "text-indigo-600" };
+  }
+  if (normalized === "dispatch_payment_pending") {
+    return { bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-200", icon: "text-orange-600" };
+  }
+  if (normalized === "awaiting_dispatch") {
+    return { bg: "bg-sky-50", text: "text-sky-700", border: "border-sky-200", icon: "text-sky-600" };
   }
   return { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200", icon: "text-amber-600" };
 };
@@ -522,15 +582,53 @@ const OrderDetailPage = () => {
         setOrder((prevOrder) => 
           prevOrder ? { ...prevOrder, status: newStatus } : null
         );
-        // Re-fetch tracking data after status update (route may have been generated)
+        fetchOrderDetails();
         fetchTrackingData();
+        toast?.success?.(newStatus === "processing" ? "Order accepted — stock deducted and FC pickup scheduled." : "Status updated.");
       } else {
-        console.error("Failed to update order status");
+        const data = await res.json().catch(() => ({}));
+        toast?.error?.(data?.message || "Failed to update order status");
       }
-    } catch (err) {
-      console.error("Error updating order status:", err);
+    } catch (err: any) {
+      toast?.error?.(err?.message || "Error updating order status");
     } finally {
       setIsUpdating(false);
+    }
+  };
+
+  const [dispatchNote, setDispatchNote] = useState<string>("");
+  const [showDispatchModal, setShowDispatchModal] = useState(false);
+  const [isRequestingDispatch, setIsRequestingDispatch] = useState(false);
+
+  const handleRequestDispatchPayment = async () => {
+    if (!order) return;
+    setIsRequestingDispatch(true);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/dispatch/orders/${order.order_id}/request`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            "x-request-from": "vendor",
+          },
+          body: JSON.stringify({ dispatch_note: dispatchNote || undefined }),
+        }
+      );
+      if (res.ok) {
+        toast?.success?.("Dispatch payment request sent to client.");
+        setDispatchNote("");
+        setShowDispatchModal(false);
+        fetchOrderDetails();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast?.error?.(data?.message || "Failed to send dispatch request");
+      }
+    } catch (err: any) {
+      toast?.error?.(err?.message || "Error requesting dispatch");
+    } finally {
+      setIsRequestingDispatch(false);
     }
   };
 
@@ -632,8 +730,10 @@ const OrderDetailPage = () => {
     const currentStatus = order.status.toLowerCase();
     const options = [];
     
-    if (currentStatus === "pending") {
+    if (currentStatus === "pending" || currentStatus === "ready_for_pickup") {
       options.push({ value: "processing", label: "Accept Order", color: "bg-emerald-600 hover:bg-emerald-700" });
+    }
+    if (currentStatus === "pending") {
       options.push({ value: "cancelled", label: "Reject Order", color: "bg-rose-600 hover:bg-rose-700" });
     }
     
@@ -751,8 +851,160 @@ const OrderDetailPage = () => {
                 ))}
               </div>
             )}
+            {order.dispatch?.can_vendor_request_dispatch && (
+              <button
+                onClick={() => setShowDispatchModal(true)}
+                disabled={isRequestingDispatch}
+                className="px-4 py-2.5 text-white rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 transition-all text-sm font-semibold shadow-sm flex items-center gap-2 disabled:opacity-60"
+              >
+                <Send className="w-4 h-4" />
+                Request Dispatch Payment
+              </button>
+            )}
           </div>
         </div>
+
+        {showDispatchModal && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6">
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Request Dispatch Payment</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Send a dispatch payment request to the client for the remaining balance of{" "}
+                <span className="font-semibold text-emerald-700">
+                  {formatCurrency(order.dispatch?.remaining_balance || 0)}
+                </span>
+                . Client will be notified immediately.
+              </p>
+              <div className="space-y-3 mb-5 p-4 bg-amber-50 border border-amber-100 rounded-2xl">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Total (incl. 18% GST)</span>
+                  <span className="font-semibold text-gray-900">{formatCurrency(order.dispatch?.total_with_gst || 0)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Token Paid ({order.dispatch?.token_percentage}%)</span>
+                  <span className="font-semibold text-emerald-700">{formatCurrency(order.dispatch?.total_amount_paid || 0)}</span>
+                </div>
+                <div className="flex justify-between text-sm pt-2 border-t border-amber-200">
+                  <span className="font-semibold text-gray-900">Dispatch Balance</span>
+                  <span className="font-bold text-orange-700">{formatCurrency(order.dispatch?.remaining_balance || 0)}</span>
+                </div>
+              </div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Optional Dispatch Note</label>
+              <textarea
+                value={dispatchNote}
+                onChange={(e) => setDispatchNote(e.target.value)}
+                placeholder="e.g. Order ready. Please pay the balance to proceed with delivery."
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                rows={3}
+              />
+              <div className="flex items-center gap-3 justify-end mt-5">
+                <button
+                  onClick={() => setShowDispatchModal(false)}
+                  disabled={isRequestingDispatch}
+                  className="px-4 py-2 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleRequestDispatchPayment}
+                  disabled={isRequestingDispatch}
+                  className="px-5 py-2 text-sm font-semibold text-white bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 rounded-xl disabled:opacity-60 flex items-center gap-2"
+                >
+                  {isRequestingDispatch ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
+                  Send Request
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Dispatch Payment Section */}
+        {order.dispatch && order.dispatch.quotation_request_id && (
+          <div className="bg-white rounded-3xl border border-gray-100/80 shadow-sm p-6">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
+                <CreditCard className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-lg font-bold text-gray-900">Dispatch Payment Summary</h2>
+                <p className="text-xs text-gray-500 mt-0.5">Bulk order with 2-step payment: token + dispatch balance</p>
+              </div>
+              {order.dispatch.latest_dispatch_request?.status === "pending" && (
+                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-700">Payment Requested</span>
+              )}
+              {order.dispatch.latest_dispatch_request?.status === "paid" && (
+                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">Balance Paid</span>
+              )}
+              {order.dispatch.is_fully_paid && (
+                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700">Ready for Pickup</span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="p-4 rounded-2xl bg-gray-50 border border-gray-100">
+                <p className="text-xs text-gray-500 font-medium">Order Value</p>
+                <p className="mt-1 text-sm font-bold text-gray-900">{formatCurrency(order.dispatch.total_order_amount_excl_gst)}</p>
+              </div>
+              <div className="p-4 rounded-2xl bg-sky-50 border border-sky-100">
+                <p className="text-xs text-gray-500 font-medium">Total (incl. GST)</p>
+                <p className="mt-1 text-sm font-bold text-sky-800">{formatCurrency(order.dispatch.total_with_gst)}</p>
+              </div>
+              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-100">
+                <p className="text-xs text-gray-500 font-medium">Token Amount Paid</p>
+                <p className="mt-1 text-sm font-bold text-emerald-800">{formatCurrency(order.dispatch.total_amount_paid)}</p>
+              </div>
+              <div className="p-4 rounded-2xl bg-orange-50 border border-orange-100">
+                <p className="text-xs text-gray-500 font-medium">Dispatch Balance</p>
+                <p className="mt-1 text-sm font-bold text-orange-800">{formatCurrency(order.dispatch.remaining_balance)}</p>
+              </div>
+            </div>
+
+            {order.dispatch.latest_dispatch_request && (
+              <div className="mt-5 p-4 rounded-2xl bg-amber-50/50 border border-amber-100 text-sm">
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                  <div>
+                    <span className="text-xs text-gray-500 font-medium">Requested At: </span>
+                    <span className="font-semibold text-gray-800">
+                      {new Date(order.dispatch.latest_dispatch_request.requested_at).toLocaleString()}
+                    </span>
+                  </div>
+                  {order.dispatch.latest_dispatch_request.dispatch_note && (
+                    <div className="w-full md:w-auto md:flex-1">
+                      <span className="text-xs text-gray-500 font-medium">Note: </span>
+                      <span className="text-gray-800">{order.dispatch.latest_dispatch_request.dispatch_note}</span>
+                    </div>
+                  )}
+                  {order.dispatch.latest_dispatch_request.paid_at && (
+                    <div>
+                      <span className="text-xs text-gray-500 font-medium">Paid At: </span>
+                      <span className="font-semibold text-emerald-700">
+                        {new Date(order.dispatch.latest_dispatch_request.paid_at).toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {order.status.toLowerCase() === "ready_for_pickup" && (
+              <div className="mt-5 p-4 rounded-2xl bg-indigo-50 border border-indigo-200 flex items-start gap-3">
+                <div className="p-2 bg-white rounded-xl text-indigo-700 border border-indigo-100">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-indigo-900">Client has paid dispatch balance in full.</p>
+                  <p className="text-xs text-indigo-700 mt-0.5">
+                    Click <span className="font-semibold">Accept Order</span> to deduct stock, generate route plan and handover to fulfillment center pickup.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Status Cards */}
         <div className={`grid grid-cols-1 md:grid-cols-${order.pickup_otp ? 4 : 3} gap-4`}>
