@@ -268,11 +268,22 @@ export function VendorHeader() {
                               onClick={() => {
                                 if (!n.is_read) markRead(n.id);
                                 setNotifDropdown(false);
-                                if (n.reference_type === "quotation" && n.reference_id) {
-                                  const isServiceQuote = n.title?.toLowerCase().includes("service") || n.body?.toLowerCase().includes("service");
-                                  router.push(isServiceQuote ? `/service-quotations/${n.reference_id}` : `/quotations/${n.reference_id}`);
-                                } else if (n.reference_type === "product" && n.reference_id) {
+                                const isServiceNotif =
+                                  n.reference_type === "service_quotation" ||
+                                  n.reference_type === "service_ticket" ||
+                                  n.reference_type === "service" ||
+                                  n.type?.includes("quotation") ||
+                                  n.title?.toLowerCase().includes("service") ||
+                                  n.body?.toLowerCase().includes("service");
+
+                                if (n.reference_id && isServiceNotif) {
+                                  router.push(`/service-quotations/${n.reference_id}`);
+                                } else if (n.reference_type === "quotation" && n.reference_id) {
+                                  router.push(`/quotations/${n.reference_id}`);
+                                } else if (n.reference_type === "product") {
                                   router.push(`/products`);
+                                } else {
+                                  router.push(`/notifications`);
                                 }
                               }}
                               className={`w-full text-left px-4 py-3.5 hover:bg-zinc-50 transition-colors flex gap-3.5 ${!n.is_read ? "bg-blue-50/40" : ""}`}

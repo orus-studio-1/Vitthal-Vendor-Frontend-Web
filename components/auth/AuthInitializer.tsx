@@ -27,6 +27,7 @@ export function AuthInitializer() {
               id: status.id,
               role: status.role,
               approvalStatus: status.approval_status,
+              vendorType: status.vendor_type,
             });
           }
         } catch (statusError) {

@@ -187,11 +187,19 @@ export default function NotificationsPage() {
   function handleNotificationClick(n: Notification) {
     if (!n.is_read) markRead(n.id);
 
-    if (n.reference_type === "product" && n.reference_id) {
+    const isServiceNotif =
+      n.reference_type === "service_quotation" ||
+      n.reference_type === "service_ticket" ||
+      n.reference_type === "service" ||
+      n.reference_type === "service_booking" ||
+      (n.reference_type === "quotation" && (n.title?.toLowerCase().includes("service") || n.body?.toLowerCase().includes("service")));
+
+    if (isServiceNotif && n.reference_id) {
+      router.push(`/service-quotations/${n.reference_id}`);
+    } else if (n.reference_type === "product" && n.reference_id) {
       router.push(`/products`);
     } else if (n.reference_type === "quotation" && n.reference_id) {
-      const isServiceQuote = n.title?.toLowerCase().includes("service") || n.body?.toLowerCase().includes("service");
-      router.push(isServiceQuote ? `/service-quotations/${n.reference_id}` : `/quotations/${n.reference_id}`);
+      router.push(`/quotations/${n.reference_id}`);
     }
   }
 

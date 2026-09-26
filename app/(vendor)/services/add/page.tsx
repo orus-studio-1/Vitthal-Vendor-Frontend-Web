@@ -495,7 +495,7 @@ export default function AddServicePage() {
     setSubmitting(true);
 
     try {
-      const adminUrl = process.env.NEXT_PUBLIC_ADMIN_API_URL || "http://localhost:9001";
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9000";
       let serviceId = selectedService?.id;
 
       // 1. If proposing a new custom service, hit create service endpoint first
@@ -520,7 +520,7 @@ export default function AddServicePage() {
           specifications[spec.key.trim().toLowerCase().replace(/\s+/g, "_")] = spec.value.trim();
         });
 
-        const newServiceRes = await fetch(`${adminUrl}/api/services`, {
+        const newServiceRes = await fetch(`${apiUrl}/api/services`, {
           method: "POST",
           credentials: "include",
           headers: {
@@ -534,6 +534,11 @@ export default function AddServicePage() {
             specifications,
             subcategoryId: customSubcategoryId || undefined,
             newSubcategoryName: newSubcategoryName.trim() || undefined,
+            price: parseFloat(price),
+            pricingType,
+            moq: parseInt(moq),
+            deliveryDays: deliveryDays ? parseInt(deliveryDays) : undefined,
+            tokenPercentage: tokenPercentage ? parseFloat(tokenPercentage) : undefined,
           }),
         });
 
@@ -560,7 +565,7 @@ export default function AddServicePage() {
         const formData = new FormData();
         formData.append("file", file);
 
-        const mediaRes = await fetch(`${adminUrl}/api/services/${serviceId}/media`, {
+        const mediaRes = await fetch(`${apiUrl}/api/services/${serviceId}/media`, {
           method: "POST",
           credentials: "include",
           headers: {
@@ -579,7 +584,7 @@ export default function AddServicePage() {
         const formData = new FormData();
         formData.append("file", uploadedVideo);
 
-        const mediaRes = await fetch(`${adminUrl}/api/services/${serviceId}/media`, {
+        const mediaRes = await fetch(`${apiUrl}/api/services/${serviceId}/media`, {
           method: "POST",
           credentials: "include",
           headers: {
@@ -593,35 +598,39 @@ export default function AddServicePage() {
         }
       }
 
-      // 4. Submit the vendor service offering
-      const res = await fetch(`${adminUrl}/api/services/vendor/offerings`, {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          "x-request-from": "vendor",
-        },
-        body: JSON.stringify({
-          serviceId,
-          price: parseFloat(price),
-          pricingType,
-          moq: parseInt(moq),
-          deliveryDays: deliveryDays ? parseInt(deliveryDays) : undefined,
-          tokenPercentage: tokenPercentage ? parseFloat(tokenPercentage) : undefined,
-        }),
-      });
+      // 4. Submit the vendor service offering if selecting an existing service
+      if (!isCreatingCustomService) {
+        const res = await fetch(`${apiUrl}/api/services/vendor/offerings`, {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            "x-request-from": "vendor",
+          },
+          body: JSON.stringify({
+            serviceId,
+            price: parseFloat(price),
+            pricingType,
+            moq: parseInt(moq),
+            deliveryDays: deliveryDays ? parseInt(deliveryDays) : undefined,
+            tokenPercentage: tokenPercentage ? parseFloat(tokenPercentage) : undefined,
+          }),
+        });
 
-      if (res.ok) {
-        toast.success(
-          isCreatingCustomService
-            ? "Custom service proposed and offering added to catalog!"
-            : "Service offering added to your catalog!"
-        );
-        router.push("/services");
-      } else {
-        const data = await res.json();
-        toast.error(data.message || "Failed to add service offering");
+        if (!res.ok) {
+          const data = await res.json();
+          toast.error(data.message || "Failed to add service offering");
+          setSubmitting(false);
+          return;
+        }
       }
+
+      toast.success(
+        isCreatingCustomService
+          ? "Service submitted for Admin approval! Status: Pending"
+          : "Service offering added to your catalog!"
+      );
+      router.push("/services");
     } catch (err) {
       console.error(err);
       toast.error("Network error adding service offering");
@@ -915,8 +924,8 @@ export default function AddServicePage() {
                       className="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600 bg-white font-medium"
                     >
                       <option value="">Select Category</option>
-                      {categories.map((cat) => (
-                        <option key={cat.id} value={cat.id}>
+                      {categories.map((cat, idx) => (
+                        <option key={cat.id || cat.code || idx} value={cat.id || cat.code || cat.label}>
                           {cat.label}
                         </option>
                       ))}

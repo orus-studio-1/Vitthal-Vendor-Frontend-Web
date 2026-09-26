@@ -116,7 +116,7 @@ export default function ServiceQuotationDetailPage() {
 
   const isTerminal = React.useMemo(() => {
     if (!quotation) return false;
-    return ["completed", "client_rejected", "vendor_rejected", "cancelled"].includes(quotation.status);
+    return ["client_rejected", "vendor_rejected", "cancelled", "closed_accepted_by_other"].includes(quotation.status);
   }, [quotation]);
 
   const isWaitingForClient = React.useMemo(() => {
@@ -280,14 +280,20 @@ export default function ServiceQuotationDetailPage() {
             </p>
           </div>
           <span
-            className={`self-start sm:self-center inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-extrabold tracking-wider uppercase border shadow-sm ${quotation.status === "client_accepted"
-              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-              : isTerminal
+            className={`self-start sm:self-center inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-extrabold tracking-wider uppercase border shadow-sm ${
+              ["completed", "client_accepted", "accepted", "confirmed"].includes(quotation.status)
+                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                : quotation.status === "in_progress"
+                ? "bg-blue-50 text-blue-700 border-blue-200 animate-pulse"
+                : isTerminal
                 ? "bg-rose-50 text-rose-700 border-rose-200"
-                : "bg-blue-50 text-blue-700 border-blue-200 animate-pulse"
-              }`}
+                : "bg-amber-50 text-amber-700 border-amber-200 animate-pulse"
+            }`}
           >
-            {quotation.status === "pending_vendor" ? "Action Needed" : quotation.status.replace("_", " ")}
+            {["completed", "client_accepted", "accepted", "confirmed"].includes(quotation.status) && (
+              <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+            )}
+            {quotation.status === "pending_vendor" ? "Action Needed" : quotation.status.replace(/_/g, " ")}
           </span>
         </div>
 
@@ -349,34 +355,16 @@ export default function ServiceQuotationDetailPage() {
                   <span className="text-zinc-500 text-sm font-medium">Target Price</span>
                   <span className="font-extrabold text-zinc-900">{formatINR(quotation.requested_price)}</span>
                 </div>
-                {quotation.pricing_type && (
-                  <div className="flex justify-between pb-3 border-b border-zinc-100">
-                    <span className="text-zinc-500 text-sm font-medium">Pricing Model</span>
-                    <span className="font-semibold text-zinc-900 capitalize">{quotation.pricing_type} Rate</span>
-                  </div>
-                )}
-                {quotation.moq != null && (
-                  <div className="flex justify-between pb-3 border-b border-zinc-100">
-                    <span className="text-zinc-500 text-sm font-medium">Minimum Order (MOQ)</span>
-                    <span className="font-semibold text-zinc-900">{quotation.moq} unit(s)</span>
-                  </div>
-                )}
-                {quotation.current_offer_price && (
-                  <div className="flex justify-between pb-3 border-b border-zinc-100">
-                    <span className="text-blue-600 text-sm font-medium">Your Latest Offer</span>
-                    <span className="font-bold text-blue-700">{formatINR(quotation.current_offer_price)}</span>
-                  </div>
-                )}
-                {quotation.agreed_price && (
-                  <div className="flex justify-between pb-3 border-b border-zinc-100">
-                    <span className="text-emerald-600 text-sm font-medium">Negotiated Price</span>
-                    <span className="font-bold text-emerald-700">{formatINR(quotation.agreed_price)}</span>
-                  </div>
-                )}
                 <div className="flex justify-between pb-3 border-b border-zinc-100">
-                  <span className="text-zinc-500 text-sm flex items-center gap-1"><Truck size={14} /> Completion Timeline</span>
+                  <span className="text-zinc-500 text-sm font-medium">Agreed Final Quote</span>
+                  <span className="font-extrabold text-emerald-600 font-mono text-base">
+                    {formatINR(quotation.agreed_price || quotation.current_offer_price)}
+                  </span>
+                </div>
+                <div className="flex justify-between pb-3 border-b border-zinc-100">
+                  <span className="text-zinc-500 text-sm flex items-center gap-1"><Truck size={14} /> Execution Timeline</span>
                   <span className="font-semibold text-zinc-900">
-                    {quotation.delivery_days != null ? `${quotation.delivery_days} Days` : "Pending first offer"}
+                    {quotation.delivery_days ? `${quotation.delivery_days} Business Days` : "Pending first offer"}
                   </span>
                 </div>
                 <div className="flex justify-between pb-3 border-b border-zinc-100">
@@ -404,18 +392,107 @@ export default function ServiceQuotationDetailPage() {
             <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm space-y-4">
               <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-400">Progress</h3>
               <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:-translate-x-1/2 before:bg-zinc-100">
+                {/* 1. Request Received */}
                 <div className="relative">
-                  <div className="absolute -left-6 top-1 h-3 w-3 rounded-full bg-blue-600 ring-4 ring-blue-50" />
+                  <div className="absolute -left-6 top-1 h-3.5 w-3.5 rounded-full bg-emerald-500 ring-4 ring-emerald-50 flex items-center justify-center">
+                    <CheckCircle2 size={12} className="text-white" />
+                  </div>
                   <p className="text-sm font-semibold text-zinc-900">Request Received</p>
                 </div>
+
+                {/* 2. Negotiation */}
                 <div className="relative">
-                  <div className={`absolute -left-6 top-1 h-3 w-3 rounded-full ${quotation.status !== "pending_vendor" ? "bg-blue-600 ring-4 ring-blue-50" : "bg-zinc-200"}`} />
-                  <p className={`text-sm font-semibold ${quotation.status !== "pending_vendor" ? "text-zinc-900" : "text-zinc-400"}`}>Negotiation</p>
+                  <div className={`absolute -left-6 top-1 h-3.5 w-3.5 rounded-full flex items-center justify-center ${
+                    quotation.status !== "pending_vendor" && quotation.status !== "broadcasted"
+                      ? "bg-emerald-500 ring-4 ring-emerald-50 text-white"
+                      : "bg-blue-600 ring-4 ring-blue-50 text-white"
+                  }`}>
+                    {quotation.status !== "pending_vendor" && quotation.status !== "broadcasted" ? (
+                      <CheckCircle2 size={12} />
+                    ) : (
+                      <span className="h-1.5 w-1.5 rounded-full bg-white" />
+                    )}
+                  </div>
+                  <p className={`text-sm font-semibold ${
+                    quotation.status !== "pending_vendor" && quotation.status !== "broadcasted"
+                      ? "text-zinc-900"
+                      : "text-blue-600"
+                  }`}>Negotiation</p>
                 </div>
+
+                {/* 3. Client Accepted */}
                 <div className="relative">
-                  <div className={`absolute -left-6 top-1 h-3 w-3 rounded-full ${quotation.status === "client_accepted" ? "bg-emerald-500 ring-4 ring-emerald-50" : "bg-zinc-200"}`} />
-                  <p className={`text-sm font-semibold ${quotation.status === "client_accepted" ? "text-emerald-600" : "text-zinc-400"}`}>Client Accepted</p>
+                  <div className={`absolute -left-6 top-1 h-3.5 w-3.5 rounded-full flex items-center justify-center ${
+                    ["client_accepted", "accepted", "confirmed", "in_progress", "completed"].includes(quotation.status)
+                      ? "bg-emerald-500 ring-4 ring-emerald-50 text-white"
+                      : "bg-zinc-200"
+                  }`}>
+                    {["client_accepted", "accepted", "confirmed", "in_progress", "completed"].includes(quotation.status) && (
+                      <CheckCircle2 size={12} />
+                    )}
+                  </div>
+                  <p className={`text-sm font-semibold ${
+                    ["client_accepted", "accepted", "confirmed", "in_progress", "completed"].includes(quotation.status)
+                      ? "text-emerald-700"
+                      : "text-zinc-400"
+                  }`}>Client Accepted</p>
                 </div>
+
+                {/* 4. In Progress */}
+                <div className="relative">
+                  <div className={`absolute -left-6 top-1 h-3.5 w-3.5 rounded-full flex items-center justify-center ${
+                    ["in_progress", "completed"].includes(quotation.status)
+                      ? "bg-emerald-500 ring-4 ring-emerald-50 text-white"
+                      : quotation.status === "client_accepted"
+                      ? "bg-blue-600 ring-4 ring-blue-50 text-white animate-pulse"
+                      : "bg-zinc-200"
+                  }`}>
+                    {["in_progress", "completed"].includes(quotation.status) && (
+                      <CheckCircle2 size={12} />
+                    )}
+                  </div>
+                  <p className={`text-sm font-semibold ${
+                    ["in_progress", "completed"].includes(quotation.status)
+                      ? "text-emerald-700"
+                      : quotation.status === "client_accepted"
+                      ? "text-blue-600"
+                      : "text-zinc-400"
+                  }`}>In Progress</p>
+                </div>
+
+                {/* 5. Completed */}
+                <div className="relative">
+                  <div className={`absolute -left-6 top-1 h-3.5 w-3.5 rounded-full flex items-center justify-center ${
+                    quotation.status === "completed"
+                      ? "bg-emerald-500 ring-4 ring-emerald-50 text-white"
+                      : "bg-zinc-200"
+                  }`}>
+                    {quotation.status === "completed" && (
+                      <CheckCircle2 size={12} />
+                    )}
+                  </div>
+                  <p className={`text-sm font-semibold ${
+                    quotation.status === "completed"
+                      ? "text-emerald-700"
+                      : "text-zinc-400"
+                  }`}>Completed</p>
+                </div>
+
+                {/* Terminal Rejection or Cancellation */}
+                {["client_rejected", "vendor_rejected", "cancelled"].includes(quotation.status) && (
+                  <div className="relative">
+                    <div className="absolute -left-6 top-1 h-3.5 w-3.5 rounded-full bg-rose-500 ring-4 ring-rose-50 flex items-center justify-center text-white">
+                      <XCircle size={12} />
+                    </div>
+                    <p className="text-sm font-semibold text-rose-600">
+                      {quotation.status === "client_rejected"
+                        ? "Client Rejected"
+                        : quotation.status === "vendor_rejected"
+                        ? "Vendor Declined"
+                        : "Cancelled"}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -494,7 +571,27 @@ export default function ServiceQuotationDetailPage() {
 
             {/* Action Area */}
             <div className="bg-white border-t border-zinc-200 p-6">
-              {isTerminal ? (
+              {quotation.status === "closed_accepted_by_other" ? (
+                <div className="flex items-center gap-3 rounded-xl bg-zinc-100 border border-zinc-200 p-4 text-zinc-600">
+                  <XCircle className="text-zinc-400 shrink-0" />
+                  <div>
+                    <p className="text-sm font-bold">Request Claimed by Another Vendor</p>
+                    <p className="text-xs text-zinc-500 mt-0.5">
+                      Another nearby vendor has accepted this service request. This request is now closed.
+                    </p>
+                  </div>
+                </div>
+              ) : quotation.status === "completed" ? (
+                <div className="flex items-center gap-3 rounded-2xl bg-emerald-50 border border-emerald-200 p-5 text-emerald-950 shadow-xs">
+                  <CheckCircle2 className="h-6 w-6 text-emerald-600 shrink-0" />
+                  <div>
+                    <p className="text-base font-bold text-emerald-900">Service Order Completed 🎉</p>
+                    <p className="text-xs text-emerald-700 mt-0.5">
+                      Customer completion OTP has been verified successfully. Service execution is complete!
+                    </p>
+                  </div>
+                </div>
+              ) : isTerminal ? (
                 <div className="flex items-center gap-3 rounded-xl bg-zinc-50 border border-zinc-200 p-4 text-zinc-600">
                   <CheckCircle2 className="text-zinc-400 shrink-0" />
                   <p className="text-sm font-medium">This negotiation is closed. Terms have been agreed upon or rejected.</p>

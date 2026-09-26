@@ -19,6 +19,7 @@ type AuthState = {
     id: string;
     role: string;
     approvalStatus: "setup_required" | "pending" | "agreement_sent" | "approved" | "rejected" | "reconsideration" | null;
+    vendorType?: "product" | "service" | "both" | null;
   }) => void;
   clearUser: () => void;
   fetchUser: () => Promise<void>;
@@ -43,12 +44,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     isLoading: false
   }),
 
-  setVendorSession: (session) =>
+  setVendorSession: (session: {
+    id: string;
+    role: string;
+    approvalStatus: "setup_required" | "pending" | "agreement_sent" | "approved" | "rejected" | "reconsideration" | null;
+    vendorType?: "product" | "service" | "both" | null;
+  }) =>
     set((state) => ({
       user: {
         userId: session.id,
         role: session.role,
         approvalStatus: session.approvalStatus,
+        vendorType: session.vendorType ?? state.user?.vendorType ?? null,
         username: state.user?.username,
         email: state.user?.email,
       },
@@ -76,6 +83,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set((state) => ({
           user: {
             ...data.user,
+            vendorType: data.user.vendorType ?? state.user?.vendorType ?? null,
             deletionRequestedAt: data.user.deletion_requested_at || data.user.deletionRequestedAt || null,
             approvalStatus: state.user?.approvalStatus ?? null,
           },
@@ -92,6 +100,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   logout: async () => {
     try {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("vendor_token");
+      }
       await fetch(`${API_URL}/api/auth/logout`, {
         method: "POST",
         credentials: "include",
