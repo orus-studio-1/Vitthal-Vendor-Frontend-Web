@@ -55,11 +55,11 @@ export default function ServiceQuotationsPage() {
     return quotations.reduce(
       (summary, q) => {
         summary.total += 1;
-        if (["pending_vendor", "client_countered", "broadcasted"].includes(q.status)) {
+        if (["pending_vendor", "broadcasted", "new"].includes(q.status)) {
           summary.actionNeeded += 1;
-        } else if (["vendor_offered", "vendor_countered", "quoted"].includes(q.status)) {
+        } else if (["vendor_offered", "vendor_countered", "client_countered", "quoted"].includes(q.status)) {
           summary.waitingClient += 1;
-        } else if (["client_accepted", "accepted", "in_progress", "completed"].includes(q.status)) {
+        } else if (["client_accepted", "accepted", "in_progress", "confirmed"].includes(q.status)) {
           summary.confirmed += 1;
         }
         return summary;
@@ -170,6 +170,11 @@ export default function ServiceQuotationsPage() {
         style: "bg-emerald-50 text-emerald-700 border-emerald-100 font-semibold",
         icon: <CheckCircle2 className="w-3.5 h-3.5 mr-1" />,
       },
+      closed_accepted_by_other: {
+        label: "Closed: Claimed by Other",
+        style: "bg-zinc-100 text-zinc-600 border-zinc-200 font-medium",
+        icon: <XCircle className="w-3.5 h-3.5 mr-1" />,
+      },
       client_rejected: {
         label: "Client Rejected",
         style: "bg-rose-50 text-rose-700 border-rose-100",
@@ -276,25 +281,32 @@ export default function ServiceQuotationsPage() {
     if (statusFilter === "Pending") {
       return (
         matchesSearch &&
-        ["pending_vendor", "client_countered", "broadcasted"].includes(q.status)
+        ["pending_vendor", "broadcasted", "new"].includes(q.status)
       );
     }
     if (statusFilter === "Negotiating") {
       return (
         matchesSearch &&
-        ["vendor_offered", "vendor_countered", "quoted"].includes(q.status)
+        ["vendor_offered", "vendor_countered", "client_countered", "quoted"].includes(q.status)
       );
     }
     if (statusFilter === "Accepted") {
       return (
         matchesSearch &&
-        ["client_accepted", "accepted", "in_progress", "completed"].includes(q.status)
+        ["client_accepted", "accepted", "in_progress", "confirmed"].includes(q.status)
       );
     }
     if (statusFilter === "Closed") {
       return (
         matchesSearch &&
-        ["client_rejected", "vendor_rejected", "cancelled"].includes(q.status)
+        [
+          "completed",
+          "closed_accepted_by_other",
+          "client_rejected",
+          "vendor_rejected",
+          "cancelled",
+          "closed",
+        ].includes(q.status)
       );
     }
     return matchesSearch;

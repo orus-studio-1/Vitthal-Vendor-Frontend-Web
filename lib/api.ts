@@ -128,6 +128,7 @@ export interface VendorQuotationSummary {
   product_name: string;
   vendor_document_url?: string | null;
   vendor_document_s3_key?: string | null;
+  order_id?: string | null;
   unit?: string | null;
 }
 
@@ -471,6 +472,10 @@ export const vendorNegotiationApi = {
     note?: string;
   }): Promise<ApiResponse<void>> => {
     return apiClient.post<void>(`/quotations/vendor/${id}/respond`, payload);
+  },
+
+  requestDispatchPayment: async (id: string, note?: string): Promise<ApiResponse<void>> => {
+    return apiClient.post<void>(`/quotations/vendor/${id}/request-dispatch-payment`, { note });
   },
 };
 

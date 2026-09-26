@@ -116,7 +116,7 @@ export default function ServiceQuotationDetailPage() {
 
   const isTerminal = React.useMemo(() => {
     if (!quotation) return false;
-    return ["client_rejected", "vendor_rejected", "cancelled"].includes(quotation.status);
+    return ["client_rejected", "vendor_rejected", "cancelled", "closed_accepted_by_other"].includes(quotation.status);
   }, [quotation]);
 
   const isWaitingForClient = React.useMemo(() => {
@@ -571,7 +571,27 @@ export default function ServiceQuotationDetailPage() {
 
             {/* Action Area */}
             <div className="bg-white border-t border-zinc-200 p-6">
-              {isTerminal ? (
+              {quotation.status === "closed_accepted_by_other" ? (
+                <div className="flex items-center gap-3 rounded-xl bg-zinc-100 border border-zinc-200 p-4 text-zinc-600">
+                  <XCircle className="text-zinc-400 shrink-0" />
+                  <div>
+                    <p className="text-sm font-bold">Request Claimed by Another Vendor</p>
+                    <p className="text-xs text-zinc-500 mt-0.5">
+                      Another nearby vendor has accepted this service request. This request is now closed.
+                    </p>
+                  </div>
+                </div>
+              ) : quotation.status === "completed" ? (
+                <div className="flex items-center gap-3 rounded-2xl bg-emerald-50 border border-emerald-200 p-5 text-emerald-950 shadow-xs">
+                  <CheckCircle2 className="h-6 w-6 text-emerald-600 shrink-0" />
+                  <div>
+                    <p className="text-base font-bold text-emerald-900">Service Order Completed 🎉</p>
+                    <p className="text-xs text-emerald-700 mt-0.5">
+                      Customer completion OTP has been verified successfully. Service execution is complete!
+                    </p>
+                  </div>
+                </div>
+              ) : isTerminal ? (
                 <div className="flex items-center gap-3 rounded-xl bg-zinc-50 border border-zinc-200 p-4 text-zinc-600">
                   <CheckCircle2 className="text-zinc-400 shrink-0" />
                   <p className="text-sm font-medium">This negotiation is closed. Terms have been agreed upon or rejected.</p>

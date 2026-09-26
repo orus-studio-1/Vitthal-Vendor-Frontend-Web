@@ -75,9 +75,9 @@ export default function ServicesPage() {
     try {
       setLoading(true);
       setError(null);
-      const adminUrl = process.env.NEXT_PUBLIC_ADMIN_API_URL || "http://localhost:9001";
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9000";
       const token = typeof window !== "undefined" ? localStorage.getItem("vendor_token") : null;
-      const res = await fetch(`${adminUrl}/api/services/vendor/offerings`, {
+      const res = await fetch(`${apiUrl}/api/services/vendor/offerings`, {
         credentials: "include",
         headers: {
           "x-request-from": "vendor",
@@ -401,15 +401,28 @@ export default function ServicesPage() {
                           {new Date(offering.created_at).toLocaleDateString()}
                         </td>
                         <td className="px-6 py-4">
-                          <span
-                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
-                              offering.is_active
-                                ? "bg-emerald-50 text-emerald-700 border-emerald-100"
-                                : "bg-zinc-50 text-zinc-600 border-zinc-150"
-                            }`}
-                          >
-                            Service: {offering.is_active ? "active" : "inactive"}
-                          </span>
+                          {(() => {
+                            const statusLower = (offering.service_status || "").toLowerCase();
+                            const isApproved = statusLower === "approved" || statusLower === "active" || (offering.is_active && statusLower !== "rejected");
+                            const isRejected = statusLower === "rejected";
+
+                            let badgeStyle = "bg-amber-50 text-amber-700 border-amber-200";
+                            let badgeLabel = "Service: pending";
+
+                            if (isApproved) {
+                              badgeStyle = "bg-emerald-50 text-emerald-700 border-emerald-100";
+                              badgeLabel = "Service: active";
+                            } else if (isRejected) {
+                              badgeStyle = "bg-rose-50 text-rose-700 border-rose-200";
+                              badgeLabel = "Service: rejected";
+                            }
+
+                            return (
+                              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${badgeStyle}`}>
+                                {badgeLabel}
+                              </span>
+                            );
+                          })()}
                         </td>
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
