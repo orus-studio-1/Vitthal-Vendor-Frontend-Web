@@ -58,11 +58,6 @@ export default function VendorQuotationDetailPage() {
   const { user } = useAuthStore();
   const router = useRouter();
 
-  useEffect(() => {
-    if (user && user.vendorType === "service") {
-      router.replace(`/service-quotations/${quotationId}`);
-    }
-  }, [user, quotationId, router]);
 
   const [loading, setLoading] = useState(true);
   const [quotation, setQuotation] = useState<VendorQuotationDetail | null>(null);

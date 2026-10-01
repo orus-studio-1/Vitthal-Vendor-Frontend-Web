@@ -156,8 +156,11 @@ export default function ServiceQuotationDetailPage() {
   };
 
   useEffect(() => {
-    if (user && (user.role !== "vendor" || (user.vendorType !== "service" && user.vendorType !== "both"))) {
-      router.replace("/unauthorizedAccessed");
+    if (user && user.role !== "vendor") {
+      router.replace("/login");
+    } else if (user && user.vendorType === "product") {
+      setError("This request is a service quotation. Your vendor profile is currently set to Product Vendor.");
+      setLoading(false);
     }
   }, [user, router]);
 
