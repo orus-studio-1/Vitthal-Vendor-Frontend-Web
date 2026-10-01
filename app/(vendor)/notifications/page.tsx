@@ -187,19 +187,25 @@ export default function NotificationsPage() {
   function handleNotificationClick(n: Notification) {
     if (!n.is_read) markRead(n.id);
 
+    const isProductQuotation =
+      n.reference_type === "quotation" ||
+      (!n.reference_type && n.type === "quotation_request_received" && !n.title?.toLowerCase().includes("service"));
+
     const isServiceNotif =
       n.reference_type === "service_quotation" ||
       n.reference_type === "service_ticket" ||
       n.reference_type === "service" ||
       n.reference_type === "service_booking" ||
-      (n.reference_type === "quotation" && (n.title?.toLowerCase().includes("service") || n.body?.toLowerCase().includes("service")));
+      (!isProductQuotation && (n.type?.includes("service") || n.title?.toLowerCase().includes("service") || n.body?.toLowerCase().includes("service")));
 
     if (isServiceNotif && n.reference_id) {
       router.push(`/service-quotations/${n.reference_id}`);
+    } else if (n.reference_id && (isProductQuotation || n.reference_type === "quotation" || n.type?.includes("quotation"))) {
+      router.push(`/quotations/${n.reference_id}`);
     } else if (n.reference_type === "product" && n.reference_id) {
       router.push(`/products`);
-    } else if (n.reference_type === "quotation" && n.reference_id) {
-      router.push(`/quotations/${n.reference_id}`);
+    } else {
+      router.push(`/notifications`);
     }
   }
 

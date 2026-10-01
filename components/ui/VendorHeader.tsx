@@ -268,17 +268,20 @@ export function VendorHeader() {
                               onClick={() => {
                                 if (!n.is_read) markRead(n.id);
                                 setNotifDropdown(false);
+                                const isProductQuotation =
+                                  n.reference_type === "quotation" ||
+                                  (!n.reference_type && n.type === "quotation_request_received" && !n.title?.toLowerCase().includes("service"));
+
                                 const isServiceNotif =
                                   n.reference_type === "service_quotation" ||
                                   n.reference_type === "service_ticket" ||
                                   n.reference_type === "service" ||
-                                  n.type?.includes("quotation") ||
-                                  n.title?.toLowerCase().includes("service") ||
-                                  n.body?.toLowerCase().includes("service");
+                                  n.reference_type === "service_booking" ||
+                                  (!isProductQuotation && (n.type?.includes("service") || n.title?.toLowerCase().includes("service") || n.body?.toLowerCase().includes("service")));
 
                                 if (n.reference_id && isServiceNotif) {
                                   router.push(`/service-quotations/${n.reference_id}`);
-                                } else if (n.reference_type === "quotation" && n.reference_id) {
+                                } else if (n.reference_id && (isProductQuotation || n.type?.includes("quotation"))) {
                                   router.push(`/quotations/${n.reference_id}`);
                                 } else if (n.reference_type === "product") {
                                   router.push(`/products`);
