@@ -120,6 +120,7 @@ export function VendorHeader() {
         ]
       : []
     ),
+    { href: "/payouts", label: "Payouts & Settlements", icon: DollarSign },
     { href: "/analytics", label: "Analytics", icon: BarChart3 },
   ];
 
@@ -134,7 +135,6 @@ export function VendorHeader() {
       ? [{ href: "/quotations", label: "Quotations", icon: FileText }]
       : []
     ),
-    { href: "/payouts", label: "Payouts & Settlements", icon: DollarSign },
     { href: "/settings", label: "Account Settings", icon: Settings },
   ];
   if (isLoading && !isAuthenticated) {
