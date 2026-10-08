@@ -84,12 +84,30 @@ export default function VendorProductViewPage() {
         productApi.getProductAnalytics(productId)
       ]);
 
-      if (detailsResponse.data) {
-        setProductDetails(detailsResponse.data);
+      const rawDetails = detailsResponse.data as (ProductDetails & Record<string, any>) | undefined;
+      const analyticsData = analyticsResponse.data;
+      if (analyticsData) {
+        setAnalytics(analyticsData);
+        setTotalReviews(analyticsData.total_reviews);
       }
-      if (analyticsResponse.data) {
-        setAnalytics(analyticsResponse.data);
-        setTotalReviews(analyticsResponse.data.total_reviews);
+      if (rawDetails) {
+        const firstVariant = Array.isArray(rawDetails.variants) ? rawDetails.variants[0] : undefined;
+        const rawPrice = rawDetails.price ?? analyticsData?.price ?? firstVariant?.price;
+        const price = rawPrice == null || rawPrice === "" ? undefined : Number(rawPrice);
+        setProductDetails({
+          ...rawDetails,
+          id: rawDetails.id ?? rawDetails.product_id,
+          name: rawDetails.name ?? rawDetails.product_name,
+          price: Number.isFinite(price) ? price : undefined,
+          moq: Number(rawDetails.moq ?? analyticsData?.moq ?? firstVariant?.moq) || 1,
+          stock_quantity: Number(rawDetails.stock_quantity ?? analyticsData?.stock_quantity ?? firstVariant?.stock_quantity) || 0,
+          is_active: Boolean(rawDetails.is_active ?? analyticsData?.is_active ?? firstVariant?.is_active),
+          created_at: rawDetails.created_at ?? analyticsData?.vendor_product_created_at,
+          updated_at: rawDetails.updated_at ?? analyticsData?.vendor_product_updated_at,
+          images: Array.isArray(rawDetails.images)
+            ? rawDetails.images.map((image: string | { image_url?: string }) => typeof image === "string" ? image : image.image_url || "").filter(Boolean)
+            : [],
+        });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch product data');
@@ -124,8 +142,9 @@ export default function VendorProductViewPage() {
     }
   };
 
-  const formatCurrency = (amount: number | string) => {
-    const numAmount = typeof amount === 'string' ? Number(amount) : amount;
+  const formatCurrency = (amount: number | string | null | undefined) => {
+    const numAmount = amount == null || amount === '' ? Number.NaN : Number(amount);
+    if (!Number.isFinite(numAmount)) return '—';
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR',
@@ -134,7 +153,8 @@ export default function VendorProductViewPage() {
     }).format(numAmount);
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString || !Number.isFinite(new Date(dateString).getTime())) return '—';
     return new Date(dateString).toLocaleDateString('en-IN', {
       year: 'numeric',
       month: 'short',
