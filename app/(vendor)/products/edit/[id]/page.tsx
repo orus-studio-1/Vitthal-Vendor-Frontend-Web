@@ -35,7 +35,6 @@ interface VendorProduct {
   category: string;
   product_type: string;
   material?: string;
-  grade?: string;
   application?: string;
   standard?: string;
   attributes?: Record<string, unknown>;
