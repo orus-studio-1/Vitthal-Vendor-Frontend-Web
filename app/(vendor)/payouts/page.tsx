@@ -45,6 +45,20 @@ interface Payout {
     vendor_credit_cycle: string | null;
     client_paid_amount: string | number;
     client_paid_percentage: string | number;
+    transaction_type: 'order' | 'service';
+    request_id: string | null;
+    request_status: 'requested' | 'partially_paid' | 'rejected' | 'paid' | null;
+    eligible_amount: string | number | null;
+    request_rejection_reason: string | null;
+    requested_at: string | null;
+}
+
+interface BankDetails {
+    bank_name: string | null;
+    account_holder_name: string | null;
+    account_last_four: string | null;
+    ifsc_code: string | null;
+    cheque_uploaded: boolean;
 }
 
 export default function VendorPayoutsPage() {
@@ -63,7 +77,12 @@ export default function VendorPayoutsPage() {
     const [trackingDetail, setTrackingDetail] = useState<any | null>(null);
     const [detailLoading, setDetailLoading] = useState(false);
     const [detailError, setDetailError] = useState<string | null>(null);
-    const [isServiceVendor, setIsServiceVendor] = useState(false);
+    const [bankDetails, setBankDetails] = useState<BankDetails | null>(null);
+    const [bankFormOpen, setBankFormOpen] = useState(false);
+    const [bankForm, setBankForm] = useState({ bankName: '', accountHolderName: '', accountNumber: '', ifscCode: '' });
+    const [chequeFile, setChequeFile] = useState<File | null>(null);
+    const [bankSaving, setBankSaving] = useState(false);
+    const [requestingId, setRequestingId] = useState<string | null>(null);
 
     const getPayoutTimelineDetails = (payout: Payout) => {
         if (payout.payout_status === 'paid') {
@@ -160,41 +179,94 @@ export default function VendorPayoutsPage() {
         setLoading(true);
         setError(null);
         try {
-            const res = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/api/orders/vendor/payouts`,
-                {
-                    credentials: "include",
-                    headers: {
-                        "x-request-from": "vendor",
-                    },
-                }
-            );
-
-            if (res.ok) {
-                const result = await res.json();
-                const data = result.data || [];
-                setPayouts(data);
-                // Detect service vendor: service payouts have no due_date by design
-                if (data.length > 0) {
-                    const allNoDueDate = data.every((p: Payout) => !p.due_date);
-                    setIsServiceVendor(allNoDueDate);
-                }
-            } else if (res.status === 401 || res.status === 403) {
-                router.push("/login");
-            } else {
-                setError("Failed to fetch payouts ledger.");
-            }
+            const result = await vendorPayoutApi.listPayouts();
+            const data = result.data || [];
+            setPayouts(data);
         } catch (err) {
-            console.error("Error fetching payouts:", err);
-            setError("Network error. Please try again.");
+            const message = err instanceof Error ? err.message : "Failed to fetch payouts ledger.";
+            if (message.toLowerCase().includes('unauthorized')) router.push("/login");
+            else setError(message);
         } finally {
             setLoading(false);
         }
     };
 
+    const fetchBankDetails = async () => {
+        try {
+            const result = await vendorPayoutApi.getBankDetails();
+            setBankDetails(result.data || null);
+        } catch (err) {
+            console.error("Error fetching payout bank details:", err);
+        }
+    };
+
     useEffect(() => {
         void fetchPayouts();
+        void fetchBankDetails();
     }, []);
+
+    const isTransactionEligible = (payout: Payout) => {
+        if (payout.transaction_type === 'service') {
+            return payout.order_status === 'completed' && payout.client_payment_status === 'paid';
+        }
+        const fullyPaid = Number(payout.client_paid_percentage) >= 100
+            && Number(payout.client_paid_amount) >= Number(payout.order_total_amount);
+        const creditCycleDue = Boolean(payout.due_date && new Date(payout.due_date).getTime() <= Date.now());
+        return payout.order_status === 'delivered'
+            && payout.client_payment_status === 'paid'
+            && fullyPaid
+            && creditCycleDue;
+    };
+
+    const canRequestPayout = (payout: Payout) =>
+        !['requested', 'partially_paid', 'paid'].includes(payout.request_status || '')
+        && isTransactionEligible(payout);
+
+    const shouldPromptForBankDetails = (payout: Payout) =>
+        isTransactionEligible(payout)
+        && !['requested', 'partially_paid', 'paid'].includes(payout.request_status || '')
+        && !bankDetails?.cheque_uploaded;
+
+    const handleRequestPayout = async (payout: Payout) => {
+        if (!window.confirm(`Request payout of up to ₹${Number(payout.transaction_type === 'service' ? payout.order_total_amount : payout.client_paid_amount).toLocaleString('en-IN')} for this transaction?`)) return;
+        setRequestingId(payout.payout_id);
+        setError(null);
+        try {
+            await vendorPayoutApi.requestPayout(payout.transaction_type, payout.order_id);
+            await fetchPayouts();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Unable to request payout.");
+        } finally {
+            setRequestingId(null);
+        }
+    };
+
+    const handleSaveBankDetails = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (!chequeFile) {
+            setError("Upload a cancelled cheque to update the payout account.");
+            return;
+        }
+        const formData = new FormData();
+        formData.append('bankName', bankForm.bankName.trim());
+        formData.append('accountHolderName', bankForm.accountHolderName.trim());
+        formData.append('accountNumber', bankForm.accountNumber.trim());
+        formData.append('ifscCode', bankForm.ifscCode.trim().toUpperCase());
+        formData.append('cancelledCheque', chequeFile);
+        setBankSaving(true);
+        setError(null);
+        try {
+            await vendorPayoutApi.updateBankDetails(formData);
+            setBankFormOpen(false);
+            setBankForm({ bankName: '', accountHolderName: '', accountNumber: '', ifscCode: '' });
+            setChequeFile(null);
+            await fetchBankDetails();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Unable to save bank details.");
+        } finally {
+            setBankSaving(false);
+        }
+    };
 
     const handleCopy = (text: string, id: string) => {
         navigator.clipboard.writeText(text);
@@ -203,6 +275,16 @@ export default function VendorPayoutsPage() {
     };
 
     // Calculate days remaining helper
+    const formatCreditCycle = (creditCycle: string | null, fallback = 'Standard Terms') => {
+        if (!creditCycle) return fallback;
+
+        const normalized = creditCycle.trim();
+        const netDays = normalized.match(/^net\s*(\d+)$/i);
+        if (netDays) return `${netDays[1]} Days`;
+        if (/^immediate$/i.test(normalized)) return 'Immediate Payment';
+        return normalized;
+    };
+
     const getDaysLeft = (dueDateStr: string | null, payoutStatus: string) => {
         if (payoutStatus === 'paid') return { text: 'Settled', color: 'bg-emerald-50 text-emerald-700 border-emerald-100' };
         if (!dueDateStr) return { text: 'Awaiting Delivery', color: 'bg-zinc-150 text-zinc-500 border-zinc-200' };
@@ -311,6 +393,34 @@ export default function VendorPayoutsPage() {
                         Refresh Ledger
                     </button>
                 </div>
+
+                <section className="rounded-xl border border-gray-200 bg-white p-5">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h2 className="text-base font-bold text-gray-900">Payout bank account</h2>
+                            {bankDetails?.account_last_four ? (
+                                <p className="mt-1 text-sm text-gray-600">{bankDetails.bank_name} · account ending {bankDetails.account_last_four} · IFSC {bankDetails.ifsc_code}</p>
+                            ) : (
+                                <p className="mt-1 text-sm text-amber-700">Add a verified payout account and cancelled cheque before requesting a payout.</p>
+                            )}
+                        </div>
+                        <button type="button" onClick={() => setBankFormOpen((open) => !open)} className="rounded-md border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+                            {bankFormOpen ? 'Close' : bankDetails?.account_last_four ? 'Update account' : 'Add account'}
+                        </button>
+                    </div>
+                    {bankFormOpen && (
+                        <form onSubmit={handleSaveBankDetails} className="mt-5 border-t border-gray-100 pt-5">
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <label className="text-sm font-medium text-gray-700">Bank name<input required value={bankForm.bankName} onChange={(event) => setBankForm({ ...bankForm, bankName: event.target.value })} className="mt-1 block h-10 w-full rounded-md border border-gray-300 px-3 font-normal" /></label>
+                                <label className="text-sm font-medium text-gray-700">Account holder<input required value={bankForm.accountHolderName} onChange={(event) => setBankForm({ ...bankForm, accountHolderName: event.target.value })} className="mt-1 block h-10 w-full rounded-md border border-gray-300 px-3 font-normal" /></label>
+                                <label className="text-sm font-medium text-gray-700">Account number<input required inputMode="numeric" autoComplete="off" value={bankForm.accountNumber} onChange={(event) => setBankForm({ ...bankForm, accountNumber: event.target.value.replace(/\D/g, '').slice(0, 18) })} className="mt-1 block h-10 w-full rounded-md border border-gray-300 px-3 font-normal" /></label>
+                                <label className="text-sm font-medium text-gray-700">IFSC code<input required maxLength={11} value={bankForm.ifscCode} onChange={(event) => setBankForm({ ...bankForm, ifscCode: event.target.value.toUpperCase() })} className="mt-1 block h-10 w-full rounded-md border border-gray-300 px-3 font-normal uppercase" /></label>
+                                <label className="text-sm font-medium text-gray-700 md:col-span-2">Cancelled cheque<input required type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={(event) => setChequeFile(event.target.files?.[0] || null)} className="mt-1 block w-full text-sm font-normal" /><span className="mt-1 block text-xs text-gray-500">PDF or image, maximum 5 MB. A pending request must be rejected or paid before changing bank details.</span></label>
+                            </div>
+                            <button type="submit" disabled={bankSaving} className="mt-4 rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">{bankSaving ? 'Saving...' : 'Save payout account'}</button>
+                        </form>
+                    )}
+                </section>
 
                 {/* Stats Cards */}
                 <div className="grid gap-4 sm:grid-cols-3">
@@ -424,8 +534,8 @@ export default function VendorPayoutsPage() {
                                         <th className="pb-3 pl-2">Order Details</th>
                                         <th className="pb-3">Client Payment status</th>
                                         <th className="pb-3">Admin Settlement status</th>
-                                        <th className="pb-3 text-center">{isServiceVendor ? 'Booking Status' : 'Days Remaining'}</th>
-                                        <th className="pb-3">{isServiceVendor ? 'Service Info' : 'Credit Cycle'}</th>
+                                        <th className="pb-3 text-center">Status / Due Date</th>
+                                        <th className="pb-3">Service / Credit Cycle</th>
                                         <th className="pb-3 pr-2">Settlement Details</th>
                                     </tr>
                                 </thead>
@@ -497,7 +607,7 @@ export default function VendorPayoutsPage() {
 
                                                 {/* Days Remaining / Booking Status */}
                                                 <td className="py-4 text-center whitespace-nowrap">
-                                                    {isServiceVendor ? (
+                                                    {payout.transaction_type === 'service' ? (
                                                         <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${
                                                             payout.order_status === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
                                                             payout.order_status === 'in_progress' ? 'bg-blue-50 text-blue-700 border-blue-100 animate-pulse' :
@@ -516,11 +626,11 @@ export default function VendorPayoutsPage() {
 
                                                 {/* Credit Cycle / Service Info */}
                                                 <td className="py-4">
-                                                    {isServiceVendor ? (
+                                                    {payout.transaction_type === 'service' ? (
                                                         <p className="font-bold text-gray-700 capitalize">{payout.order_status || 'Booking'}</p>
                                                     ) : (
                                                         <>
-                                                        <p className="font-bold text-gray-700">{payout.vendor_credit_cycle || 'Standard Terms'}</p>
+                                                        <p className="font-bold text-gray-700">{formatCreditCycle(payout.vendor_credit_cycle)}</p>
                                                         {payout.delivered_at && (
                                                             <div className="mt-1 flex items-center gap-1 text-xs text-gray-400">
                                                                 <Calendar className="h-3.5 w-3.5" />
@@ -533,6 +643,14 @@ export default function VendorPayoutsPage() {
 
                                                 {/* Settlement Details */}
                                                 <td className="py-4 pr-2 whitespace-nowrap">
+                                                    {payout.request_status && (
+                                                        <div className="mb-2">
+                                                            <span className={`inline-flex rounded-full px-2 py-1 text-[10px] font-bold uppercase ${payout.request_status === 'paid' ? 'bg-emerald-50 text-emerald-700' : payout.request_status === 'requested' ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-700'}`}>
+                                                                {payout.request_status}
+                                                            </span>
+                                                            {payout.request_status === 'rejected' && payout.request_rejection_reason && <p className="mt-1 max-w-[180px] whitespace-normal text-xs text-rose-600">{payout.request_rejection_reason}</p>}
+                                                        </div>
+                                                    )}
                                                     {payout.last_paid_at ? (
                                                         <>
                                                             <p className="font-semibold text-gray-800">
@@ -548,6 +666,22 @@ export default function VendorPayoutsPage() {
                                                         </>
                                                     ) : (
                                                         <span className="text-xs text-gray-400 italic">Awaiting admin release</span>
+                                                    )}
+                                                    {canRequestPayout(payout) && (
+                                                        <button
+                                                            type="button"
+                                                            disabled={requestingId === payout.payout_id || !bankDetails?.cheque_uploaded}
+                                                            onClick={(event) => { event.stopPropagation(); void handleRequestPayout(payout); }}
+                                                            className="mt-2 block rounded-md bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                                        >
+                                                            {requestingId === payout.payout_id ? 'Requesting...' : payout.request_status === 'rejected' ? 'Request again' : 'Request payout'}
+                                                        </button>
+                                                    )}
+                                                    {shouldPromptForBankDetails(payout) && (
+                                                        <span className="mt-2 block text-xs text-amber-700">Add bank details first</span>
+                                                    )}
+                                                    {payout.transaction_type === 'order' && payout.order_status === 'delivered' && payout.client_payment_status === 'paid' && Number(payout.client_paid_percentage) < 100 && (
+                                                        <span className="mt-2 block text-xs text-slate-500">Waiting for full client payment</span>
                                                     )}
                                                 </td>
                                             </tr>
@@ -614,7 +748,7 @@ export default function VendorPayoutsPage() {
                                                     <h3 className="font-bold text-gray-950 text-sm tracking-tight border-b border-gray-100 pb-2 flex items-center justify-between">
                                                         <span>Payout Settlement Timeline</span>
                                                         <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2.5 py-0.5 rounded-full">
-                                                            Cycle: {selectedPayout.vendor_credit_cycle || 'Standard Terms'}
+                                                            Cycle: {formatCreditCycle(selectedPayout.vendor_credit_cycle)}
                                                         </span>
                                                     </h3>
                                                     <div className="relative pl-6 border-l border-gray-150 space-y-6 py-2 ml-3">
@@ -647,7 +781,7 @@ export default function VendorPayoutsPage() {
                                                             <div>
                                                                 <p className="text-sm font-bold text-gray-900">Credit Cycle Term Active</p>
                                                                 <p className="text-xs text-gray-500 mt-0.5">
-                                                                    {selectedPayout.vendor_credit_cycle || 'Standard terms (15 Days)'}
+                                                                    {formatCreditCycle(selectedPayout.vendor_credit_cycle, 'Standard terms (15 Days)')}
                                                                 </p>
                                                             </div>
                                                         </div>

@@ -135,6 +135,11 @@ export default function RegisterPage() {
   const [gstCertificateFile, setGstCertificateFile] = useState<File | null>(
     null,
   );
+  const [bankName, setBankName] = useState("");
+  const [accountHolderName, setAccountHolderName] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
+  const [ifscCode, setIfscCode] = useState("");
+  const [cancelledChequeFile, setCancelledChequeFile] = useState<File | null>(null);
   const [phone, setPhone] = useState("");
   const [alternatePhone, setAlternatePhone] = useState("");
   const [designation, setDesignation] = useState("");
@@ -442,6 +447,19 @@ export default function RegisterPage() {
       return;
     }
 
+    if (!bankName.trim() || !accountHolderName.trim() || !/^\d{9,18}$/.test(accountNumber.trim())) {
+      toast.error("Please enter valid bank account details");
+      return;
+    }
+    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifscCode.trim().toUpperCase())) {
+      toast.error("Please enter a valid IFSC code");
+      return;
+    }
+    if (!cancelledChequeFile) {
+      toast.error("Please upload a cancelled cheque");
+      return;
+    }
+
     setStep("password");
   }
 
@@ -546,6 +564,10 @@ export default function RegisterPage() {
       formData.append("businessType", businessType);
       formData.append("vendorType", vendorType);
       formData.append("gstNumber", gstNumber);
+        formData.append("bankName", bankName.trim());
+        formData.append("accountHolderName", accountHolderName.trim());
+        formData.append("accountNumber", accountNumber.trim());
+        formData.append("ifscCode", ifscCode.trim().toUpperCase());
       formData.append("companyWebsite", website.trim());
       formData.append("phone", phone.trim());
       formData.append("alternativeNumber", alternatePhone.trim());
@@ -570,6 +592,9 @@ export default function RegisterPage() {
       formData.append("maximumCommissionPercentage", String(parseInt(maxCommission)));
       if (gstCertificateFile) {
         formData.append("gstCertificate", gstCertificateFile);
+      }
+      if (cancelledChequeFile) {
+        formData.append("cancelledCheque", cancelledChequeFile);
       }
       const res = await fetch(`${API_BASE}/api/auth/verify-registration`, {
         method: "POST",
@@ -1060,6 +1085,43 @@ export default function RegisterPage() {
               className="space-y-6"
               noValidate
             >
+              <section className="rounded-lg border border-zinc-200 bg-white p-4">
+                <h3 className="mb-1 text-sm font-semibold text-zinc-900">Payout bank account</h3>
+                <p className="mb-4 text-xs text-zinc-600">The account and cancelled cheque will be reviewed before payouts are processed.</p>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label htmlFor="bankName" className="mb-1.5 block text-sm font-medium text-zinc-800">Bank name</label>
+                    <input id="bankName" required value={bankName} onChange={(event) => setBankName(event.target.value)} className="h-11 w-full rounded-md border border-zinc-300 px-3 text-sm outline-none focus:border-[#1d4ed8]" />
+                  </div>
+                  <div>
+                    <label htmlFor="accountHolderName" className="mb-1.5 block text-sm font-medium text-zinc-800">Account holder name</label>
+                    <input id="accountHolderName" required value={accountHolderName} onChange={(event) => setAccountHolderName(event.target.value)} className="h-11 w-full rounded-md border border-zinc-300 px-3 text-sm outline-none focus:border-[#1d4ed8]" />
+                  </div>
+                  <div>
+                    <label htmlFor="accountNumber" className="mb-1.5 block text-sm font-medium text-zinc-800">Account number</label>
+                    <input id="accountNumber" inputMode="numeric" autoComplete="off" required value={accountNumber} onChange={(event) => setAccountNumber(event.target.value.replace(/\D/g, "").slice(0, 18))} className="h-11 w-full rounded-md border border-zinc-300 px-3 text-sm outline-none focus:border-[#1d4ed8]" />
+                  </div>
+                  <div>
+                    <label htmlFor="ifscCode" className="mb-1.5 block text-sm font-medium text-zinc-800">IFSC code</label>
+                    <input id="ifscCode" maxLength={11} required value={ifscCode} onChange={(event) => setIfscCode(event.target.value.toUpperCase())} className="h-11 w-full rounded-md border border-zinc-300 px-3 text-sm uppercase outline-none focus:border-[#1d4ed8]" />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label htmlFor="cancelledCheque" className="mb-1.5 block text-sm font-medium text-zinc-800">Cancelled cheque (PDF or image, max 5 MB)</label>
+                    <input id="cancelledCheque" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" required onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (!file) return;
+                      if (!["application/pdf", "image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024) {
+                        toast.error("Choose a PDF or image under 5 MB");
+                        event.target.value = "";
+                        return;
+                      }
+                      setCancelledChequeFile(file);
+                    }} className="block w-full text-sm text-zinc-700 file:mr-3 file:rounded-md file:border file:border-zinc-300 file:bg-zinc-50 file:px-3 file:py-2" />
+                    {cancelledChequeFile ? <p className="mt-1 text-xs text-zinc-500">{cancelledChequeFile.name}</p> : null}
+                  </div>
+                </div>
+              </section>
+
               <div className="grid gap-5 md:grid-cols-2">
                 <div>
                   <label

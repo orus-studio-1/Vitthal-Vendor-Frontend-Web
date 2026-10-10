@@ -92,12 +92,12 @@ export interface ProductDetails {
   product_type: string;
   rating: number;
   review_count: number;
-  price: number;
+  price?: number;
   moq: number;
   stock_quantity: number;
   is_active: boolean;
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
   images: string[];
   specifications: Record<string, any>;
   attributes?: Record<string, any>;
@@ -543,5 +543,32 @@ export const vendorChatApi = {
 export const vendorPayoutApi = {
   listPayouts: async (): Promise<ApiResponse<any[]>> => {
     return apiClient.get<any[]>(`/orders/vendor/payouts`);
+  },
+  requestPayout: async (transactionType: 'order' | 'service', transactionId: string) => {
+    return apiClient.post(`/orders/vendor/payouts/${transactionType}/${transactionId}/request`);
+  },
+  getBankDetails: async () => {
+    return apiClient.get<{
+      bank_name: string | null;
+      account_holder_name: string | null;
+      account_last_four: string | null;
+      ifsc_code: string | null;
+      cheque_uploaded: boolean;
+    }>(`/vendors/payout-bank-details`);
+  },
+  updateBankDetails: async (formData: FormData) => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('vendor_token') : null;
+    const response = await fetch(`${API_BASE_URL}/api/vendors/payout-bank-details`, {
+      method: 'PUT',
+      headers: {
+        'x-request-from': 'vendor',
+        ...(token && token !== 'null' && token !== 'undefined' && { Authorization: `Bearer ${token}` }),
+      },
+      body: formData,
+      credentials: 'include',
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || 'Unable to update bank details');
+    return data;
   },
 };
