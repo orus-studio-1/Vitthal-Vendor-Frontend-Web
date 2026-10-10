@@ -34,6 +34,8 @@ type ServiceQuotation = {
   created_at: string;
   updated_at: string;
   service_name: string;
+  subcategory_name?: string | null;
+  sub_subcategory_name?: string | null;
   client_name: string;
 };
 
@@ -481,6 +483,11 @@ export default function ServiceQuotationsPage() {
                     <h3 className="mt-3 font-heading text-sm font-bold text-zinc-900 group-hover:text-emerald-600 transition truncate">
                       {q.service_name}
                     </h3>
+                    {(q.subcategory_name || q.sub_subcategory_name) && (
+                      <p className="mt-1 text-[11px] font-medium text-emerald-700">
+                        {[q.subcategory_name, q.sub_subcategory_name].filter(Boolean).join(" / ")}
+                      </p>
+                    )}
 
                     {/* Client Name (Fixed 1-line truncate with '...') */}
                     <div className="mt-1 flex items-center gap-1.5 text-xs text-zinc-500">
@@ -539,7 +546,14 @@ export default function ServiceQuotationsPage() {
                         <td className="px-5 py-4 font-mono font-bold text-zinc-900">{formatOrderId(q.id)}</td>
                         <td className="px-5 py-4 font-medium text-zinc-900">{q.client_name}</td>
                         <td className="px-5 py-4 text-zinc-500">{formatDate(q.created_at)}</td>
-                        <td className="px-5 py-4 font-medium text-zinc-900">{q.service_name}</td>
+                        <td className="px-5 py-4 font-medium text-zinc-900">
+                          {q.service_name}
+                          {(q.subcategory_name || q.sub_subcategory_name) && (
+                            <span className="mt-1 block text-[11px] font-normal text-zinc-500">
+                              {[q.subcategory_name, q.sub_subcategory_name].filter(Boolean).join(" / ")}
+                            </span>
+                          )}
+                        </td>
                         <td className="px-5 py-4 font-semibold text-zinc-900">
                           {q.agreed_price ? formatCurrency(q.agreed_price) : formatCurrency(q.requested_price)}
                         </td>
