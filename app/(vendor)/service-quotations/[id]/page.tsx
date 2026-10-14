@@ -56,11 +56,13 @@ type Quotation = {
   subcategory_name?: string | null;
   sub_subcategory_name?: string | null;
   ticket_payload?: Record<string, unknown>;
+  vendor_logistics_vehicle?: { vehicle_class: string; vehicle_name: string; payload: string; dimensions: string; image_url: string } | null;
   documents?: Array<{
     id: string;
     doc_name?: string | null;
     doc_type: string;
     doc_url: string;
+    metadata?: Record<string, unknown> | null;
   }>;
   client_name: string;
   client_email: string;
@@ -98,6 +100,27 @@ type CatalogChoice = {
   unit: string;
 };
 
+function JobItemDrawings({ drawings }: { drawings: unknown }) {
+  const [files, setFiles] = useState<Array<{ key: string; url: string }>>([]);
+  useEffect(() => {
+    const keys = (Array.isArray(drawings) ? drawings : drawings ? [drawings] : []).filter((key): key is string => typeof key === "string" && Boolean(key));
+    if (!keys.length) { setFiles([]); return; }
+    let active = true;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9000";
+    void Promise.all(keys.map(async (key) => {
+      try {
+        const response = await fetch(`${apiUrl}/api/upload/file?fileName=${encodeURIComponent(key)}`, { credentials: "include" });
+        const result = await response.json();
+        return response.ok && result.url ? { key, url: result.url as string } : null;
+      } catch { return null; }
+    })).then((results) => { if (active) setFiles(results.filter((file): file is { key: string; url: string } => Boolean(file))); });
+    return () => { active = false; };
+  }, [drawings]);
+
+  if (!files.length) return null;
+  return <div className="mt-3 border-t border-zinc-200 pt-3"><p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-zinc-500">Item drawings</p><div className="flex flex-wrap gap-2">{files.map(({ key, url }) => /\.(png|jpe?g|webp|gif)$/i.test(key) ? <a key={key} href={url} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-lg border border-zinc-200 bg-white"><img src={url} alt={`Drawing for ${key.split("/").pop()}`} className="h-28 w-36 object-contain" /><span className="block max-w-36 truncate px-2 py-1 text-[10px] text-zinc-600">{key.split("/").pop()}</span></a> : <a key={key} href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700"><Paperclip size={13} />{key.split("/").pop()}</a>)}</div></div>;
+}
+
 export default function ServiceQuotationDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -116,6 +139,8 @@ export default function ServiceQuotationDetailPage() {
   const [priceInput, setPriceInput] = useState("");
   const [deliveryDaysInput, setDeliveryDaysInput] = useState("");
   const [tokenPercentageInput, setTokenPercentageInput] = useState("");
+  const [freelancerRequiredDateTime, setFreelancerRequiredDateTime] = useState("");
+  const [freelancerTokenAmount, setFreelancerTokenAmount] = useState("");
   const [noteInput, setNoteInput] = useState("");
   const [reasonInput, setReasonInput] = useState("");
   const [submittingAction, setSubmittingAction] = useState(false);
@@ -133,6 +158,10 @@ export default function ServiceQuotationDetailPage() {
   const [serviceCharge, setServiceCharge] = useState("");
   const [travelCharge, setTravelCharge] = useState("");
   const [otherCharge, setOtherCharge] = useState("");
+  const [logisticsDistance, setLogisticsDistance] = useState("");
+  const [logisticsTripRate, setLogisticsTripRate] = useState("");
+  const [goodsQuoteAttachment, setGoodsQuoteAttachment] = useState<{ name: string; url: string } | null>(null);
+  const [uploadingGoodsAttachment, setUploadingGoodsAttachment] = useState(false);
 
   const isFirstOffer = React.useMemo(
     () =>
@@ -158,7 +187,20 @@ export default function ServiceQuotationDetailPage() {
     ),
   );
 
+  const isLogistics = Boolean(quotation && /logistics|freight|transport/i.test(
+    `${quotation.service_name} ${String(quotation.ticket_payload?.service_name || "")} ${String(quotation.ticket_payload?.service_code || "")}`,
+  ));
+
+  const isGoodsTicket = Boolean(quotation && /goods[_\s-]*ticket|goods[_\s-]*inquiry/i.test(
+    `${quotation.service_name} ${String(quotation.ticket_payload?.service_name || "")} ${String(quotation.ticket_payload?.service_code || "")}`,
+  ));
+
+  const isFreelancerWork = Boolean(quotation && /freelancer[_\s-]*work/i.test(
+    `${quotation.service_name} ${String(quotation.ticket_payload?.service_name || "")} ${String(quotation.ticket_payload?.service_code || "")}`,
+  ));
+
   const computedSubtotal = React.useMemo(() => {
+    if (isLogistics) return Math.max(0, Number(logisticsTripRate) || 0);
     if (
       quotation &&
       (/machine\s*maintenance/i.test(
@@ -186,11 +228,13 @@ export default function ServiceQuotationDetailPage() {
     travelCharge,
     otherCharge,
     isJobInquiry,
+    isLogistics,
+    logisticsTripRate,
   ]);
 
   const computedGST = React.useMemo(() => {
-    return computedSubtotal * 0.18;
-  }, [computedSubtotal]);
+    return isLogistics || isGoodsTicket ? 0 : computedSubtotal * 0.18;
+  }, [computedSubtotal, isGoodsTicket, isLogistics]);
 
   const computedTotal = React.useMemo(() => {
     return computedSubtotal + computedGST;
@@ -208,6 +252,35 @@ export default function ServiceQuotationDetailPage() {
       `${quotation.service_name} ${String(quotation.ticket_payload?.service_name || "")}`,
     ),
   );
+
+  const uploadGoodsAttachment = async (file?: File) => {
+    if (!file) return;
+    if (!(file.type.startsWith("image/") || file.type === "application/pdf") || file.size > 10 * 1024 * 1024) {
+      toast.error("Choose an image or PDF no larger than 10 MB.");
+      return;
+    }
+    try {
+      setUploadingGoodsAttachment(true);
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9000";
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await fetch(`${apiUrl}/api/upload`, { method: "POST", credentials: "include", body: formData });
+      const uploaded = await response.json();
+      if (!response.ok || !uploaded.success || !uploaded.fileName) throw new Error(uploaded.message || "Could not upload the quotation attachment.");
+      let url = uploaded.fileName;
+      const urlResponse = await fetch(`${apiUrl}/api/upload/file?fileName=${encodeURIComponent(uploaded.fileName)}`, { credentials: "include" });
+      if (urlResponse.ok) {
+        const fileResult = await urlResponse.json();
+        url = fileResult.url || url;
+      }
+      setGoodsQuoteAttachment({ name: file.name, url });
+      toast.success("Quotation attachment uploaded.");
+    } catch (error: any) {
+      toast.error(error.message || "Could not upload the quotation attachment.");
+    } finally {
+      setUploadingGoodsAttachment(false);
+    }
+  };
 
   useEffect(() => {
     if (!isJobInquiry || !quotation) return;
@@ -450,21 +523,62 @@ export default function ServiceQuotationDetailPage() {
           throw new Error(
             "Enter a rate for every requested item.",
           );
-        if (!isMachineMaintenance && !isJobInquiry && !priceInput)
+        if (isLogistics && (!(Number(logisticsDistance) > 0) || !(Number(logisticsTripRate) > 0)))
+          throw new Error("Enter the route distance and trip rate.");
+        if (isGoodsTicket && (!(Number(priceInput) > 0) || !Number.isFinite(Number(priceInput))))
+          throw new Error("Enter a positive total quotation amount.");
+        if (isFreelancerWork && (!(Number(priceInput) > 0) || !Number.isFinite(Number(priceInput))))
+          throw new Error("Enter a positive project quotation amount.");
+        if (isFreelancerWork && !freelancerRequiredDateTime)
+          throw new Error("Enter the project date and time you can deliver by.");
+        if (isFreelancerWork && (!(Number(freelancerTokenAmount) >= 0) || Number(freelancerTokenAmount) > computedTotal))
+          throw new Error("Enter a valid token advance amount no greater than the total quotation.");
+        if (!isMachineMaintenance && !isJobInquiry && !isLogistics && !isGoodsTicket && !isFreelancerWork && !priceInput)
           throw new Error("Price is required");
-        if (!deliveryDaysInput && !isJobInquiry)
+        if (!deliveryDaysInput && !isJobInquiry && !isLogistics && !isGoodsTicket && !isFreelancerWork)
           throw new Error("Execution timeline is required");
-        if (!isMachineMaintenance && !isJobInquiry && !tokenPercentageInput)
+        if (!isMachineMaintenance && !isJobInquiry && !isLogistics && !isGoodsTicket && !isFreelancerWork && !tokenPercentageInput)
           throw new Error("Token money percentage is required");
 
         payload.offerPrice = computedTotal;
         payload.deliveryDays = deliveryDaysInput
           ? Number(deliveryDaysInput)
           : 7;
-        if (!isMachineMaintenance && !isJobInquiry)
+        if (!isMachineMaintenance && !isJobInquiry && !isLogistics && !isGoodsTicket && !isFreelancerWork)
           payload.tokenPercentage = Number(tokenPercentageInput);
         payload.note = noteInput.trim();
-        if (isMachineMaintenance || isJobInquiry) {
+        if (isGoodsTicket) {
+          payload.quoteBreakdown = {
+            subtotal: Number(priceInput),
+            total: Number(priceInput),
+            notes: noteInput.trim(),
+            terms: noteInput.trim(),
+            quote_attachment: goodsQuoteAttachment,
+          };
+        }
+        if (isFreelancerWork) {
+          payload.tokenPercentage = computedTotal > 0 ? (Number(freelancerTokenAmount) / computedTotal) * 100 : 0;
+          payload.quoteBreakdown = {
+            subtotal: Number(priceInput),
+            total: computedTotal,
+            required_project_datetime: freelancerRequiredDateTime,
+            token_amount: Number(freelancerTokenAmount),
+            notes: noteInput.trim(),
+            comment: noteInput.trim(),
+          };
+        }
+        if (isLogistics) {
+          payload.quoteBreakdown = {
+            distance_km: Number(logisticsDistance),
+            rate_of_trip: Number(logisticsTripRate),
+            items: [{ name: "Transport trip", item_name: "Transport trip", quantity: Number(logisticsDistance), unit: "km", unit_price: Number(logisticsTripRate) / Number(logisticsDistance), rate: Number(logisticsTripRate) / Number(logisticsDistance), amount: Number(logisticsTripRate) }],
+            subtotal: Number(logisticsTripRate),
+            total: Number(logisticsTripRate),
+            notes: noteInput.trim(),
+            terms: "",
+          };
+        }
+        if ((isMachineMaintenance || isJobInquiry) && !isLogistics) {
           payload.quoteBreakdown = {
             items: quoteItems.map(
               ({
@@ -611,8 +725,12 @@ export default function ServiceQuotationDetailPage() {
   const requestedJobItems = Array.isArray(requestPayload.job_work_items)
     ? (requestPayload.job_work_items as Array<Record<string, unknown>>)
     : [];
+  const requestedGoodsItems = Array.isArray(requestPayload.goods_items)
+    ? (requestPayload.goods_items as Array<Record<string, unknown>>)
+    : [];
   const requestDetailEntries = Object.entries(requestPayload).filter(
     ([key, value]) =>
+      !/(^|_)id$/i.test(key) &&
       ![
         "service_subcategory_id",
         "service_sub_subcategory_id",
@@ -620,9 +738,19 @@ export default function ServiceQuotationDetailPage() {
         "service_name",
         "job_title",
         "job_work_items",
+        "goods_items",
+        "category_1",
+        "category_2",
+        "category_3",
         "machine_photos",
         "machine_video",
         "declaration_accepted",
+        "google_maps_url",
+        "company_location_latitude",
+        "company_location_longitude",
+        "vehicle_class_key", "vehicle_class", "vehicle_name", "vehicle_payload", "vehicle_dimensions", "vehicle_image_key",
+        "pickup_address", "pickup_google_maps_url", "pickup_latitude", "pickup_longitude",
+        "delivery_google_maps_url", "delivery_latitude", "delivery_longitude", "drop_address", "approximate_distance_km",
       ].includes(key) &&
       value !== null &&
       value !== undefined &&
@@ -665,13 +793,7 @@ export default function ServiceQuotationDetailPage() {
                   ))}
               </div>
             )}
-            <p className="text-sm text-zinc-500">
-              Quotation{" "}
-              <span className="font-mono text-zinc-700 font-bold">
-                {quotation.id.slice(0, 8).toUpperCase()}
-              </span>{" "}
-              • Valid until 30 days from creation
-            </p>
+            <p className="text-sm text-zinc-500">Valid until 30 days from creation</p>
           </div>
           <span
             className={`self-start sm:self-center inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-extrabold tracking-wider uppercase border shadow-sm ${[
@@ -1014,11 +1136,25 @@ export default function ServiceQuotationDetailPage() {
                         : ""}
                     </p>
                   </div>
-                  <span className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-semibold text-emerald-800">
-                    {quotation.ticket_number ||
-                      quotation.id.slice(0, 8).toUpperCase()}
-                  </span>
+                  {quotation.ticket_number ? <span className="max-w-full break-words rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-semibold text-emerald-800">Request {quotation.ticket_number}</span> : null}
                 </div>
+
+                {isLogistics && (
+                  <div className="mt-5 grid gap-4 rounded-xl border border-sky-200 bg-sky-50/60 p-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <h3 className="text-xs font-bold uppercase tracking-wide text-sky-900">Requested route</h3>
+                      <p className="break-words text-xs text-zinc-700 [overflow-wrap:anywhere]"><strong>Pickup:</strong> {String(requestPayload.pickup_address || "—")}{requestPayload.pickup_contact_phone ? ` · ${String(requestPayload.pickup_contact_phone)}` : ""}</p>
+                      {typeof requestPayload.pickup_google_maps_url === "string" && <a href={requestPayload.pickup_google_maps_url} target="_blank" rel="noopener noreferrer" className="block text-xs font-medium text-blue-700 hover:underline">Open pickup in Google Maps</a>}
+                      <p className="break-words text-xs text-zinc-700 [overflow-wrap:anywhere]"><strong>Drop-off:</strong> {String(requestPayload.drop_address || "—")}{requestPayload.drop_contact_phone ? ` · ${String(requestPayload.drop_contact_phone)}` : ""}</p>
+                      {typeof requestPayload.delivery_google_maps_url === "string" && <a href={requestPayload.delivery_google_maps_url} target="_blank" rel="noopener noreferrer" className="block text-xs font-medium text-blue-700 hover:underline">Open delivery in Google Maps</a>}
+                      <p className="break-words text-xs font-medium text-zinc-700">Vehicle: {String(requestPayload.vehicle_class || requestPayload.vehicle_type || "—")}{requestPayload.vehicle_name ? ` · ${String(requestPayload.vehicle_name)}` : ""}</p>
+                      <p className="break-words text-xs text-zinc-700">Load: {String(requestPayload.cargo_type || "—")} · {String(requestPayload.estimated_weight || "Weight not specified")} · {String(requestPayload.cargo_size || "Size not specified")}</p>
+                      <p className="text-sm font-semibold text-zinc-800">Approximate distance: {String(requestPayload.approximate_distance_km || "—")} km</p>
+                      <p className="text-xs text-zinc-700">Requested delivery date: {String(requestPayload.delivery_date || "Not specified")}</p>
+                    </div>
+                    {quotation.vendor_logistics_vehicle && <div className="flex items-center gap-3 rounded-lg bg-white p-2.5"><img src={quotation.vendor_logistics_vehicle.image_url} alt={quotation.vendor_logistics_vehicle.vehicle_name} className="h-20 w-28 rounded-md bg-zinc-50 object-contain" /><div className="text-xs"><p className="font-semibold text-zinc-900">Your matching {quotation.vendor_logistics_vehicle.vehicle_class}</p><p className="text-zinc-700">{quotation.vendor_logistics_vehicle.vehicle_name}</p><p className="mt-1 text-zinc-500">Payload: {quotation.vendor_logistics_vehicle.payload}</p><p className="text-zinc-500">Dimensions: {quotation.vendor_logistics_vehicle.dimensions}</p></div></div>}
+                  </div>
+                )}
 
                 {requestedJobItems.length > 0 && (
                   <div className="mt-5 space-y-3">
@@ -1050,8 +1186,36 @@ export default function ServiceQuotationDetailPage() {
                           </p>
                         ) : null}
                         {Boolean(item.material_grade || item.last_accepted_delivery_date || item.preferred_delivery_date) && <dl className="mt-3 grid gap-2 border-t border-zinc-200 pt-3 sm:grid-cols-3 text-xs"><div><dt className="text-[10px] uppercase text-zinc-500">Material grade</dt><dd className="mt-0.5 font-medium text-zinc-800">{String(item.material_grade || "—")}</dd></div><div><dt className="text-[10px] uppercase text-zinc-500">Last accepted delivery</dt><dd className="mt-0.5 font-medium text-zinc-800">{String(item.last_accepted_delivery_date || "—")}</dd></div><div><dt className="text-[10px] uppercase text-zinc-500">Preferred delivery</dt><dd className="mt-0.5 font-medium text-zinc-800">{String(item.preferred_delivery_date || "—")}</dd></div></dl>}
+                        <JobItemDrawings drawings={item.drawings} />
                       </article>
                     ))}
+                  </div>
+                )}
+
+                {isGoodsTicket && requestedGoodsItems.length > 0 && (
+                  <div className="mt-5 space-y-3">
+                    <h3 className="text-xs font-bold uppercase tracking-wide text-zinc-500">Requested items</h3>
+                    {requestedGoodsItems.map((item, index) => {
+                      const itemId = String(item.id || `goods-item-${index}`);
+                      const itemImage = quotation.documents?.find((document) =>
+                        document.doc_type === "goods_item_image" &&
+                        String(document.metadata?.item_id || "") === itemId,
+                      );
+                      return (
+                        <article key={itemId} className="grid gap-4 rounded-xl border border-zinc-200 bg-zinc-50/70 p-4 sm:grid-cols-[minmax(0,1fr)_220px] sm:items-center">
+                          <div>
+                            <h4 className="text-sm font-semibold text-zinc-900">{index + 1}. {String(item.item_name || `Item ${index + 1}`)}</h4>
+                            <p className="mt-1 text-xs text-zinc-600">Quantity: {String(item.quantity ?? "—")} {String(item.unit || "")}</p>
+                          </div>
+                          {itemImage ? (
+                            <a href={itemImage.doc_url} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-lg border border-zinc-200 bg-white">
+                              <img src={itemImage.doc_url} alt={`${String(item.item_name || `Item ${index + 1}`)} image`} className="h-40 w-full object-contain" />
+                              <span className="block truncate border-t border-zinc-100 px-2 py-1.5 text-[10px] text-zinc-600">{itemImage.doc_name || "View item image"}</span>
+                            </a>
+                          ) : <p className="text-xs text-zinc-500">No image attached to this item.</p>}
+                        </article>
+                      );
+                    })}
                   </div>
                 )}
 
@@ -1065,12 +1229,12 @@ export default function ServiceQuotationDetailPage() {
                       return (
                         <div
                           key={key}
-                          className={`rounded-xl border border-zinc-100 p-3.5 ${emphasized ? "sm:col-span-2 bg-amber-50/60" : "bg-zinc-50/70"}`}
+                          className={`min-w-0 rounded-xl border border-zinc-100 p-3.5 ${emphasized ? "sm:col-span-2 bg-amber-50/60" : "bg-zinc-50/70"}`}
                         >
                           <dt className="text-[10px] font-bold uppercase tracking-wide text-zinc-500">
                             {label}
                           </dt>
-                          <dd className="mt-1.5 break-words whitespace-pre-wrap text-sm leading-relaxed text-zinc-800">
+                          <dd className="mt-1.5 break-words whitespace-pre-wrap text-sm leading-relaxed text-zinc-800 [overflow-wrap:anywhere]">
                             {String(value)}
                           </dd>
                         </div>
@@ -1079,23 +1243,34 @@ export default function ServiceQuotationDetailPage() {
                   </dl>
                 )}
 
-                {Boolean(quotation.documents?.length) && (
+                {typeof requestPayload.google_maps_url === "string" && requestPayload.google_maps_url && (
+                  <a
+                    href={requestPayload.google_maps_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-4 inline-flex text-xs font-semibold text-blue-700 hover:underline"
+                  >
+                    Open company location in Google Maps
+                  </a>
+                )}
+
+                {Boolean(quotation.documents?.some((document) => document.doc_type !== "goods_item_image")) && (
                   <div className="mt-5 border-t border-zinc-100 pt-4">
                     <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-zinc-500">
                       Photos and attachments
                     </h3>
                     <div className="flex flex-wrap gap-2">
-                      {quotation.documents?.map((document) => (
-                        <a
-                          key={document.id}
-                          href={document.doc_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100"
-                        >
-                          <Paperclip className="h-3.5 w-3.5" />{" "}
-                          {document.doc_name || document.doc_type}
-                        </a>
+                      {quotation.documents?.filter((document) => document.doc_type !== "goods_item_image").map((document) => (
+                        (/photo|image|machine_photos/i.test(document.doc_type) || isFreelancerWork) && (/\.(png|jpe?g|webp|gif)(?:\?|$)/i.test(document.doc_url) || /photo|image|machine_photos/i.test(document.doc_type)) ? (
+                          <a key={document.id} href={document.doc_url} target="_blank" rel="noopener noreferrer" className="block w-44 overflow-hidden rounded-lg border border-zinc-200 bg-white">
+                            <img src={document.doc_url} alt={document.doc_name || "Service request photo"} className="h-32 w-full object-contain" />
+                            <span className="block truncate border-t border-zinc-100 px-2 py-1.5 text-[10px] text-zinc-600">{document.doc_name || document.doc_type}</span>
+                          </a>
+                        ) : (
+                          <a key={document.id} href={document.doc_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100">
+                            <Paperclip className="h-3.5 w-3.5" /> {document.doc_name || document.doc_type}
+                          </a>
+                        )
                       ))}
                     </div>
                   </div>
@@ -1819,11 +1994,25 @@ export default function ServiceQuotationDetailPage() {
                         )}
 
                         {/* Offer Form Fields */}
+                      {isLogistics && (
+                        <div className="space-y-4 rounded-xl border border-sky-200 bg-sky-50/50 p-4">
+                          <div>
+                            <h4 className="text-sm font-bold text-zinc-900">Logistics Trip Quotation</h4>
+                            <p className="mt-1 text-xs text-zinc-500">Confirm the route distance and enter one total rate for the trip.</p>
+                          </div>
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <label className="text-xs font-medium text-zinc-600">Route distance (km) *<input type="number" min="0.1" step="0.1" value={logisticsDistance} onChange={(event) => setLogisticsDistance(event.target.value)} className="mt-1 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm" /></label>
+                            <label className="text-xs font-medium text-zinc-600">Rate for the trip (₹) *<input type="number" min="0.01" step="0.01" value={logisticsTripRate} onChange={(event) => setLogisticsTripRate(event.target.value)} className="mt-1 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm" /></label>
+                          </div>
+                          <p className="text-right text-xs font-semibold text-zinc-800">Trip quotation: {formatINR(computedTotal)}</p>
+                          <label className="block text-xs font-medium text-zinc-600">Quotation note / terms<textarea rows={2} value={noteInput} onChange={(event) => setNoteInput(event.target.value)} className="mt-1 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm" placeholder="Optional note or trip terms for the customer" /></label>
+                        </div>
+                      )}
                         <div className="grid grid-cols-2 gap-4">
-                          {!isMachineMaintenance && !isJobInquiry && (
+                          {!isMachineMaintenance && !isJobInquiry && !isLogistics && (
                             <div>
                               <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1 mb-1 block">
-                                Your Price (₹) *
+                                {isGoodsTicket || isFreelancerWork ? "Total Amount (₹) *" : "Your Price (₹) *"}
                               </label>
                               <input
                                 type="number"
@@ -1834,7 +2023,7 @@ export default function ServiceQuotationDetailPage() {
                               />
                             </div>
                           )}
-                          {!isJobInquiry && (
+                        {!isJobInquiry && !isLogistics && !isGoodsTicket && !isFreelancerWork && (
                             <div className="min-w-0">
                               <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1 mb-1 flex items-center gap-1">
                                 <Truck size={12} />
@@ -1853,7 +2042,7 @@ export default function ServiceQuotationDetailPage() {
                         </div>
 
                         {/* Token money is only part of legacy service quotation payments. */}
-                        {!isMachineMaintenance && !isJobInquiry && (
+                      {!isMachineMaintenance && !isJobInquiry && !isLogistics && !isGoodsTicket && !isFreelancerWork && (
                           <div className="grid grid-cols-2 gap-4">
                             <div>
                               <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1 mb-1 block flex items-center gap-1">
@@ -1884,6 +2073,34 @@ export default function ServiceQuotationDetailPage() {
                                 placeholder="Note to client (optional)"
                               />
                             </div>
+                          </div>
+                        )}
+
+                        {isGoodsTicket && (
+                          <div className="space-y-3 rounded-xl border border-blue-200 bg-blue-50/50 p-4">
+                            <div>
+                              <h4 className="text-sm font-bold text-zinc-900">Quotation attachment</h4>
+                              <p className="mt-1 text-xs text-zinc-500">Attach the quotation slip or invoice document for the client to download.</p>
+                            </div>
+                            <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-zinc-300 bg-white px-3 py-3 text-xs font-medium text-zinc-700 hover:bg-zinc-50">
+                              {uploadingGoodsAttachment ? <Loader2 size={14} className="animate-spin" /> : <Paperclip size={14} />}
+                              {goodsQuoteAttachment?.name || (uploadingGoodsAttachment ? "Uploading..." : "Upload PDF or image (optional)")}
+                              <input type="file" accept="application/pdf,image/*" className="sr-only" disabled={uploadingGoodsAttachment} onChange={(event) => { void uploadGoodsAttachment(event.target.files?.[0]); event.currentTarget.value = ""; }} />
+                            </label>
+                            <label className="block text-xs font-medium text-zinc-600">Quotation note / terms<textarea rows={2} value={noteInput} onChange={(event) => setNoteInput(event.target.value)} className="mt-1 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm" placeholder="Optional note or terms for the client" /></label>
+                            <p className="text-right text-xs font-semibold text-zinc-800">Total amount: {formatINR(computedTotal)}</p>
+                          </div>
+                        )}
+
+                        {isFreelancerWork && (
+                          <div className="space-y-3 rounded-xl border border-violet-200 bg-violet-50/50 p-4">
+                            <div><h4 className="text-sm font-bold text-zinc-900">Freelancer project quote</h4><p className="mt-1 text-xs text-zinc-500">Provide your project delivery date and time, token advance, and a note for the client.</p></div>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              <label className="text-xs font-medium text-zinc-600">Project date and time *<input required type="datetime-local" value={freelancerRequiredDateTime} onChange={(event) => setFreelancerRequiredDateTime(event.target.value)} className="mt-1 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm" /></label>
+                              <label className="text-xs font-medium text-zinc-600">Token advance amount (₹) *<input required type="number" min="0" step="0.01" value={freelancerTokenAmount} onChange={(event) => setFreelancerTokenAmount(event.target.value)} className="mt-1 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm" /></label>
+                            </div>
+                            <label className="block text-xs font-medium text-zinc-600">Comment<textarea rows={2} value={noteInput} onChange={(event) => setNoteInput(event.target.value)} className="mt-1 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm" placeholder="Project approach, assumptions, or other comments" /></label>
+                            <p className="text-right text-xs font-semibold text-zinc-800">Total quotation: {formatINR(computedTotal)}{freelancerTokenAmount !== "" ? ` · Token advance: ${formatINR(freelancerTokenAmount)}` : ""}</p>
                           </div>
                         )}
 
@@ -1923,13 +2140,20 @@ export default function ServiceQuotationDetailPage() {
                             }
                             disabled={
                               submittingAction ||
-                              (isMachineMaintenance || isJobInquiry
+                              uploadingGoodsAttachment ||
+                              (isLogistics
+                                ? !(Number(logisticsDistance) > 0) || !(Number(logisticsTripRate) > 0)
+                                : (isMachineMaintenance || isJobInquiry
                                 ? quoteItems.length === 0 || computedSubtotal <= 0
-                                : !priceInput) ||
-                              (!isJobInquiry && !deliveryDaysInput) ||
+                                : !priceInput)) ||
+                              (!isJobInquiry && !isLogistics && !isGoodsTicket && !isFreelancerWork && !deliveryDaysInput) ||
                               (!isMachineMaintenance &&
                                 !isJobInquiry &&
+                                !isLogistics &&
+                                !isGoodsTicket &&
+                                !isFreelancerWork &&
                                 !tokenPercentageInput) ||
+                              (isFreelancerWork && (!freelancerRequiredDateTime || freelancerTokenAmount === "" || Number(freelancerTokenAmount) < 0 || Number(freelancerTokenAmount) > computedTotal)) ||
                               (!isFirstOffer && !reasonInput.trim())
                             }
                             className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-bold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50 transition-colors"

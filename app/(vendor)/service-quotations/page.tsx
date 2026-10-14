@@ -103,10 +103,6 @@ export default function ServiceQuotationsPage() {
     return () => clearInterval(interval);
   }, []);
 
-  const formatOrderId = (id: string): string => {
-    return `#${id.slice(0, 8).toUpperCase()}`;
-  };
-
   const formatDate = (dateStr: string): string => {
     const date = new Date(dateStr);
     return date.toLocaleDateString("en-US", {
@@ -216,7 +212,6 @@ export default function ServiceQuotationsPage() {
   const handleExportCSV = () => {
     if (filteredQuotations.length === 0) return;
     const headers = [
-      "Quotation ID",
       "Customer",
       "Requested Date",
       "Service Name",
@@ -225,7 +220,6 @@ export default function ServiceQuotationsPage() {
       "Status",
     ];
     const rows = filteredQuotations.map((q) => [
-      `#${q.id.slice(0, 8).toUpperCase()}`,
       q.client_name,
       new Date(q.created_at).toLocaleDateString("en-IN"),
       q.service_name,
@@ -257,9 +251,8 @@ export default function ServiceQuotationsPage() {
         },
         {
           heading: "Quotations List",
-          headers: ["ID", "Customer", "Date", "Service", "Target", "Agreed", "Status"],
+          headers: ["Customer", "Date", "Service", "Target", "Agreed", "Status"],
           rows: filteredQuotations.map((q) => [
-            `#${q.id.slice(0, 8).toUpperCase()}`,
             q.client_name,
             new Date(q.created_at).toLocaleDateString("en-IN"),
             q.service_name,
@@ -335,6 +328,7 @@ export default function ServiceQuotationsPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <Link href="/logistics-vehicles" className="px-3.5 py-2 rounded-xl bg-blue-700 text-white hover:bg-blue-800 transition-all text-xs font-semibold shadow-2xs">Manage logistics fleet</Link>
             <button
               onClick={handleExportCSV}
               disabled={filteredQuotations.length === 0}
@@ -467,9 +461,7 @@ export default function ServiceQuotationsPage() {
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1.5 truncate">
                         {getServiceIcon(q.service_name)}
-                        <span className="font-mono text-xs font-bold text-zinc-900 truncate">
-                          {formatOrderId(q.id)}
-                        </span>
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Service request</span>
                       </div>
                       <span
                         className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold ${statusConfig.style}`}
@@ -529,7 +521,6 @@ export default function ServiceQuotationsPage() {
               <table className="w-full text-left text-xs text-zinc-600">
                 <thead className="bg-zinc-50 text-zinc-500 text-[11px] uppercase font-bold tracking-wider border-b border-zinc-200">
                   <tr>
-                    <th className="px-5 py-4">Request ID</th>
                     <th className="px-5 py-4">Customer</th>
                     <th className="px-5 py-4">Date</th>
                     <th className="px-5 py-4">Service</th>
@@ -543,7 +534,6 @@ export default function ServiceQuotationsPage() {
                     const statusConfig = getStatusConfig(q.status);
                     return (
                       <tr key={q.id} className="hover:bg-zinc-50 transition-colors">
-                        <td className="px-5 py-4 font-mono font-bold text-zinc-900">{formatOrderId(q.id)}</td>
                         <td className="px-5 py-4 font-medium text-zinc-900">{q.client_name}</td>
                         <td className="px-5 py-4 text-zinc-500">{formatDate(q.created_at)}</td>
                         <td className="px-5 py-4 font-medium text-zinc-900">
