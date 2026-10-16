@@ -92,12 +92,12 @@ export interface ProductDetails {
   product_type: string;
   rating: number;
   review_count: number;
-  price: number;
+  price?: number;
   moq: number;
   stock_quantity: number;
   is_active: boolean;
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
   images: string[];
   specifications: Record<string, any>;
   attributes?: Record<string, any>;

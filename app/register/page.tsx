@@ -85,7 +85,10 @@ export default function RegisterPage() {
   useEffect(() => {
     async function fetchCategories() {
       try {
-        const res = await fetch(`${API_BASE}/api/products/getCategories?type=${vendorType}`);
+        const endpoint = vendorType === "service"
+          ? `${API_BASE}/api/service-hub/categories`
+          : `${API_BASE}/api/products/getCategories?type=${vendorType}`;
+        const res = await fetch(endpoint);
         if (res.ok) {
           const resData = await res.json();
           setCategoriesOptions(resData.data && resData.data.length > 0 ? resData.data : []);

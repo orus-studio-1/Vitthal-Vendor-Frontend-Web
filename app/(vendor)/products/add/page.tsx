@@ -424,6 +424,8 @@ export default function AddProductPage() {
   const [subcategories, setSubcategories] = useState<Array<{ id: string; name: string; description?: string }>>([]);
   const [isLoadingSubcategories, setIsLoadingSubcategories] = useState(false);
   const [productType, setProductType] = useState("");
+  const [catalogFields, setCatalogFields] = useState({ size: "", brand: "", grade: "", colour: "", warranty: "", manufacturer: "", unit: "nos" });
+  const productUnits = ["nos", "kg", "pack", "Ltr", "Box", "gram", "Ton"];
   const [productTypes, setProductTypes] = useState<string[]>([]);
   const [attributes, setAttributes] = useState<AttributeDraft[]>([
     createAttributeDraft("Material", ""),
@@ -438,7 +440,7 @@ export default function AddProductPage() {
   const [price, setPrice] = useState("");
   const [moq, setMoq] = useState("");
   const [stockQuantity, setStockQuantity] = useState("");
-  const [gstPercentage, setGstPercentage] = useState("0.00");
+  const [gstPercentage, setGstPercentage] = useState("18.00");
   const [quotationEnabled, setQuotationEnabled] = useState(false);
 
   const toolbarButtonClass =
@@ -1181,6 +1183,7 @@ export default function AddProductPage() {
             category,
             subcategoryId: subcategoryId || undefined,
             productType,
+            ...catalogFields,
             grade: gradeVal,
             material: materialVal,
             application: applicationVal,
@@ -1821,6 +1824,20 @@ export default function AddProductPage() {
                       <option key={type} value={type} />
                     ))}
                   </datalist>
+                </div>
+
+                <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 rounded-xl border border-blue-100 bg-blue-50/50 p-4">
+                  {([ ["size", "Size"], ["brand", "Brand"], ["grade", "Grade"], ["colour", "Colour"], ["warranty", "Warranty / Guarantee"], ["manufacturer", "Manufacturer"] ] as const).map(([key, label]) => (
+                    <label key={key} className="block text-sm font-semibold text-gray-700">{label}
+                      <input value={catalogFields[key]} onChange={(e) => setCatalogFields((prev) => ({ ...prev, [key]: e.target.value }))} className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm font-normal" placeholder={`Enter ${label.toLowerCase()}`} />
+                    </label>
+                  ))}
+                  <label className="block text-sm font-semibold text-gray-700">Quantity Unit
+                    <select value={catalogFields.unit} onChange={(e) => setCatalogFields((prev) => ({ ...prev, unit: e.target.value }))} className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm font-normal">
+                      {productUnits.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
+                    </select>
+                  </label>
+                  <p className="sm:col-span-2 lg:col-span-3 text-xs text-gray-500">These catalog details appear on product cards and product details. GST is configured with your offer price.</p>
                 </div>
 
 
