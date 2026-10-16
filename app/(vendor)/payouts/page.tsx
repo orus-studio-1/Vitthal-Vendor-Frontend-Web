@@ -45,6 +45,9 @@ interface Payout {
     request_id: string | null;
     request_status: 'requested' | 'partially_paid' | 'rejected' | 'paid' | null;
     eligible_amount: string | number | null;
+    payout_gross_amount?: string | number | null;
+    commission_percentage?: string | number | null;
+    vendor_net_amount?: string | number | null;
     request_rejection_reason: string | null;
     requested_at: string | null;
 }
@@ -53,7 +56,9 @@ interface BankDetails {
     bank_name: string | null;
     account_holder_name: string | null;
     account_last_four: string | null;
+    account_number: string | null;
     ifsc_code: string | null;
+    upi_id: string | null;
     cheque_uploaded: boolean;
     request_id?: string | null;
     request_status?: string | null;
@@ -78,7 +83,7 @@ export default function VendorPayoutsPage() {
     const [detailError, setDetailError] = useState<string | null>(null);
     const [bankDetails, setBankDetails] = useState<BankDetails | null>(null);
     const [bankFormOpen, setBankFormOpen] = useState(false);
-    const [bankForm, setBankForm] = useState({ bankName: '', accountHolderName: '', accountNumber: '', ifscCode: '' });
+    const [bankForm, setBankForm] = useState({ bankName: '', accountHolderName: '', accountNumber: '', ifscCode: '', upiId: '' });
     const [chequeFile, setChequeFile] = useState<File | null>(null);
     const [bankSaving, setBankSaving] = useState(false);
     const [requestingId, setRequestingId] = useState<string | null>(null);
@@ -157,6 +162,20 @@ export default function VendorPayoutsPage() {
         }
     };
 
+    const toggleBankForm = () => {
+        if (!bankFormOpen && bankDetails) {
+            setBankForm({
+                bankName: bankDetails.bank_name || '',
+                accountHolderName: bankDetails.account_holder_name || '',
+                accountNumber: bankDetails.account_number || '',
+                ifscCode: bankDetails.ifsc_code || '',
+                upiId: bankDetails.upi_id || '',
+            });
+            setChequeFile(null);
+        }
+        setBankFormOpen((open) => !open);
+    };
+
     useEffect(() => {
         void fetchPayouts();
         void fetchBankDetails();
@@ -185,7 +204,8 @@ export default function VendorPayoutsPage() {
         && !bankDetails?.cheque_uploaded;
 
     const handleRequestPayout = async (payout: Payout) => {
-        if (!window.confirm(`Request payout of up to ₹${Number(payout.transaction_type === 'service' ? payout.order_total_amount : payout.client_paid_amount).toLocaleString('en-IN')} for this transaction?`)) return;
+        const netAmount = Number(payout.vendor_net_amount ?? payout.eligible_amount ?? 0);
+        if (!window.confirm(`Request payout of up to ₹${netAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })} after ${Number(payout.commission_percentage || 0).toFixed(2)}% commission?`)) return;
         setRequestingId(payout.payout_id);
         setError(null);
         try {
@@ -217,7 +237,7 @@ export default function VendorPayoutsPage() {
             return;
         }
 
-        if (!chequeFile) {
+        if (!chequeFile && !bankDetails?.cheque_uploaded) {
             setError('Upload a cancelled cheque to update the payout account.');
             return;
         }
@@ -228,12 +248,12 @@ export default function VendorPayoutsPage() {
             'image/png',
             'image/webp',
         ];
-        if (!allowedChequeTypes.includes(chequeFile.type)) {
+        if (chequeFile && !allowedChequeTypes.includes(chequeFile.type)) {
             setError('Cancelled cheque must be a PDF, JPEG, PNG, or WebP file.');
             return;
         }
 
-        if (chequeFile.size > 5 * 1024 * 1024) {
+        if (chequeFile && chequeFile.size > 5 * 1024 * 1024) {
             setError('Cancelled cheque must be 5 MB or smaller.');
             return;
         }
@@ -243,13 +263,14 @@ export default function VendorPayoutsPage() {
         formData.append('accountHolderName', bankForm.accountHolderName.trim());
         formData.append('accountNumber', bankForm.accountNumber.trim());
         formData.append('ifscCode', bankForm.ifscCode.trim().toUpperCase());
-        formData.append('cancelledCheque', chequeFile);
+        formData.append('upiId', bankForm.upiId.trim());
+        if (chequeFile) formData.append('cancelledCheque', chequeFile);
         setBankSaving(true);
         setError(null);
         try {
             await vendorPayoutApi.updateBankDetails(formData);
             setBankFormOpen(false);
-            setBankForm({ bankName: '', accountHolderName: '', accountNumber: '', ifscCode: '' });
+            setBankForm({ bankName: '', accountHolderName: '', accountNumber: '', ifscCode: '', upiId: '' });
             setChequeFile(null);
             await fetchBankDetails();
         } catch (err) {
@@ -314,7 +335,7 @@ export default function VendorPayoutsPage() {
         let overdueCount = 0;
 
         payouts.forEach(p => {
-            const orderAmt = Number(p.order_total_amount ?? 0);
+            const orderAmt = Number(p.vendor_net_amount ?? p.eligible_amount ?? p.order_total_amount ?? 0);
             const paidAmt = Number(p.payout_amount ?? 0);
 
             totalSettled += paidAmt;
@@ -398,12 +419,12 @@ export default function VendorPayoutsPage() {
                         <div>
                             <h2 className="text-base font-bold text-gray-900">Payout bank account</h2>
                             {bankDetails?.account_last_four ? (
-                                <p className="mt-1 text-sm text-gray-600">{bankDetails.bank_name} · account ending {bankDetails.account_last_four} · IFSC {bankDetails.ifsc_code}</p>
+                                <p className="mt-1 text-sm text-gray-600">{bankDetails.bank_name} · account ending {bankDetails.account_last_four} · IFSC {bankDetails.ifsc_code}{bankDetails.upi_id ? ` · UPI ${bankDetails.upi_id}` : ''}</p>
                             ) : (
                                 <p className="mt-1 text-sm text-amber-700">Add a verified payout account and cancelled cheque before requesting a payout.</p>
                             )}
                         </div>
-                        <button type="button" onClick={() => setBankFormOpen((open) => !open)} className="rounded-md border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+                        <button type="button" onClick={toggleBankForm} className="rounded-md border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">
                             {bankFormOpen ? 'Close' : bankDetails?.account_last_four ? 'Update account' : 'Add account'}
                         </button>
                     </div>
@@ -414,7 +435,8 @@ export default function VendorPayoutsPage() {
                                 <label className="text-sm font-medium text-gray-700">Account holder<input required value={bankForm.accountHolderName} onChange={(event) => setBankForm({ ...bankForm, accountHolderName: event.target.value })} className="mt-1 block h-10 w-full rounded-md border border-gray-300 px-3 font-normal" /></label>
                                 <label className="text-sm font-medium text-gray-700">Account number<input required inputMode="numeric" autoComplete="off" value={bankForm.accountNumber} onChange={(event) => setBankForm({ ...bankForm, accountNumber: event.target.value.replace(/\D/g, '').slice(0, 18) })} className="mt-1 block h-10 w-full rounded-md border border-gray-300 px-3 font-normal" /></label>
                                 <label className="text-sm font-medium text-gray-700">IFSC code<input required maxLength={11} value={bankForm.ifscCode} onChange={(event) => setBankForm({ ...bankForm, ifscCode: event.target.value.toUpperCase() })} className="mt-1 block h-10 w-full rounded-md border border-gray-300 px-3 font-normal uppercase" /></label>
-                                <label className="text-sm font-medium text-gray-700 md:col-span-2">Cancelled cheque<input required type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={(event) => setChequeFile(event.target.files?.[0] || null)} className="mt-1 block w-full text-sm font-normal" /><span className="mt-1 block text-xs text-gray-500">PDF or image, maximum 5 MB. A pending request must be rejected or paid before changing bank details.</span></label>
+                                <label className="text-sm font-medium text-gray-700">UPI ID (optional)<input maxLength={255} value={bankForm.upiId} onChange={(event) => setBankForm({ ...bankForm, upiId: event.target.value.trim() })} placeholder="name@bank" className="mt-1 block h-10 w-full rounded-md border border-gray-300 px-3 font-normal" /></label>
+                                <label className="text-sm font-medium text-gray-700 md:col-span-2">Cancelled cheque<input required={!bankDetails?.cheque_uploaded} type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={(event) => setChequeFile(event.target.files?.[0] || null)} className="mt-1 block w-full text-sm font-normal" /><span className="mt-1 block text-xs text-gray-500">{bankDetails?.cheque_uploaded ? 'A cheque is already saved; upload a new one only if you want to replace it.' : 'PDF or image, maximum 5 MB.'} A pending request must be rejected or paid before changing bank details.</span></label>
                             </div>
                             <button type="submit" disabled={bankSaving} className="mt-4 rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">{bankSaving ? 'Saving...' : 'Save payout account'}</button>
                         </form>
@@ -591,6 +613,8 @@ export default function VendorPayoutsPage() {
                                                     <p className="font-bold text-emerald-700">
                                                         ₹{Number(payout.payout_amount ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                                     </p>
+                                                    <p className="mt-1 text-xs font-semibold text-slate-700">Net payout: ₹{Number(payout.vendor_net_amount ?? payout.eligible_amount ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+                                                    <p className="text-[10px] text-gray-400">After {Number(payout.commission_percentage || 0).toFixed(2)}% commission on ₹{Number(payout.payout_gross_amount ?? payout.order_total_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
                                                     <div className="mt-1 flex items-center">
                                                         {payout.payout_status === 'paid' && (
                                                             <span className="inline-flex items-center gap-0.5 rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 uppercase">

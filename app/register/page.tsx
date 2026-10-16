@@ -142,6 +142,7 @@ export default function RegisterPage() {
   const [accountHolderName, setAccountHolderName] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [ifscCode, setIfscCode] = useState("");
+  const [upiId, setUpiId] = useState("");
   const [cancelledChequeFile, setCancelledChequeFile] = useState<File | null>(null);
   const [phone, setPhone] = useState("");
   const [alternatePhone, setAlternatePhone] = useState("");
@@ -571,6 +572,7 @@ export default function RegisterPage() {
         formData.append("accountHolderName", accountHolderName.trim());
         formData.append("accountNumber", accountNumber.trim());
         formData.append("ifscCode", ifscCode.trim().toUpperCase());
+        formData.append("upiId", upiId.trim());
       formData.append("companyWebsite", website.trim());
       formData.append("phone", phone.trim());
       formData.append("alternativeNumber", alternatePhone.trim());
@@ -1107,6 +1109,10 @@ export default function RegisterPage() {
                   <div>
                     <label htmlFor="ifscCode" className="mb-1.5 block text-sm font-medium text-zinc-800">IFSC code</label>
                     <input id="ifscCode" maxLength={11} required value={ifscCode} onChange={(event) => setIfscCode(event.target.value.toUpperCase())} className="h-11 w-full rounded-md border border-zinc-300 px-3 text-sm uppercase outline-none focus:border-[#1d4ed8]" />
+                  </div>
+                  <div>
+                    <label htmlFor="upiId" className="mb-1.5 block text-sm font-medium text-zinc-800">UPI ID (optional)</label>
+                    <input id="upiId" maxLength={255} value={upiId} onChange={(event) => setUpiId(event.target.value)} placeholder="name@bank" className="h-11 w-full rounded-md border border-zinc-300 px-3 text-sm outline-none focus:border-[#1d4ed8]" />
                   </div>
                   <div className="md:col-span-2">
                     <label htmlFor="cancelledCheque" className="mb-1.5 block text-sm font-medium text-zinc-800">Cancelled cheque (PDF or image, max 5 MB)</label>
