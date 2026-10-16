@@ -552,7 +552,9 @@ export const vendorPayoutApi = {
       bank_name: string | null;
       account_holder_name: string | null;
       account_last_four: string | null;
+      account_number: string | null;
       ifsc_code: string | null;
+      upi_id: string | null;
       cheque_uploaded: boolean;
     }>(`/vendors/payout-bank-details`);
   },
