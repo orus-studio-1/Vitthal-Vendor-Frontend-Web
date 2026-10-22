@@ -46,6 +46,17 @@ interface Order {
   customer_phone: string | null;
   order_type?: string;
   items: OrderItem[];
+  has_dispatch_details?: boolean;
+  dispatch_details?: {
+    lr_number: string | null;
+    eway_bill_number: string | null;
+    transporter_name: string | null;
+    eway_bill_url: string | null;
+    delivery_challan_url: string | null;
+    invoice_url: string | null;
+    lr_document_url: string | null;
+    updated_at: string | null;
+  };
 }
 
 const OrdersPage = () => {
@@ -67,6 +78,17 @@ const OrdersPage = () => {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  const [dispatchOrder, setDispatchOrder] = useState<Order | null>(null);
+  const [isSavingDispatch, setIsSavingDispatch] = useState(false);
+
+  const [lrNumber, setLrNumber] = useState("");
+  const [ewayBillNumber, setEwayBillNumber] = useState("");
+  const [transporterName, setTransporterName] = useState("");
+
+  const [ewayBillFile, setEwayBillFile] = useState<File | null>(null);
+  const [deliveryChallanFile, setDeliveryChallanFile] = useState<File | null>(null);
+  const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
+  const [lrDocumentFile, setLrDocumentFile] = useState<File | null>(null);
 
   useEffect(() => {
     fetchOrders();
@@ -233,6 +255,127 @@ const OrdersPage = () => {
     } finally {
       setUpdatingOrderId(null);
     }
+  };
+
+  const openDispatchDetails = async (order: Order) => {
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/orders/vendor/${order.order_id}`,
+        {
+          credentials: "include",
+          headers: {
+            "x-request-from": "vendor",
+          },
+        }
+      );
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        throw new Error(
+          result?.message || "Failed to fetch dispatch details"
+        );
+      }
+
+      const orderData = result.data;
+
+      setDispatchOrder(orderData);
+
+      setLrNumber(orderData.dispatch_details?.lr_number || "");
+      setEwayBillNumber(
+        orderData.dispatch_details?.eway_bill_number || ""
+      );
+      setTransporterName(
+        orderData.dispatch_details?.transporter_name || ""
+      );
+
+      setEwayBillFile(null);
+      setDeliveryChallanFile(null);
+      setInvoiceFile(null);
+      setLrDocumentFile(null);
+
+      setActiveDropdown(null);
+    } catch (error) {
+      console.error("Error loading dispatch details:", error);
+    }
+  };
+
+  const saveDispatchDetails = async () => {
+  if (!dispatchOrder) return;
+
+  setIsSavingDispatch(true);
+
+  try {
+    const formData = new FormData();
+
+    if (lrNumber.trim()) {
+      formData.append("lr_number", lrNumber.trim());
+    }
+
+    if (ewayBillNumber.trim()) {
+      formData.append("eway_bill_number", ewayBillNumber.trim());
+    }
+
+    if (transporterName.trim()) {
+      formData.append("transporter_name", transporterName.trim());
+    }
+
+    if (ewayBillFile) {
+      formData.append("eway_bill", ewayBillFile);
+    }
+
+    if (deliveryChallanFile) {
+      formData.append("delivery_challan", deliveryChallanFile);
+    }
+
+    if (invoiceFile) {
+      formData.append("invoice", invoiceFile);
+    }
+
+    if (lrDocumentFile) {
+      formData.append("lr_document", lrDocumentFile);
+    }
+
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/orders/vendor/orders/${dispatchOrder.order_id}/dispatch-details`,
+      {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "x-request-from": "vendor",
+        },
+        body: formData,
+      }
+    );
+
+    const result = await res.json();
+
+    if (!res.ok) {
+      throw new Error(result?.message || "Failed to save dispatch details");
+    }
+
+    setOrders((prev) =>
+      prev.map((order) =>
+        order.order_id === dispatchOrder.order_id
+          ? { ...order, has_dispatch_details: true }
+          : order
+      )
+    );
+
+    setDispatchOrder(null);
+
+    setLrNumber("");
+    setEwayBillNumber("");
+    setTransporterName("");
+    setEwayBillFile(null);
+    setDeliveryChallanFile(null);
+    setInvoiceFile(null);
+    setLrDocumentFile(null);
+  } catch (err) {
+    console.error("Error saving dispatch details:", err);
+  } finally {
+    setIsSavingDispatch(false);
+  }
   };
 
   const newOrders = directOrders.filter((order) => order.status === "pending");
@@ -618,6 +761,27 @@ const OrdersPage = () => {
                                   Awaiting FC Pickup
                                 </span>
                               )}
+
+                              {order.status === "processing" && (
+                                <button
+                                  onClick={() => openDispatchDetails(order)}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border hover : cursor-pointer transition-colors ${
+                                    order.has_dispatch_details
+                                      ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                                      : "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                                  }`}
+                                  title={
+                                    order.has_dispatch_details
+                                      ? "Edit Dispatch Details"
+                                      : "Add Dispatch Details"
+                                  }
+                                >
+                                  {order.has_dispatch_details
+                                    ? "✓ Dispatch Details"
+                                    : "+ Dispatch Details"}
+                                </button>
+                              )}
+
                               <button
                                 onClick={() =>
                                   router.push(`/orders/${order.order_id}`)
@@ -748,7 +912,390 @@ const OrdersPage = () => {
           </div>
         )}
       </div>
-    </div>
+      {dispatchOrder && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-950/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-3xl bg-white rounded-3xl shadow-2xl overflow-hidden">
+
+            {/* Header */}
+            <div className="px-7 py-6 border-b border-gray-100">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-11 h-11 rounded-2xl bg-emerald-50 flex items-center justify-center">
+                    <Truck className="w-5 h-5 text-emerald-600" />
+                  </div>
+
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">
+                      Dispatch Details
+                    </h2>
+
+                    <p className="text-sm text-gray-500 mt-1">
+                      Add transport information for{" "}
+                      <span className="font-semibold text-gray-700">
+                        {formatOrderId(dispatchOrder.order_id)}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setDispatchOrder(null)}
+                  className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="p-7 max-h-[70vh] overflow-y-auto">
+
+              {/* Transport Information */}
+              <div className="mb-7">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center">
+                    <Truck className="w-4 h-4 text-blue-600" />
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-900">
+                      Transport Information
+                    </h3>
+
+                    <p className="text-xs text-gray-500">
+                      Enter the available shipment details
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                  {/* LR Number */}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-2">
+                      LR Number
+                    </label>
+
+                    <input
+                      value={lrNumber}
+                      onChange={(e) => setLrNumber(e.target.value)}
+                      placeholder="Enter LR number"
+                      className="w-full h-11 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 outline-none transition-all focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                    />
+                  </div>
+
+                  {/* E-way Bill Number */}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-2">
+                      E-way Bill Number
+                    </label>
+
+                    <input
+                      value={ewayBillNumber}
+                      onChange={(e) => setEwayBillNumber(e.target.value)}
+                      placeholder="Enter E-way bill number"
+                      className="w-full h-11 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 outline-none transition-all focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                    />
+                  </div>
+
+                  {/* Transporter */}
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-bold text-gray-700 mb-2">
+                      Transporter Name
+                    </label>
+
+                    <input
+                      value={transporterName}
+                      onChange={(e) => setTransporterName(e.target.value)}
+                      placeholder="Enter transporter or logistics company name"
+                      className="w-full h-11 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 outline-none transition-all focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Documents */}
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-900">
+                      Dispatch Documents
+                    </h3>
+
+                    <p className="text-xs text-gray-500 mt-1">
+                      Upload supporting documents for this shipment
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                  {/* E-way Bill */}
+                  <div className="group relative flex items-center gap-4 p-4 border border-gray-200 rounded-2xl bg-white hover:border-blue-300 hover:bg-blue-50/30 transition-all cursor-pointer">
+
+                    <div className="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center shrink-0 group-hover:bg-blue-100 transition-colors">
+                      <FileText className="w-5 h-5 text-blue-600" />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-gray-800">
+                        E-way Bill
+                      </p>
+
+                      <p className="text-xs text-gray-400 mt-0.5 truncate">
+                        {ewayBillFile
+                          ? ewayBillFile.name
+                          : "PDF, JPG or PNG"}
+                      </p>
+                    </div>
+
+                    {dispatchOrder?.dispatch_details?.eway_bill_url ? (
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={dispatchOrder.dispatch_details.eway_bill_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 text-xs font-semibold hover:bg-blue-100 transition-colors"
+                        >
+                          View
+                        </a>
+
+                        <label className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs font-semibold hover:bg-gray-200 transition-colors cursor-pointer">
+                          Change
+                          <input
+                            type="file"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            className="hidden"
+                            onChange={(e) =>
+                              setEwayBillFile(e.target.files?.[0] || null)
+                            }
+                          />
+                        </label>
+                      </div>
+                    ) : (
+                      <label className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs font-semibold hover:bg-gray-200 transition-colors cursor-pointer">
+                        Choose
+                        <input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          className="hidden"
+                          onChange={(e) =>
+                            setEwayBillFile(e.target.files?.[0] || null)
+                          }
+                        />
+                      </label>
+                    )}
+                  </div>
+
+                  {/* Delivery Challan */}
+                  <div className="group relative flex items-center gap-4 p-4 border border-gray-200 rounded-2xl bg-white hover:border-orange-300 hover:bg-orange-50/30 transition-all cursor-pointer">
+
+                    <div className="w-11 h-11 rounded-xl bg-orange-50 flex items-center justify-center shrink-0 group-hover:bg-orange-100 transition-colors">
+                      <FileText className="w-5 h-5 text-orange-600" />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-gray-800">
+                        Delivery Challan
+                      </p>
+
+                      <p className="text-xs text-gray-400 mt-0.5 truncate">
+                        {deliveryChallanFile
+                          ? deliveryChallanFile.name
+                          : "PDF, JPG or PNG"}
+                      </p>
+                    </div>
+                  
+                  {dispatchOrder?.dispatch_details?.delivery_challan_url ? (
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={dispatchOrder.dispatch_details.delivery_challan_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 text-xs font-semibold hover:bg-blue-100 transition-colors"
+                      >
+                        View
+                      </a>
+
+                      <label className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs font-semibold hover:bg-gray-200 transition-colors cursor-pointer">
+                        Change
+                        <input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          className="hidden"
+                          onChange={(e) =>
+                            setDeliveryChallanFile(e.target.files?.[0] || null)
+                          }
+                        />
+                      </label>
+                    </div>
+                  ) : (
+                    <label className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs font-semibold hover:bg-gray-200 transition-colors cursor-pointer">
+                      Choose
+                      <input
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        className="hidden"
+                        onChange={(e) =>
+                          setDeliveryChallanFile(e.target.files?.[0] || null)
+                        }
+                      />
+                    </label>
+                  )}
+
+                  </div>
+
+                  {/* Invoice */}
+                  <div className="group relative flex items-center gap-4 p-4 border border-gray-200 rounded-2xl bg-white hover:border-emerald-300 hover:bg-emerald-50/30 transition-all cursor-pointer">
+
+                    <div className="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0 group-hover:bg-emerald-100 transition-colors">
+                      <FileText className="w-5 h-5 text-emerald-600" />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-gray-800">
+                        Invoice
+                      </p>
+
+                      <p className="text-xs text-gray-400 mt-0.5 truncate">
+                        {invoiceFile
+                          ? invoiceFile.name
+                          : "PDF, JPG or PNG"}
+                      </p>
+                    </div>
+                      {dispatchOrder?.dispatch_details?.invoice_url ? (
+                        <div className="flex items-center gap-2">
+                          <a
+                            href={dispatchOrder.dispatch_details.invoice_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 text-xs font-semibold hover:bg-blue-100 transition-colors"
+                          >
+                            View
+                          </a>
+
+                          <label className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs font-semibold hover:bg-gray-200 transition-colors cursor-pointer">
+                            Change
+                            <input
+                              type="file"
+                              accept=".pdf,.jpg,.jpeg,.png"
+                              className="hidden"
+                              onChange={(e) =>
+                                setInvoiceFile(e.target.files?.[0] || null)
+                              }
+                            />
+                          </label>
+                        </div>
+                      ) : (
+                        <label className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs font-semibold hover:bg-gray-200 transition-colors cursor-pointer">
+                          Choose
+                          <input
+                            type="file"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            className="hidden"
+                            onChange={(e) =>
+                              setInvoiceFile(e.target.files?.[0] || null)
+                            }
+                          />
+                        </label>
+                      )}
+                  </div>
+
+                  {/* LR Document */}
+                  <div className="group relative flex items-center gap-4 p-4 border border-gray-200 rounded-2xl bg-white hover:border-purple-300 hover:bg-purple-50/30 transition-all cursor-pointer">
+
+                    <div className="w-11 h-11 rounded-xl bg-purple-50 flex items-center justify-center shrink-0 group-hover:bg-purple-100 transition-colors">
+                      <FileText className="w-5 h-5 text-purple-600" />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-gray-800">
+                        LR Document
+                      </p>
+
+                      <p className="text-xs text-gray-400 mt-0.5 truncate">
+                        {lrDocumentFile
+                          ? lrDocumentFile.name
+                          : "PDF, JPG or PNG"}
+                      </p>
+                    </div>
+
+                  {dispatchOrder?.dispatch_details?.lr_document_url ? (
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={dispatchOrder.dispatch_details.lr_document_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 text-xs font-semibold hover:bg-blue-100 transition-colors"
+                      >
+                        View
+                      </a>
+
+                      <label className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs font-semibold hover:bg-gray-200 transition-colors cursor-pointer">
+                        Change
+                        <input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          className="hidden"
+                          onChange={(e) =>
+                            setLrDocumentFile(e.target.files?.[0] || null)
+                          }
+                        />
+                      </label>
+                    </div>
+                  ) : (
+                    <label className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs font-semibold hover:bg-gray-200 transition-colors cursor-pointer">
+                      Choose
+                      <input
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        className="hidden"
+                        onChange={(e) =>
+                          setLrDocumentFile(e.target.files?.[0] || null)
+                        }
+                      />
+                    </label>
+                  )}
+                  </div>
+
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-7 py-5 border-t border-gray-100 bg-gray-50/70 flex items-center justify-between">
+              <p className="text-xs text-gray-400">
+                Supported files: PDF, JPG, PNG
+              </p>
+
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setDispatchOrder(null)}
+                  disabled={isSavingDispatch}
+                  className="px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-700 text-sm font-semibold hover:bg-gray-50 transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  onClick={saveDispatchDetails}
+                  disabled={isSavingDispatch}
+                  className="px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {isSavingDispatch && (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  )}
+
+                  {isSavingDispatch
+                    ? "Saving..."
+                    : "Save Dispatch Details"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+  </div> 
   );
 };
 

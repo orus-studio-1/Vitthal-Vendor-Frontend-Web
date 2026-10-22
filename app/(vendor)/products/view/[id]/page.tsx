@@ -126,8 +126,8 @@ export default function VendorProductViewPage() {
   };
 
   const formatCurrency = (amount?: number | string | null) => {
-    const numAmount = typeof amount === 'string' ? Number(amount) : amount;
-    if (numAmount === null || numAmount === undefined || !Number.isFinite(numAmount)) return 'Price unavailable';
+    const numAmount = amount === null || amount === undefined || String(amount).trim() === '' ? Number.NaN : Number(amount);
+    if (!Number.isFinite(numAmount)) return 'Price unavailable';
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR',

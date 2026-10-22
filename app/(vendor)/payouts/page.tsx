@@ -7,7 +7,6 @@ import {
     CreditCard,
     DollarSign,
     CheckCircle2,
-    Clock,
     AlertTriangle,
     Calendar,
     Copy,
@@ -19,10 +18,6 @@ import {
     User,
     Mail,
     Phone,
-    FileText,
-    ArrowUpRight,
-    Truck,
-    XCircle
 } from 'lucide-react';
 import { vendorPayoutApi } from '@/lib/api';
 
@@ -30,6 +25,7 @@ interface Payout {
     payout_id: string;
     order_id: string;
     vendor_id: string;
+    service_kind?: string;
     payout_percentage: string | number;
     payout_amount: string | number;
     payout_status: string;
@@ -45,6 +41,28 @@ interface Payout {
     vendor_credit_cycle: string | null;
     client_paid_amount: string | number;
     client_paid_percentage: string | number;
+    transaction_type: 'order' | 'service';
+    request_id: string | null;
+    request_status: 'requested' | 'partially_paid' | 'rejected' | 'paid' | null;
+    eligible_amount: string | number | null;
+    payout_gross_amount?: string | number | null;
+    commission_percentage?: string | number | null;
+    vendor_net_amount?: string | number | null;
+    request_rejection_reason: string | null;
+    requested_at: string | null;
+}
+
+interface BankDetails {
+    bank_name: string | null;
+    account_holder_name: string | null;
+    account_last_four: string | null;
+    account_number: string | null;
+    ifsc_code: string | null;
+    upi_id: string | null;
+    cheque_uploaded: boolean;
+    request_id?: string | null;
+    request_status?: string | null;
+    eligible_amount?: string | number | null;
 }
 
 export default function VendorPayoutsPage() {
@@ -63,56 +81,13 @@ export default function VendorPayoutsPage() {
     const [trackingDetail, setTrackingDetail] = useState<any | null>(null);
     const [detailLoading, setDetailLoading] = useState(false);
     const [detailError, setDetailError] = useState<string | null>(null);
-    const [isServiceVendor, setIsServiceVendor] = useState(false);
+    const [bankDetails, setBankDetails] = useState<BankDetails | null>(null);
+    const [bankFormOpen, setBankFormOpen] = useState(false);
+    const [bankForm, setBankForm] = useState({ bankName: '', accountHolderName: '', accountNumber: '', ifscCode: '', upiId: '' });
+    const [chequeFile, setChequeFile] = useState<File | null>(null);
+    const [bankSaving, setBankSaving] = useState(false);
+    const [requestingId, setRequestingId] = useState<string | null>(null);
 
-    const getPayoutTimelineDetails = (payout: Payout) => {
-        if (payout.payout_status === 'paid') {
-            return {
-                status: 'settled',
-                text: 'Fully Settled',
-                daysText: 'Settled',
-                color: 'text-emerald-700 bg-emerald-50 border-emerald-100'
-            };
-        }
-        if (!payout.due_date) {
-            return {
-                status: 'awaiting_delivery',
-                text: 'Awaiting Delivery',
-                daysText: 'Pending delivery to start cycle',
-                color: 'text-slate-500 bg-slate-100 border-slate-200'
-            };
-        }
-        const now = new Date();
-        const due = new Date(payout.due_date);
-        now.setHours(0, 0, 0, 0);
-        due.setHours(0, 0, 0, 0);
-        
-        const diffTime = due.getTime() - now.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
-        if (diffDays < 0) {
-            return {
-                status: 'overdue',
-                text: 'Overdue',
-                daysText: `Overdue by ${Math.abs(diffDays)} day${Math.abs(diffDays) > 1 ? 's' : ''}`,
-                color: 'text-rose-700 bg-rose-50 border-rose-100 font-semibold'
-            };
-        } else if (diffDays === 0) {
-            return {
-                status: 'due_today',
-                text: 'Due Today',
-                daysText: 'Due today',
-                color: 'text-amber-700 bg-amber-50 border-amber-100 font-semibold'
-            };
-        } else {
-            return {
-                status: 'pending',
-                text: 'In Progress',
-                daysText: `Expected in ${diffDays} day${diffDays > 1 ? 's' : ''}`,
-                color: 'text-blue-700 bg-blue-50 border-blue-100'
-            };
-        }
-    };
 
     const fetchOrderDetails = async (orderId: string) => {
         setDetailLoading(true);
@@ -120,31 +95,37 @@ export default function VendorPayoutsPage() {
         setOrderDetail(null);
         setTrackingDetail(null);
         try {
-            const [orderRes, trackRes] = await Promise.all([
-                fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/orders/vendor/${orderId}`, {
-                    credentials: "include",
-                    headers: { "x-request-from": "vendor" }
+            const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL;
+            if (!apiBaseUrl) {
+                throw new Error('NEXT_PUBLIC_API_URL is not configured.');
+            }
+
+            const [orderResult, trackResult] = await Promise.allSettled([
+                fetch(`${apiBaseUrl}/api/orders/vendor/${orderId}`, {
+                    credentials: 'include',
+                    headers: { 'x-request-from': 'vendor' }
                 }),
-                fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/orders/vendor/${orderId}/track`, {
-                    credentials: "include",
-                    headers: { "x-request-from": "vendor" }
+                fetch(`${apiBaseUrl}/api/orders/vendor/${orderId}/track`, {
+                    credentials: 'include',
+                    headers: { 'x-request-from': 'vendor' }
                 })
             ]);
 
-            if (orderRes.ok) {
-                const orderData = await orderRes.json();
-                setOrderDetail(orderData.data);
+            if (orderResult.status === 'fulfilled' && orderResult.value.ok) {
+                const orderData = await orderResult.value.json();
+                setOrderDetail(orderData.data ?? orderData);
             } else {
-                setDetailError("Failed to fetch order details.");
+                setDetailError('Failed to fetch order details.');
             }
 
-            if (trackRes.ok) {
-                const trackData = await trackRes.json();
-                setTrackingDetail(trackData.data);
+            // Tracking is optional; order details should still display when tracking fails.
+            if (trackResult.status === 'fulfilled' && trackResult.value.ok) {
+                const trackData = await trackResult.value.json();
+                setTrackingDetail(trackData.data ?? trackData);
             }
         } catch (err) {
-            console.error("Error fetching order details:", err);
-            setDetailError("Network error loading details.");
+            console.error('Error fetching order details:', err);
+            setDetailError(err instanceof Error ? err.message : 'Network error loading details.');
         } finally {
             setDetailLoading(false);
         }
@@ -160,65 +141,185 @@ export default function VendorPayoutsPage() {
         setLoading(true);
         setError(null);
         try {
-            const res = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/api/orders/vendor/payouts`,
-                {
-                    credentials: "include",
-                    headers: {
-                        "x-request-from": "vendor",
-                    },
-                }
-            );
-
-            if (res.ok) {
-                const result = await res.json();
-                const data = result.data || [];
-                setPayouts(data);
-                // Detect service vendor: service payouts have no due_date by design
-                if (data.length > 0) {
-                    const allNoDueDate = data.every((p: Payout) => !p.due_date);
-                    setIsServiceVendor(allNoDueDate);
-                }
-            } else if (res.status === 401 || res.status === 403) {
-                router.push("/login");
-            } else {
-                setError("Failed to fetch payouts ledger.");
-            }
+            const result = await vendorPayoutApi.listPayouts();
+            const data = result.data || [];
+            setPayouts(data);
         } catch (err) {
-            console.error("Error fetching payouts:", err);
-            setError("Network error. Please try again.");
+            const message = err instanceof Error ? err.message : "Failed to fetch payouts ledger.";
+            if (message.toLowerCase().includes('unauthorized')) router.push("/login");
+            else setError(message);
         } finally {
             setLoading(false);
         }
     };
 
-    useEffect(() => {
-        void fetchPayouts();
-    }, []);
-
-    const handleCopy = (text: string, id: string) => {
-        navigator.clipboard.writeText(text);
-        setCopiedId(id);
-        setTimeout(() => setCopiedId(null), 2000);
+    const fetchBankDetails = async () => {
+        try {
+            const result = await vendorPayoutApi.getBankDetails();
+            setBankDetails(result.data || null);
+        } catch (err) {
+            console.error("Error fetching payout bank details:", err);
+        }
     };
 
+    const toggleBankForm = () => {
+        if (!bankFormOpen && bankDetails) {
+            setBankForm({
+                bankName: bankDetails.bank_name || '',
+                accountHolderName: bankDetails.account_holder_name || '',
+                accountNumber: bankDetails.account_number || '',
+                ifscCode: bankDetails.ifsc_code || '',
+                upiId: bankDetails.upi_id || '',
+            });
+            setChequeFile(null);
+        }
+        setBankFormOpen((open) => !open);
+    };
+
+    useEffect(() => {
+        void fetchPayouts();
+        void fetchBankDetails();
+    }, []);
+
+    const isTransactionEligible = (payout: Payout) => {
+        if (payout.transaction_type === 'service') {
+            return payout.order_status === 'completed' && payout.client_payment_status === 'paid';
+        }
+        const fullyPaid = Number(payout.client_paid_percentage) >= 100
+            && Number(payout.client_paid_amount) >= Number(payout.order_total_amount);
+        const creditCycleDue = Boolean(payout.due_date && new Date(payout.due_date).getTime() <= Date.now());
+        return payout.order_status === 'delivered'
+            && payout.client_payment_status === 'paid'
+            && fullyPaid
+            && creditCycleDue;
+    };
+
+    const canRequestPayout = (payout: Payout) =>
+        !['requested', 'partially_paid', 'paid'].includes(payout.request_status || '')
+        && isTransactionEligible(payout);
+
+    const shouldPromptForBankDetails = (payout: Payout) =>
+        isTransactionEligible(payout)
+        && !['requested', 'partially_paid', 'paid'].includes(payout.request_status || '')
+        && !bankDetails?.cheque_uploaded;
+
+    const handleRequestPayout = async (payout: Payout) => {
+        const netAmount = Number(payout.vendor_net_amount ?? payout.eligible_amount ?? 0);
+        if (!window.confirm(`Request payout of up to ₹${netAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })} after ${Number(payout.commission_percentage || 0).toFixed(2)}% commission?`)) return;
+        setRequestingId(payout.payout_id);
+        setError(null);
+        try {
+            await vendorPayoutApi.requestPayout(payout.transaction_type, payout.order_id);
+            await fetchPayouts();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Unable to request payout.");
+        } finally {
+            setRequestingId(null);
+        }
+    };
+
+    const handleSaveBankDetails = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        setError(null);
+
+        if (!bankForm.bankName.trim() || !bankForm.accountHolderName.trim()) {
+            setError('Enter the bank name and account holder name.');
+            return;
+        }
+
+        if (!/^\d{6,18}$/.test(bankForm.accountNumber.trim())) {
+            setError('Enter a valid account number containing 6 to 18 digits.');
+            return;
+        }
+
+        if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(bankForm.ifscCode.trim().toUpperCase())) {
+            setError('Enter a valid 11-character IFSC code.');
+            return;
+        }
+
+        if (!chequeFile && !bankDetails?.cheque_uploaded) {
+            setError('Upload a cancelled cheque to update the payout account.');
+            return;
+        }
+
+        const allowedChequeTypes = [
+            'application/pdf',
+            'image/jpeg',
+            'image/png',
+            'image/webp',
+        ];
+        if (chequeFile && !allowedChequeTypes.includes(chequeFile.type)) {
+            setError('Cancelled cheque must be a PDF, JPEG, PNG, or WebP file.');
+            return;
+        }
+
+        if (chequeFile && chequeFile.size > 5 * 1024 * 1024) {
+            setError('Cancelled cheque must be 5 MB or smaller.');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('bankName', bankForm.bankName.trim());
+        formData.append('accountHolderName', bankForm.accountHolderName.trim());
+        formData.append('accountNumber', bankForm.accountNumber.trim());
+        formData.append('ifscCode', bankForm.ifscCode.trim().toUpperCase());
+        formData.append('upiId', bankForm.upiId.trim());
+        if (chequeFile) formData.append('cancelledCheque', chequeFile);
+        setBankSaving(true);
+        setError(null);
+        try {
+            await vendorPayoutApi.updateBankDetails(formData);
+            setBankFormOpen(false);
+            setBankForm({ bankName: '', accountHolderName: '', accountNumber: '', ifscCode: '', upiId: '' });
+            setChequeFile(null);
+            await fetchBankDetails();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Unable to save bank details.");
+        } finally {
+            setBankSaving(false);
+        }
+    };
+
+    const handleCopy = async (text: string, id: string) => {
+        try {
+            await navigator.clipboard.writeText(text);
+            setCopiedId(id);
+            window.setTimeout(() => setCopiedId(null), 2000);
+        } catch (copyError) {
+            console.error('Unable to copy payout reference:', copyError);
+            setError('Could not copy this reference. Please copy it manually.');
+        }
+    };
+
+
+
     // Calculate days remaining helper
+    const formatCreditCycle = (creditCycle: string | null, fallback = 'Standard Terms') => {
+        if (!creditCycle) return fallback;
+
+        const normalized = creditCycle.trim();
+        const netDays = normalized.match(/^net\s*(\d+)$/i);
+        if (netDays) return `${netDays[1]} Days`;
+        if (/^immediate$/i.test(normalized)) return 'Immediate Payment';
+        return normalized;
+    };
+
     const getDaysLeft = (dueDateStr: string | null, payoutStatus: string) => {
         if (payoutStatus === 'paid') return { text: 'Settled', color: 'bg-emerald-50 text-emerald-700 border-emerald-100' };
         if (!dueDateStr) return { text: 'Awaiting Delivery', color: 'bg-zinc-150 text-zinc-500 border-zinc-200' };
-        
+
         const now = new Date();
         const due = new Date(dueDateStr);
         now.setHours(0, 0, 0, 0);
         due.setHours(0, 0, 0, 0);
-        
+
         const diffTime = due.getTime() - now.getTime();
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
+
         if (diffDays < 0) {
-            return { 
-                text: `Overdue by ${Math.abs(diffDays)}d`, 
-                color: 'bg-red-50 text-red-700 border-red-150 animate-pulse font-semibold' 
+            return {
+                text: `Overdue by ${Math.abs(diffDays)}d`,
+                color: 'bg-red-50 text-red-700 border-red-150 animate-pulse font-semibold'
             };
         } else if (diffDays === 0) {
             return { text: 'Due Today', color: 'bg-amber-50 text-amber-700 border-amber-150 font-semibold' };
@@ -234,8 +335,8 @@ export default function VendorPayoutsPage() {
         let overdueCount = 0;
 
         payouts.forEach(p => {
-            const orderAmt = Number(p.order_total_amount);
-            const paidAmt = Number(p.payout_amount);
+            const orderAmt = Number(p.vendor_net_amount ?? p.eligible_amount ?? p.order_total_amount ?? 0);
+            const paidAmt = Number(p.payout_amount ?? 0);
 
             totalSettled += paidAmt;
             totalOutstanding += (orderAmt - paidAmt);
@@ -279,9 +380,10 @@ export default function VendorPayoutsPage() {
 
         if (searchTerm.trim()) {
             const query = searchTerm.toLowerCase();
-            result = result.filter(p => 
-                p.customer_name.toLowerCase().includes(query) ||
-                p.order_id.toLowerCase().includes(query)
+            result = result.filter(p =>
+                String(p.customer_name || '').toLowerCase().includes(query) ||
+                String(p.order_id || '').toLowerCase().includes(query) ||
+                String(p.vendor_name || '').toLowerCase().includes(query)
             );
         }
 
@@ -291,7 +393,7 @@ export default function VendorPayoutsPage() {
     return (
         <div className="min-h-screen bg-[#fafafa] p-6 md:p-8 lg:p-10 font-sans">
             <div className="max-w-[1400px] mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                
+
                 {/* Header */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
@@ -302,7 +404,7 @@ export default function VendorPayoutsPage() {
                             Monitor client payments and administrative releases to your bank account.
                         </p>
                     </div>
-                    <button 
+                    <button
                         onClick={fetchPayouts}
                         disabled={loading}
                         className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all text-sm font-semibold shadow-sm flex items-center gap-2 disabled:opacity-50"
@@ -311,6 +413,35 @@ export default function VendorPayoutsPage() {
                         Refresh Ledger
                     </button>
                 </div>
+
+                <section className="rounded-xl border border-gray-200 bg-white p-5">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h2 className="text-base font-bold text-gray-900">Payout bank account</h2>
+                            {bankDetails?.account_last_four ? (
+                                <p className="mt-1 text-sm text-gray-600">{bankDetails.bank_name} · account ending {bankDetails.account_last_four} · IFSC {bankDetails.ifsc_code}{bankDetails.upi_id ? ` · UPI ${bankDetails.upi_id}` : ''}</p>
+                            ) : (
+                                <p className="mt-1 text-sm text-amber-700">Add a verified payout account and cancelled cheque before requesting a payout.</p>
+                            )}
+                        </div>
+                        <button type="button" onClick={toggleBankForm} className="rounded-md border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+                            {bankFormOpen ? 'Close' : bankDetails?.account_last_four ? 'Update account' : 'Add account'}
+                        </button>
+                    </div>
+                    {bankFormOpen && (
+                        <form onSubmit={handleSaveBankDetails} className="mt-5 border-t border-gray-100 pt-5">
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <label className="text-sm font-medium text-gray-700">Bank name<input required value={bankForm.bankName} onChange={(event) => setBankForm({ ...bankForm, bankName: event.target.value })} className="mt-1 block h-10 w-full rounded-md border border-gray-300 px-3 font-normal" /></label>
+                                <label className="text-sm font-medium text-gray-700">Account holder<input required value={bankForm.accountHolderName} onChange={(event) => setBankForm({ ...bankForm, accountHolderName: event.target.value })} className="mt-1 block h-10 w-full rounded-md border border-gray-300 px-3 font-normal" /></label>
+                                <label className="text-sm font-medium text-gray-700">Account number<input required inputMode="numeric" autoComplete="off" value={bankForm.accountNumber} onChange={(event) => setBankForm({ ...bankForm, accountNumber: event.target.value.replace(/\D/g, '').slice(0, 18) })} className="mt-1 block h-10 w-full rounded-md border border-gray-300 px-3 font-normal" /></label>
+                                <label className="text-sm font-medium text-gray-700">IFSC code<input required maxLength={11} value={bankForm.ifscCode} onChange={(event) => setBankForm({ ...bankForm, ifscCode: event.target.value.toUpperCase() })} className="mt-1 block h-10 w-full rounded-md border border-gray-300 px-3 font-normal uppercase" /></label>
+                                <label className="text-sm font-medium text-gray-700">UPI ID (optional)<input maxLength={255} value={bankForm.upiId} onChange={(event) => setBankForm({ ...bankForm, upiId: event.target.value.trim() })} placeholder="name@bank" className="mt-1 block h-10 w-full rounded-md border border-gray-300 px-3 font-normal" /></label>
+                                <label className="text-sm font-medium text-gray-700 md:col-span-2">Cancelled cheque<input required={!bankDetails?.cheque_uploaded} type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={(event) => setChequeFile(event.target.files?.[0] || null)} className="mt-1 block w-full text-sm font-normal" /><span className="mt-1 block text-xs text-gray-500">{bankDetails?.cheque_uploaded ? 'A cheque is already saved; upload a new one only if you want to replace it.' : 'PDF or image, maximum 5 MB.'} A pending request must be rejected or paid before changing bank details.</span></label>
+                            </div>
+                            <button type="submit" disabled={bankSaving} className="mt-4 rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">{bankSaving ? 'Saving...' : 'Save payout account'}</button>
+                        </form>
+                    )}
+                </section>
 
                 {/* Stats Cards */}
                 <div className="grid gap-4 sm:grid-cols-3">
@@ -386,11 +517,10 @@ export default function VendorPayoutsPage() {
                                     <button
                                         key={status.val}
                                         onClick={() => setStatusFilter(status.val)}
-                                        className={`rounded-xl px-4 py-1.5 text-xs font-semibold uppercase tracking-wider transition ${
-                                            statusFilter === status.val
+                                        className={`rounded-xl px-4 py-1.5 text-xs font-semibold uppercase tracking-wider transition ${statusFilter === status.val
                                                 ? 'bg-white text-gray-900 shadow-sm'
                                                 : 'text-gray-500 hover:text-gray-800'
-                                        }`}
+                                            }`}
                                     >
                                         {status.label}
                                     </button>
@@ -424,8 +554,8 @@ export default function VendorPayoutsPage() {
                                         <th className="pb-3 pl-2">Order Details</th>
                                         <th className="pb-3">Client Payment status</th>
                                         <th className="pb-3">Admin Settlement status</th>
-                                        <th className="pb-3 text-center">{isServiceVendor ? 'Booking Status' : 'Days Remaining'}</th>
-                                        <th className="pb-3">{isServiceVendor ? 'Service Info' : 'Credit Cycle'}</th>
+                                        <th className="pb-3 text-center">Status / Due Date</th>
+                                        <th className="pb-3">Service / Credit Cycle</th>
                                         <th className="pb-3 pr-2">Settlement Details</th>
                                     </tr>
                                 </thead>
@@ -433,10 +563,14 @@ export default function VendorPayoutsPage() {
                                     {filteredPayouts.map((payout) => {
                                         const daysBadge = getDaysLeft(payout.due_date, payout.payout_status);
                                         return (
-                                            <tr 
-                                                key={payout.payout_id} 
+                                            <tr
+                                                key={payout.payout_id}
                                                 className="hover:bg-gray-50/50 transition-colors cursor-pointer"
                                                 onClick={() => {
+                                                    if (payout.transaction_type === 'service' || payout.service_kind === 'service_ticket') {
+                                                        router.push(`/service-quotations/${payout.order_id}`);
+                                                        return;
+                                                    }
                                                     setSelectedOrderId(payout.order_id);
                                                     setSelectedPayout(payout);
                                                 }}
@@ -445,37 +579,42 @@ export default function VendorPayoutsPage() {
                                                 <td className="py-4 pl-2 whitespace-nowrap">
                                                     <div className="flex items-center gap-1.5">
                                                         <span className="font-mono text-xs font-semibold text-gray-900">
-                                                            #{payout.order_id.split('-')[0].toUpperCase()}
+                                                            #{String(payout.order_id || payout.payout_id).split('-')[0].toUpperCase()}
                                                         </span>
-                                                        <button 
+                                                        <button
+                                                            type="button"
+                                                            aria-label="Copy transaction ID"
+                                                            title="Copy full transaction ID"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                handleCopy(payout.order_id, payout.payout_id);
+                                                                void handleCopy(payout.order_id, payout.payout_id);
                                                             }}
                                                             className="text-gray-400 hover:text-gray-650 transition p-1 hover:bg-gray-100 rounded-md"
                                                         >
                                                             {copiedId === payout.payout_id ? <Check className="h-3 w-3 text-green-600" /> : <Copy className="h-3 w-3" />}
                                                         </button>
                                                     </div>
-                                                    <p className="font-bold text-gray-950 mt-1">₹{Number(payout.order_total_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
-                                                    <p className="text-xs text-gray-400 mt-0.5">{payout.customer_name}</p>
+                                                    <p className="font-bold text-gray-950 mt-1">₹{Number(payout.order_total_amount ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+                                                    <p className="text-xs text-gray-400 mt-0.5">{payout.customer_name || 'Customer'} </p>
                                                 </td>
 
                                                 {/* Client Payment status */}
                                                 <td className="py-4 whitespace-nowrap">
                                                     <p className="font-bold text-indigo-700">
-                                                        ₹{Number(payout.client_paid_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                                        ₹{Number(payout.client_paid_amount ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                                     </p>
                                                     <p className="text-[10px] uppercase font-semibold text-gray-400 mt-0.5">
-                                                        {Number(payout.client_paid_percentage).toFixed(0)}% paid by Client
+                                                        {Number(payout.client_paid_percentage ?? 0).toFixed(0)}% paid by Client
                                                     </p>
                                                 </td>
 
                                                 {/* Admin Settlement status */}
                                                 <td className="py-4 whitespace-nowrap">
                                                     <p className="font-bold text-emerald-700">
-                                                        ₹{Number(payout.payout_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                                        ₹{Number(payout.payout_amount ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                                     </p>
+                                                    <p className="mt-1 text-xs font-semibold text-slate-700">Net payout: ₹{Number(payout.vendor_net_amount ?? payout.eligible_amount ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+                                                    <p className="text-[10px] text-gray-400">After {Number(payout.commission_percentage || 0).toFixed(2)}% commission on ₹{Number(payout.payout_gross_amount ?? payout.order_total_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
                                                     <div className="mt-1 flex items-center">
                                                         {payout.payout_status === 'paid' && (
                                                             <span className="inline-flex items-center gap-0.5 rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 uppercase">
@@ -495,17 +634,21 @@ export default function VendorPayoutsPage() {
                                                     </div>
                                                 </td>
 
-                                                {/* Days Remaining / Booking Status */}
+                                                {/* Status / Due Date */}
                                                 <td className="py-4 text-center whitespace-nowrap">
-                                                    {isServiceVendor ? (
-                                                        <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${
-                                                            payout.order_status === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
-                                                            payout.order_status === 'in_progress' ? 'bg-blue-50 text-blue-700 border-blue-100 animate-pulse' :
-                                                            'bg-zinc-50 text-zinc-500 border-zinc-200'
-                                                        }`}>
-                                                            {payout.order_status === 'completed' ? 'Completed' :
-                                                             payout.order_status === 'in_progress' ? 'In Progress' :
-                                                             payout.order_status === 'confirmed' ? 'Confirmed' : payout.order_status}
+                                                    {payout.transaction_type === 'service' ? (
+                                                        <span
+                                                            className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${
+                                                                payout.order_status === 'completed'
+                                                                    ? 'border-emerald-100 bg-emerald-50 text-emerald-700'
+                                                                    : payout.order_status === 'in_progress'
+                                                                        ? 'border-blue-100 bg-blue-50 text-blue-700'
+                                                                        : payout.order_status === 'accepted' || payout.order_status === 'confirmed'
+                                                                            ? 'border-indigo-100 bg-indigo-50 text-indigo-700'
+                                                                            : 'border-zinc-200 bg-zinc-50 text-zinc-600'
+                                                            }`}
+                                                        >
+                                                            {(payout.order_status || 'pending').replace(/_/g, ' ')}
                                                         </span>
                                                     ) : (
                                                         <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${daysBadge.color}`}>
@@ -516,23 +659,31 @@ export default function VendorPayoutsPage() {
 
                                                 {/* Credit Cycle / Service Info */}
                                                 <td className="py-4">
-                                                    {isServiceVendor ? (
+                                                    {payout.transaction_type === 'service' ? (
                                                         <p className="font-bold text-gray-700 capitalize">{payout.order_status || 'Booking'}</p>
                                                     ) : (
                                                         <>
-                                                        <p className="font-bold text-gray-700">{payout.vendor_credit_cycle || 'Standard Terms'}</p>
-                                                        {payout.delivered_at && (
-                                                            <div className="mt-1 flex items-center gap-1 text-xs text-gray-400">
-                                                                <Calendar className="h-3.5 w-3.5" />
-                                                                <span>Delivered: {new Date(payout.delivered_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
-                                                            </div>
-                                                        )}
+                                                            <p className="font-bold text-gray-700">{formatCreditCycle(payout.vendor_credit_cycle)}</p>
+                                                            {payout.delivered_at && (
+                                                                <div className="mt-1 flex items-center gap-1 text-xs text-gray-400">
+                                                                    <Calendar className="h-3.5 w-3.5" />
+                                                                    <span>Delivered: {new Date(payout.delivered_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
+                                                                </div>
+                                                            )}
                                                         </>
                                                     )}
                                                 </td>
 
                                                 {/* Settlement Details */}
                                                 <td className="py-4 pr-2 whitespace-nowrap">
+                                                    {payout.request_status && (
+                                                        <div className="mb-2">
+                                                            <span className={`inline-flex rounded-full px-2 py-1 text-[10px] font-bold uppercase ${payout.request_status === 'paid' ? 'bg-emerald-50 text-emerald-700' : payout.request_status === 'requested' ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-700'}`}>
+                                                                {payout.request_status}
+                                                            </span>
+                                                            {payout.request_status === 'rejected' && payout.request_rejection_reason && <p className="mt-1 max-w-[180px] whitespace-normal text-xs text-rose-600">{payout.request_rejection_reason}</p>}
+                                                        </div>
+                                                    )}
                                                     {payout.last_paid_at ? (
                                                         <>
                                                             <p className="font-semibold text-gray-800">
@@ -549,6 +700,22 @@ export default function VendorPayoutsPage() {
                                                     ) : (
                                                         <span className="text-xs text-gray-400 italic">Awaiting admin release</span>
                                                     )}
+                                                    {canRequestPayout(payout) && (
+                                                        <button
+                                                            type="button"
+                                                            disabled={requestingId === payout.payout_id || !bankDetails?.cheque_uploaded}
+                                                            onClick={(event) => { event.stopPropagation(); void handleRequestPayout(payout); }}
+                                                            className="mt-2 block rounded-md bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                                        >
+                                                            {requestingId === payout.payout_id ? 'Requesting...' : payout.request_status === 'rejected' ? 'Request again' : 'Request payout'}
+                                                        </button>
+                                                    )}
+                                                    {shouldPromptForBankDetails(payout) && (
+                                                        <span className="mt-2 block text-xs text-amber-700">Add bank details first</span>
+                                                    )}
+                                                    {payout.transaction_type === 'order' && payout.order_status === 'delivered' && payout.client_payment_status === 'paid' && Number(payout.client_paid_percentage) < 100 && (
+                                                        <span className="mt-2 block text-xs text-slate-500">Waiting for full client payment</span>
+                                                    )}
                                                 </td>
                                             </tr>
                                         );
@@ -563,9 +730,9 @@ export default function VendorPayoutsPage() {
                 {selectedOrderId && (
                     <div className="fixed inset-0 z-50 overflow-hidden" role="dialog" aria-modal="true">
                         {/* Backdrop */}
-                        <div 
-                            className="absolute inset-0 bg-black/40 backdrop-blur-xs transition-opacity" 
-                            onClick={() => setSelectedOrderId(null)} 
+                        <div
+                            className="absolute inset-0 bg-black/40 backdrop-blur-xs transition-opacity"
+                            onClick={() => setSelectedOrderId(null)}
                         />
                         <div className="absolute inset-y-0 right-0 max-w-full flex pl-10">
                             <div className="w-screen max-w-2xl bg-white shadow-2xl flex flex-col h-full animate-in slide-in-from-right duration-300">
@@ -575,7 +742,7 @@ export default function VendorPayoutsPage() {
                                         <h2 className="text-lg font-bold text-gray-950">Payout Order Details</h2>
                                         <p className="text-xs text-gray-400 font-mono mt-0.5">ID: {selectedOrderId}</p>
                                     </div>
-                                    <button 
+                                    <button
                                         onClick={() => setSelectedOrderId(null)}
                                         className="rounded-xl border border-gray-200 p-2 text-gray-400 hover:text-gray-650 hover:bg-gray-100 transition-colors"
                                     >
@@ -614,15 +781,14 @@ export default function VendorPayoutsPage() {
                                                     <h3 className="font-bold text-gray-950 text-sm tracking-tight border-b border-gray-100 pb-2 flex items-center justify-between">
                                                         <span>Payout Settlement Timeline</span>
                                                         <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2.5 py-0.5 rounded-full">
-                                                            Cycle: {selectedPayout.vendor_credit_cycle || 'Standard Terms'}
+                                                            Cycle: {formatCreditCycle(selectedPayout.vendor_credit_cycle)}
                                                         </span>
                                                     </h3>
                                                     <div className="relative pl-6 border-l border-gray-150 space-y-6 py-2 ml-3">
                                                         {/* Step 1: Order Delivered */}
                                                         <div className="relative">
-                                                            <span className={`absolute -left-[31px] top-1 flex h-4 w-4 items-center justify-center rounded-full ring-4 ${
-                                                                selectedPayout.delivered_at ? 'bg-emerald-500 ring-emerald-50 text-white' : 'bg-slate-350 ring-slate-50'
-                                                            }`}>
+                                                            <span className={`absolute -left-[31px] top-1 flex h-4 w-4 items-center justify-center rounded-full ring-4 ${selectedPayout.delivered_at ? 'bg-emerald-500 ring-emerald-50 text-white' : 'bg-slate-350 ring-slate-50'
+                                                                }`}>
                                                                 <span className="h-1.5 w-1.5 rounded-full bg-white" />
                                                             </span>
                                                             <div>
@@ -639,15 +805,14 @@ export default function VendorPayoutsPage() {
 
                                                         {/* Step 2: Credit terms */}
                                                         <div className="relative">
-                                                            <span className={`absolute -left-[31px] top-1 flex h-4 w-4 items-center justify-center rounded-full ring-4 ${
-                                                                selectedPayout.delivered_at ? 'bg-emerald-500 ring-emerald-50 text-white' : 'bg-slate-350 ring-slate-50'
-                                                            }`}>
+                                                            <span className={`absolute -left-[31px] top-1 flex h-4 w-4 items-center justify-center rounded-full ring-4 ${selectedPayout.delivered_at ? 'bg-emerald-500 ring-emerald-50 text-white' : 'bg-slate-350 ring-slate-50'
+                                                                }`}>
                                                                 <span className="h-1.5 w-1.5 rounded-full bg-white" />
                                                             </span>
                                                             <div>
                                                                 <p className="text-sm font-bold text-gray-900">Credit Cycle Term Active</p>
                                                                 <p className="text-xs text-gray-500 mt-0.5">
-                                                                    {selectedPayout.vendor_credit_cycle || 'Standard terms (15 Days)'}
+                                                                    {formatCreditCycle(selectedPayout.vendor_credit_cycle, 'Standard terms (15 Days)')}
                                                                 </p>
                                                             </div>
                                                         </div>
@@ -660,11 +825,10 @@ export default function VendorPayoutsPage() {
                                                                 const isActive = selectedPayout.delivered_at && !isFinished;
                                                                 return (
                                                                     <>
-                                                                        <span className={`absolute -left-[31px] top-1 flex h-4 w-4 items-center justify-center rounded-full ring-4 ${
-                                                                            isFinished ? 'bg-emerald-500 ring-emerald-50' : 
-                                                                            isActive ? 'bg-blue-500 ring-blue-50 animate-pulse' : 
-                                                                            'bg-slate-300 ring-slate-50'
-                                                                        }`}>
+                                                                        <span className={`absolute -left-[31px] top-1 flex h-4 w-4 items-center justify-center rounded-full ring-4 ${isFinished ? 'bg-emerald-500 ring-emerald-50' :
+                                                                                isActive ? 'bg-blue-500 ring-blue-50 animate-pulse' :
+                                                                                    'bg-slate-300 ring-slate-50'
+                                                                            }`}>
                                                                             <span className="h-1.5 w-1.5 rounded-full bg-white" />
                                                                         </span>
                                                                         <div>
@@ -689,18 +853,17 @@ export default function VendorPayoutsPage() {
 
                                                         {/* Step 4: Admin release */}
                                                         <div className="relative">
-                                                            <span className={`absolute -left-[31px] top-1 flex h-4 w-4 items-center justify-center rounded-full ring-4 ${
-                                                                selectedPayout.payout_status === 'paid' ? 'bg-emerald-500 ring-emerald-50' : 
-                                                                selectedPayout.payout_status === 'partially_paid' ? 'bg-amber-500 ring-amber-50' : 
-                                                                'bg-slate-300 ring-slate-50'
-                                                            }`}>
+                                                            <span className={`absolute -left-[31px] top-1 flex h-4 w-4 items-center justify-center rounded-full ring-4 ${selectedPayout.payout_status === 'paid' ? 'bg-emerald-500 ring-emerald-50' :
+                                                                    selectedPayout.payout_status === 'partially_paid' ? 'bg-amber-500 ring-amber-50' :
+                                                                        'bg-slate-300 ring-slate-50'
+                                                                }`}>
                                                                 <span className="h-1.5 w-1.5 rounded-full bg-white" />
                                                             </span>
                                                             <div>
                                                                 <p className="text-sm font-bold text-gray-900">Admin Release & Settlement</p>
                                                                 <div className="mt-1 space-y-1">
                                                                     <p className="text-xs text-gray-500">
-                                                                        Status: <span className="font-semibold uppercase text-gray-700">{selectedPayout.payout_status}</span> 
+                                                                        Status: <span className="font-semibold uppercase text-gray-700">{selectedPayout.payout_status}</span>
                                                                         {selectedPayout.payout_status !== 'pending' && ` (${Number(selectedPayout.payout_percentage).toFixed(0)}% settled)`}
                                                                     </p>
                                                                     {selectedPayout.last_paid_at && (
@@ -808,7 +971,7 @@ export default function VendorPayoutsPage() {
                                                                 </span>
                                                                 <div>
                                                                     <p className="text-sm font-bold text-gray-900 capitalize">
-                                                                        {history.status.replaceAll('_', ' ')}
+                                                                        {String(history.status || 'update').replace(/_/g, ' ')}
                                                                     </p>
                                                                     <p className="text-[11px] text-gray-400 mt-0.5">
                                                                         {new Date(history.created_at).toLocaleString('en-IN', {

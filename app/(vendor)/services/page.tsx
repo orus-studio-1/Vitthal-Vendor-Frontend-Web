@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   Search,
   Plus,
+  Check,
   Edit,
   Trash2,
   Wrench,
@@ -42,6 +43,9 @@ type GlobalService = {
   status: string;
 };
 
+type ServiceNode = { id: string; name: string; children?: ServiceNode[] };
+type ServiceCategoryTree = { id: string; label: string; subcategories?: ServiceNode[] };
+
 export default function ServicesPage() {
   const router = useRouter();
   const { user } = useAuthStore();
@@ -60,6 +64,9 @@ export default function ServicesPage() {
   const [statusFilter, setStatusFilter] = useState("");
 
   const [serviceCategories, setServiceCategories] = useState<{ id: string; code: string; label: string }[]>([]);
+  const [coverageCategories, setCoverageCategories] = useState<ServiceCategoryTree[]>([]);
+  const [coveredCategoryIds, setCoveredCategoryIds] = useState<string[]>([]);
+  const [coveredSubcategoryIds, setCoveredSubcategoryIds] = useState<string[]>([]);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -139,11 +146,50 @@ export default function ServicesPage() {
     }
   };
 
+  const fetchServiceCoverage = async () => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9000";
+      const token = typeof window !== "undefined" ? localStorage.getItem("vendor_token") : null;
+      const headers = {
+        "x-request-from": "vendor",
+        ...(token && token !== "null" && token !== "undefined" ? { Authorization: `Bearer ${token}` } : {}),
+      };
+      const [categoriesResponse, coverageResponse] = await Promise.all([
+        fetch(`${apiUrl}/api/service-hub/categories`),
+        fetch(`${apiUrl}/api/service-hub/vendor/coverage`, { credentials: "include", headers }),
+      ]);
+      if (!categoriesResponse.ok || !coverageResponse.ok) return;
+      const [categoriesJson, coverageJson] = await Promise.all([
+        categoriesResponse.json(),
+        coverageResponse.json(),
+      ]);
+      setCoverageCategories(categoriesJson.data || []);
+      setCoveredCategoryIds(coverageJson.data?.category_ids || []);
+      setCoveredSubcategoryIds(coverageJson.data?.subcategory_ids || []);
+    } catch (err) {
+      console.error("Failed to fetch selected service request coverage:", err);
+    }
+  };
+
   useEffect(() => {
     fetchOfferings();
     fetchGlobalServices();
     fetchCategories();
+    fetchServiceCoverage();
   }, []);
+
+  const coveredNodes = new Set(coveredSubcategoryIds);
+  const selectedCoverage = coverageCategories
+    .filter((category) => coveredCategoryIds.includes(category.id))
+    .map((category) => ({
+      ...category,
+      selectedSubcategories: (category.subcategories || [])
+        .filter((subcategory) => coveredNodes.has(subcategory.id))
+        .map((subcategory) => ({
+          ...subcategory,
+          selectedChildren: (subcategory.children || []).filter((child) => coveredNodes.has(child.id)),
+        })),
+    }));
 
   const toggleExpand = (id: string) => {
     setExpandedServiceIds((prev) => ({
@@ -229,6 +275,12 @@ export default function ServicesPage() {
             Manage Bookings
           </Link>
           <Link
+            href="/service-coverage"
+            className="inline-flex items-center justify-center bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-2 rounded-md hover:bg-emerald-100 transition-colors font-medium shadow-sm w-full sm:w-auto whitespace-nowrap text-xs font-semibold"
+          >
+            Request Coverage
+          </Link>
+          <Link
             href="/services/add"
             className="inline-flex items-center justify-center bg-gray-900 text-white px-4 py-2 rounded-md hover:bg-gray-800 transition-colors font-medium shadow-sm w-full sm:w-auto whitespace-nowrap text-xs font-semibold"
           >
@@ -237,6 +289,69 @@ export default function ServicesPage() {
           </Link>
         </div>
       </div>
+
+      <section className="mb-6 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="flex flex-col gap-4 bg-gradient-to-r from-emerald-950 via-emerald-900 to-teal-800 px-4 py-4 text-white sm:flex-row sm:items-center sm:justify-between sm:px-5">
+          <div className="flex items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-emerald-100"><Wrench className="h-5 w-5" /></span>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="font-semibold tracking-tight">Request coverage</h2>
+                {selectedCoverage.length > 0 ? <span className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[10px] font-medium text-emerald-50">{selectedCoverage.length} categor{selectedCoverage.length === 1 ? "y" : "ies"} active</span> : null}
+              </div>
+              <p className="mt-1 text-xs text-emerald-50/75">Clients can send you requests for the categories and work types listed here.</p>
+            </div>
+          </div>
+          <Link href="/service-coverage" className="inline-flex shrink-0 items-center justify-center rounded-lg border border-white/20 bg-white/10 px-3.5 py-2.5 text-xs font-semibold text-white transition hover:bg-white/20">
+            Manage coverage <ChevronRight className="ml-1.5 h-3.5 w-3.5" />
+          </Link>
+        </div>
+        {selectedCoverage.length === 0 ? (
+          <div className="m-4 flex flex-col items-start gap-3 rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-5 sm:m-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-800">No request coverage selected</p>
+              <p className="mt-1 text-xs text-gray-500">Choose the work you accept to receive matching client requests.</p>
+            </div>
+            <Link href="/service-coverage" className="rounded-lg bg-emerald-800 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-emerald-900">Choose work types</Link>
+          </div>
+        ) : (
+          <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-5">
+            {selectedCoverage.map((category) => (
+              <div key={category.id} className="overflow-hidden rounded-xl border border-gray-200 bg-white transition hover:border-emerald-200 hover:shadow-sm">
+                <div className="flex items-center justify-between gap-3 border-b border-gray-100 bg-gray-50/80 px-4 py-3">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-800"><Wrench className="h-4 w-4" /></span>
+                    <p className="truncate text-sm font-semibold text-gray-900">{category.label}</p>
+                  </div>
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-800"><Check className="h-3 w-3" /> Active</span>
+                </div>
+                <div className="p-4">
+                {category.selectedSubcategories.length ? (
+                  <ul className="space-y-3">
+                    {category.selectedSubcategories.map((subcategory) => (
+                      <li key={subcategory.id} className="relative pl-4">
+                        <span className="absolute bottom-0 left-0 top-0 w-px bg-emerald-200" />
+                        <p className="relative inline-flex max-w-full items-center gap-1.5 rounded-md bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-950">
+                          <span className="absolute -left-[17px] h-2 w-2 rounded-full border-2 border-white bg-emerald-500 ring-1 ring-emerald-200" />
+                          {subcategory.name}
+                        </p>
+                        {subcategory.selectedChildren.length ? (
+                          <ul className="mt-2 flex flex-wrap gap-1.5 pl-1">
+                            {subcategory.selectedChildren.map((child) => <li key={child.id} className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[11px] text-gray-600"><ChevronRight className="h-3 w-3 text-emerald-600" />{child.name}</li>)}
+                          </ul>
+                        ) : <span className="ml-2 text-[10px] text-gray-400">No sub-subcategories selected</span>}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="flex items-center gap-2 text-xs text-gray-500"><Check className="h-3.5 w-3.5 text-emerald-600" />Main category selected; no specific work type chosen.</p>
+                )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       {/* Search and Filter Bar */}
       <div className="sticky top-24 z-40 bg-white border border-gray-200 rounded-lg p-4 mb-6 shadow-sm">
@@ -333,9 +448,9 @@ export default function ServicesPage() {
                       <div className="bg-gray-50 p-4 rounded-full mb-4 border border-gray-100">
                         <Filter className="w-6 h-6 text-gray-400" />
                       </div>
-                      <p className="font-medium text-gray-900 mb-1">No services found</p>
+                      <p className="font-medium text-gray-900 mb-1">No service listings found</p>
                       <p className="text-gray-500 mb-6">
-                        Get started by adding a new service offering to your portfolio or adjust filters.
+                        Your accepted service request categories are shown above. Add a service listing if you also want to publish an individual offering in your portfolio.
                       </p>
                       <Link
                         href="/services/add"

@@ -39,6 +39,12 @@ interface VendorProduct {
   grade?: string;
   application?: string;
   standard?: string;
+  size?: string | null;
+  brand?: string | null;
+  colour?: string | null;
+  warranty?: string | null;
+  manufacturer?: string | null;
+  unit?: string | null;
   attributes?: Record<string, unknown>;
   specifications: Record<string, unknown>;
   price?: number;
@@ -100,6 +106,7 @@ export default function EditProductPage() {
   const [selectedVariantId, setSelectedVariantId] = useState<string>("");
   const [uploadedImages, setUploadedImages] = useState<File[]>([]);
   const [catalog, setCatalog] = useState({ name: "", description: "", category: "", product_type: "", item_code: "" });
+  const [catalogFields, setCatalogFields] = useState({ size: "", brand: "", grade: "", colour: "", warranty: "", manufacturer: "", unit: "nos" });
   const [specificationEntries, setSpecificationEntries] = useState<Array<{ key: string; value: string }>>([]);
 
   const applyVariantState = (variantsList: VendorProductVariant[], variantId: string) => {
@@ -144,6 +151,15 @@ export default function EditProductPage() {
         const prod = data.data;
         setProduct(prod);
         setCatalog({ name: prod.product_name || "", description: prod.description || "", category: prod.category_id || prod.category || "", product_type: prod.product_type || "", item_code: prod.item_code || "" });
+        setCatalogFields({
+          size: String(prod.size ?? prod.attributes?.size ?? ""),
+          brand: String(prod.brand ?? prod.attributes?.brand ?? ""),
+          grade: String(prod.grade ?? prod.attributes?.grade ?? ""),
+          colour: String(prod.colour ?? prod.attributes?.colour ?? prod.attributes?.color ?? ""),
+          warranty: String(prod.warranty ?? prod.attributes?.warranty ?? prod.attributes?.guarantee ?? ""),
+          manufacturer: String(prod.manufacturer ?? prod.attributes?.manufacturer ?? ""),
+          unit: String(prod.unit ?? prod.attributes?.unit ?? prod.attributes?.uom ?? "nos"),
+        });
         const productKeyProperties = new Set([...keyPropertyNames, ...Object.keys(prod.attributes || {}).map(normalizePropertyKey)]);
         setSpecificationEntries(Object.entries(prod.specifications || {})
           .filter(([key]) => !productKeyProperties.has(normalizePropertyKey(key)))
@@ -190,7 +206,7 @@ export default function EditProductPage() {
           body: JSON.stringify({
             ...catalog,
             specifications: getAdditionalSpecifications(specificationEntries, product?.attributes),
-            attributes: { ...(product?.attributes || {}) },
+            attributes: { ...(product?.attributes || {}), ...catalogFields },
             price: Number(price),
             moq: Number(moq),
             stockQuantity: Number(stockQuantity),
@@ -654,12 +670,22 @@ export default function EditProductPage() {
         <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Key Properties</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {(["material", "grade", "application", "standard", "size", "brand", "colour", "warranty", "manufacturer", "unit"] as const).map((key) => (
+            {(["material", "application", "standard"] as const).map((key) => (
               <label key={key} className="block text-sm font-medium text-gray-600 capitalize">{key}
                 <input value={String((product as any)[key] ?? product.attributes?.[key] ?? "")} onChange={(e) => setProduct((prev) => prev ? { ...prev, [key]: e.target.value, attributes: { ...(prev.attributes || {}), [key]: e.target.value } } : prev)} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-normal text-gray-900 disabled:bg-gray-100" />
               </label>
             ))}
-            {Object.entries(product.attributes || {}).filter(([key]) => !["material", "grade", "application", "standard", "size", "brand", "colour", "warranty", "manufacturer", "unit"].includes(key.toLowerCase())).map(([key, value]) => (
+            {([ ["size", "Size"], ["brand", "Brand"], ["grade", "Grade"], ["colour", "Colour"], ["warranty", "Warranty / Guarantee"], ["manufacturer", "Manufacturer"] ] as const).map(([key, label]) => (
+              <label key={key} className="block text-sm font-medium text-gray-600">{label}
+                <input value={catalogFields[key]} onChange={(e) => setCatalogFields((prev) => ({ ...prev, [key]: e.target.value }))} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-normal text-gray-900 disabled:bg-gray-100" />
+              </label>
+            ))}
+            <label className="block text-sm font-medium text-gray-600">Quantity Unit
+              <select value={catalogFields.unit} onChange={(e) => setCatalogFields((prev) => ({ ...prev, unit: e.target.value }))} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-normal text-gray-900">
+                {["nos", "kg", "pack", "Ltr", "Box", "gram", "Ton"].map((unit) => <option key={unit} value={unit}>{unit}</option>)}
+              </select>
+            </label>
+            {Object.entries(product.attributes || {}).filter(([key]) => !keyPropertyNames.has(normalizePropertyKey(key))).map(([key, value]) => (
               <label key={key} className="block text-sm font-medium text-gray-600 capitalize">{key.replace(/_/g, " ")}
                 <input value={String(value ?? "")} onChange={(e) => setProduct((prev) => prev ? { ...prev, attributes: { ...(prev.attributes || {}), [key]: e.target.value } } : prev)} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-normal text-gray-900 disabled:bg-gray-100" />
               </label>
