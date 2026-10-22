@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { 
   Package, 
   TrendingUp, 
@@ -51,6 +51,7 @@ ChartJS.register(
 
 export default function VendorProductViewPage() {
   const params = useParams();
+  const router = useRouter();
   const productId = params.id as string;
 
   const [productDetails, setProductDetails] = useState<ProductDetails | null>(null);
@@ -84,30 +85,12 @@ export default function VendorProductViewPage() {
         productApi.getProductAnalytics(productId)
       ]);
 
-      const rawDetails = detailsResponse.data as (ProductDetails & Record<string, any>) | undefined;
-      const analyticsData = analyticsResponse.data;
-      if (analyticsData) {
-        setAnalytics(analyticsData);
-        setTotalReviews(analyticsData.total_reviews);
+      if (detailsResponse.data) {
+        setProductDetails(detailsResponse.data);
       }
-      if (rawDetails) {
-        const firstVariant = Array.isArray(rawDetails.variants) ? rawDetails.variants[0] : undefined;
-        const rawPrice = rawDetails.price ?? analyticsData?.price ?? firstVariant?.price;
-        const price = rawPrice == null || rawPrice === "" ? undefined : Number(rawPrice);
-        setProductDetails({
-          ...rawDetails,
-          id: rawDetails.id ?? rawDetails.product_id,
-          name: rawDetails.name ?? rawDetails.product_name,
-          price: Number.isFinite(price) ? price : undefined,
-          moq: Number(rawDetails.moq ?? analyticsData?.moq ?? firstVariant?.moq) || 1,
-          stock_quantity: Number(rawDetails.stock_quantity ?? analyticsData?.stock_quantity ?? firstVariant?.stock_quantity) || 0,
-          is_active: Boolean(rawDetails.is_active ?? analyticsData?.is_active ?? firstVariant?.is_active),
-          created_at: rawDetails.created_at ?? analyticsData?.vendor_product_created_at,
-          updated_at: rawDetails.updated_at ?? analyticsData?.vendor_product_updated_at,
-          images: Array.isArray(rawDetails.images)
-            ? rawDetails.images.map((image: string | { image_url?: string }) => typeof image === "string" ? image : image.image_url || "").filter(Boolean)
-            : [],
-        });
+      if (analyticsResponse.data) {
+        setAnalytics(analyticsResponse.data);
+        setTotalReviews(analyticsResponse.data.total_reviews);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch product data');
@@ -142,9 +125,9 @@ export default function VendorProductViewPage() {
     }
   };
 
-  const formatCurrency = (amount: number | string | null | undefined) => {
-    const numAmount = amount == null || amount === '' ? Number.NaN : Number(amount);
-    if (!Number.isFinite(numAmount)) return '—';
+  const formatCurrency = (amount?: number | string | null) => {
+    const numAmount = amount === null || amount === undefined || String(amount).trim() === '' ? Number.NaN : Number(amount);
+    if (!Number.isFinite(numAmount)) return 'Price unavailable';
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR',
@@ -153,8 +136,7 @@ export default function VendorProductViewPage() {
     }).format(numAmount);
   };
 
-  const formatDate = (dateString: string | null | undefined) => {
-    if (!dateString || !Number.isFinite(new Date(dateString).getTime())) return '—';
+  const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-IN', {
       year: 'numeric',
       month: 'short',
@@ -253,6 +235,13 @@ export default function VendorProductViewPage() {
     );
   }
 
+  const hasPendingChanges = Boolean(
+    productDetails.pending_modifications ||
+    productDetails.pending_price !== null && productDetails.pending_price !== undefined ||
+    productDetails.modification_status === 'pending' ||
+    productDetails.variants?.some((variant: any) => variant.pending_modifications || variant.pending_price !== null && variant.pending_price !== undefined || variant.modification_status === 'pending')
+  );
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -269,11 +258,15 @@ export default function VendorProductViewPage() {
             <div className="flex items-center space-x-4">
               <span className={cn(
                 "inline-flex items-center px-3 py-1 rounded-full text-sm font-medium",
-                productDetails.is_active 
-                  ? "bg-green-100 text-green-800" 
-                  : "bg-red-100 text-red-800"
+                hasPendingChanges
+                  ? "bg-amber-100 text-amber-800"
+                  : productDetails.is_active
+                    ? "bg-green-100 text-green-800"
+                    : "bg-red-100 text-red-800"
               )}>
-                {productDetails.is_active ? (
+                {hasPendingChanges ? (
+                  <>Under Approval</>
+                ) : productDetails.is_active ? (
                   <>
                     <CheckCircle className="h-4 w-4 mr-1" />
                     Active
@@ -285,7 +278,7 @@ export default function VendorProductViewPage() {
                   </>
                 )}
               </span>
-              <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+              <button onClick={() => router.push(`/products/edit/${productId}`)} className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
                 <Edit className="h-4 w-4 mr-2" />
                 Edit Product
               </button>
@@ -322,6 +315,12 @@ export default function VendorProductViewPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {hasPendingChanges && (
+          <div className="mb-6 rounded-lg border border-amber-300 bg-amber-50 px-5 py-4 text-amber-950">
+            <p className="font-semibold">Product changes are under admin approval</p>
+            <p className="mt-1 text-sm">Your submitted changes will appear to buyers after approval. The currently approved product details remain live until then.</p>
+          </div>
+        )}
         {/* Overview Tab */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
@@ -444,6 +443,27 @@ export default function VendorProductViewPage() {
                     </dl>
                   </div>
                 </div>
+                {Object.entries(productDetails.specifications || {}).filter(([key, value]) => {
+                  const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+                  const catalogKeys = new Set(['size', 'brand', 'grade', 'colour', 'color', 'warranty', 'guarantee', 'manufacturer', 'unit', 'uom', 'unitofmeasure', 'material', 'application', 'standard']);
+                  return !catalogKeys.has(normalizedKey) && value !== null && String(value).trim().length > 0;
+                }).length > 0 && (
+                  <div className="mt-6 border-t border-gray-200 pt-5">
+                    <h4 className="text-sm font-medium text-gray-500 mb-3">Specifications</h4>
+                    <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3">
+                      {Object.entries(productDetails.specifications || {}).filter(([key, value]) => {
+                        const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+                        const catalogKeys = new Set(['size', 'brand', 'grade', 'colour', 'color', 'warranty', 'guarantee', 'manufacturer', 'unit', 'uom', 'unitofmeasure', 'material', 'application', 'standard']);
+                        return !catalogKeys.has(normalizedKey) && value !== null && String(value).trim().length > 0;
+                      }).map(([key, value]) => (
+                        <div className="flex justify-between gap-4 border-b border-gray-100 pb-2" key={key}>
+                          <dt className="text-sm text-gray-500 capitalize">{key.replace(/[_-]/g, ' ')}</dt>
+                          <dd className="text-sm font-medium text-gray-900 text-right whitespace-pre-wrap">{String(value)}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </div>
+                )}
               </div>
             </div>
 

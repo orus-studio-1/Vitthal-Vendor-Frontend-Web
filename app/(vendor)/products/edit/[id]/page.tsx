@@ -20,7 +20,6 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
-import { RichDescriptionRenderer } from "@/components/notion-editor/RichDescriptionRenderer";
 
 interface ProductImage {
   image_url: string;
@@ -33,13 +32,20 @@ interface VendorProduct {
   product_name: string;
   description: string;
   category: string;
+  category_id?: string;
   product_type: string;
+  item_code?: string;
   material?: string;
+  grade?: string;
   application?: string;
   standard?: string;
+  size?: string | null;
+  brand?: string | null;
+  colour?: string | null;
+  warranty?: string | null;
+  manufacturer?: string | null;
+  unit?: string | null;
   attributes?: Record<string, unknown>;
-  size?: string | null; brand?: string | null; grade?: string | null; colour?: string | null;
-  warranty?: string | null; manufacturer?: string | null; unit?: string | null;
   specifications: Record<string, unknown>;
   price?: number;
   moq?: number;
@@ -72,6 +78,16 @@ interface VendorProductVariant {
   name?: string | null;
 }
 
+const normalizePropertyKey = (key: string) => key.toLowerCase().replace(/[^a-z0-9]/g, "");
+const keyPropertyNames = new Set(["material", "grade", "application", "standard", "size", "brand", "colour", "color", "warranty", "guarantee", "manufacturer", "unit", "uom"]);
+
+function getAdditionalSpecifications(specifications: Array<{ key: string; value: string }>, attributes: Record<string, unknown> = {}) {
+  const propertyNames = new Set([...keyPropertyNames, ...Object.keys(attributes).map(normalizePropertyKey)]);
+  return Object.fromEntries(specifications
+    .filter((entry) => entry.key.trim() && !propertyNames.has(normalizePropertyKey(entry.key)))
+    .map((entry) => [entry.key.trim(), entry.value]));
+}
+
 export default function EditProductPage() {
   const params = useParams();
   const router = useRouter();
@@ -84,12 +100,14 @@ export default function EditProductPage() {
   const [price, setPrice] = useState("");
   const [moq, setMoq] = useState("");
   const [stockQuantity, setStockQuantity] = useState("");
-  const [gstPercentage, setGstPercentage] = useState("18.00");
+  const [gstPercentage, setGstPercentage] = useState("0.00");
   const [isActive, setIsActive] = useState(true);
   const [quotationEnabled, setQuotationEnabled] = useState(false);
   const [selectedVariantId, setSelectedVariantId] = useState<string>("");
   const [uploadedImages, setUploadedImages] = useState<File[]>([]);
+  const [catalog, setCatalog] = useState({ name: "", description: "", category: "", product_type: "", item_code: "" });
   const [catalogFields, setCatalogFields] = useState({ size: "", brand: "", grade: "", colour: "", warranty: "", manufacturer: "", unit: "nos" });
+  const [specificationEntries, setSpecificationEntries] = useState<Array<{ key: string; value: string }>>([]);
 
   const applyVariantState = (variantsList: VendorProductVariant[], variantId: string) => {
     const v = variantsList.find((x) => x.product_variant_id === variantId);
@@ -97,7 +115,7 @@ export default function EditProductPage() {
       setPrice(v.price.toString());
       setMoq(v.moq.toString());
       setStockQuantity(v.stock_quantity.toString());
-      setGstPercentage(v.gst_percentage !== null && v.gst_percentage !== undefined ? v.gst_percentage.toString() : "18.00");
+      setGstPercentage(v.gst_percentage !== null && v.gst_percentage !== undefined ? v.gst_percentage.toString() : "0.00");
       setIsActive(v.is_active);
     }
   };
@@ -132,7 +150,20 @@ export default function EditProductPage() {
       if (response.ok && data.data) {
         const prod = data.data;
         setProduct(prod);
-        setCatalogFields({ size: prod.size || prod.attributes?.size || "", brand: prod.brand || prod.attributes?.brand || "", grade: prod.grade || prod.attributes?.grade || "", colour: prod.colour || prod.attributes?.colour || prod.attributes?.color || "", warranty: prod.warranty || prod.attributes?.warranty || prod.attributes?.guarantee || "", manufacturer: prod.manufacturer || prod.attributes?.manufacturer || "", unit: prod.unit || prod.attributes?.unit || "nos" });
+        setCatalog({ name: prod.product_name || "", description: prod.description || "", category: prod.category_id || prod.category || "", product_type: prod.product_type || "", item_code: prod.item_code || "" });
+        setCatalogFields({
+          size: String(prod.size ?? prod.attributes?.size ?? ""),
+          brand: String(prod.brand ?? prod.attributes?.brand ?? ""),
+          grade: String(prod.grade ?? prod.attributes?.grade ?? ""),
+          colour: String(prod.colour ?? prod.attributes?.colour ?? prod.attributes?.color ?? ""),
+          warranty: String(prod.warranty ?? prod.attributes?.warranty ?? prod.attributes?.guarantee ?? ""),
+          manufacturer: String(prod.manufacturer ?? prod.attributes?.manufacturer ?? ""),
+          unit: String(prod.unit ?? prod.attributes?.unit ?? prod.attributes?.uom ?? "nos"),
+        });
+        const productKeyProperties = new Set([...keyPropertyNames, ...Object.keys(prod.attributes || {}).map(normalizePropertyKey)]);
+        setSpecificationEntries(Object.entries(prod.specifications || {})
+          .filter(([key]) => !productKeyProperties.has(normalizePropertyKey(key)))
+          .map(([key, value]) => ({ key, value: String(value ?? "") })));
         if (prod.variants && prod.variants.length > 0) {
           const firstVariantId = prod.variants[0].product_variant_id;
           setSelectedVariantId(firstVariantId);
@@ -142,7 +173,7 @@ export default function EditProductPage() {
           setPrice(prod.price?.toString() || "");
           setMoq(prod.moq?.toString() || "");
           setStockQuantity(prod.stock_quantity?.toString() || "");
-          setGstPercentage(prod.gst_percentage !== null && prod.gst_percentage !== undefined ? prod.gst_percentage.toString() : "18.00");
+          setGstPercentage(prod.gst_percentage !== null && prod.gst_percentage !== undefined ? prod.gst_percentage.toString() : "0.00");
           setIsActive(prod.is_active);
           setQuotationEnabled(Boolean(prod.quotation_enabled));
         }
@@ -173,6 +204,9 @@ export default function EditProductPage() {
           },
           credentials: "include",
           body: JSON.stringify({
+            ...catalog,
+            specifications: getAdditionalSpecifications(specificationEntries, product?.attributes),
+            attributes: { ...(product?.attributes || {}), ...catalogFields },
             price: Number(price),
             moq: Number(moq),
             stockQuantity: Number(stockQuantity),
@@ -180,7 +214,6 @@ export default function EditProductPage() {
             quotationEnabled,
             quotationMinQty: null,
             gstPercentage: Number(gstPercentage),
-            attributes: catalogFields,
             productVariantId: selectedVariantId || undefined
           }),
         },
@@ -318,34 +351,17 @@ export default function EditProductPage() {
               </div>
             )}
             <div className="flex-1">
-              <h3 className="font-semibold text-gray-900 text-lg">
-                {product.product_name}
-              </h3>
-              <p className="text-gray-500 text-sm mt-0.5">
-                {product.category} • {product.product_type}
-              </p>
+              <label className="block text-xs font-medium text-gray-500">Product Name
+                <input value={catalog.name} onChange={(e) => setCatalog((prev) => ({ ...prev, name: e.target.value }))} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-base font-semibold text-gray-900 disabled:bg-gray-100" />
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">{([["category", "Category ID or code"], ["product_type", "Product Type"], ["item_code", "Item Code"]] as const).map(([key, label]) => (<label key={key} className="block text-xs font-medium text-gray-500">{label}<input value={catalog[key]} onChange={(e) => setCatalog((prev) => ({ ...prev, [key]: e.target.value }))} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 disabled:bg-gray-100" /></label>))}</div>
               <p className="text-gray-400 text-xs mt-1">
                 ID: {product.product_id.split("-")[0]}
               </p>
             </div>
           </div>
 
-          {product.description && (
-            <div className="mt-4 pt-4 border-t border-gray-100">
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Description</p>
-              <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4">
-                <RichDescriptionRenderer content={product.description} />
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Catalog Details</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {([ ["size", "Size"], ["brand", "Brand"], ["grade", "Grade"], ["colour", "Colour"], ["warranty", "Warranty / Guarantee"], ["manufacturer", "Manufacturer"] ] as const).map(([key, label]) => <label key={key} className="text-sm font-medium text-gray-700">{label}<input value={catalogFields[key]} onChange={(event) => setCatalogFields((prev) => ({ ...prev, [key]: event.target.value }))} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" /></label>)}
-            <label className="text-sm font-medium text-gray-700">Quantity Unit<select value={catalogFields.unit} onChange={(event) => setCatalogFields((prev) => ({ ...prev, unit: event.target.value }))} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2">{["nos", "kg", "pack", "Ltr", "Box", "gram", "Ton"].map((unit) => <option key={unit}>{unit}</option>)}</select></label>
-          </div>
+          <div className="mt-4 pt-4 border-t border-gray-100"><p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Description</p><textarea value={catalog.description} onChange={(e) => setCatalog((prev) => ({ ...prev, description: e.target.value }))} rows={3} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100" /></div>
         </div>
 
         {/* Status Toggle */}
@@ -651,88 +667,45 @@ export default function EditProductPage() {
           </div>
         </div>
 
-        {/* Key Properties (Read-only) */}
-        {((product.attributes && Object.keys(product.attributes).length > 0) ||
-          product.material ||
-          product.grade ||
-          product.application ||
-          product.standard) && (
-          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Key Properties
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {product.material && (
-                <div className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
-                  <span className="text-gray-500 capitalize">Material</span>
-                  <span className="font-medium text-gray-900">{product.material}</span>
-                </div>
-              )}
-              {product.grade && (
-                <div className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
-                  <span className="text-gray-500 capitalize">Grade</span>
-                  <span className="font-medium text-gray-900">{product.grade}</span>
-                </div>
-              )}
-              {product.application && (
-                <div className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
-                  <span className="text-gray-500 capitalize">Application</span>
-                  <span className="font-medium text-gray-900">{product.application}</span>
-                </div>
-              )}
-              {product.standard && (
-                <div className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
-                  <span className="text-gray-500 capitalize">Standard</span>
-                  <span className="font-medium text-gray-900">{product.standard}</span>
-                </div>
-              )}
-              {product.attributes &&
-                Object.entries(product.attributes)
-                  .filter(([key]) => !["material", "grade", "application", "standard"].includes(key.toLowerCase()))
-                  .map(([key, value]) => (
-                    <div
-                      key={key}
-                      className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0"
-                    >
-                      <span className="text-gray-500 capitalize">
-                        {key.replace(/_/g, " ")}
-                      </span>
-                      <span className="font-medium text-gray-900 text-right max-w-[60%] whitespace-pre-wrap">
-                        {String(value)}
-                      </span>
-                    </div>
-                  ))}
-            </div>
+        <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Key Properties</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {(["material", "application", "standard"] as const).map((key) => (
+              <label key={key} className="block text-sm font-medium text-gray-600 capitalize">{key}
+                <input value={String((product as any)[key] ?? product.attributes?.[key] ?? "")} onChange={(e) => setProduct((prev) => prev ? { ...prev, [key]: e.target.value, attributes: { ...(prev.attributes || {}), [key]: e.target.value } } : prev)} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-normal text-gray-900 disabled:bg-gray-100" />
+              </label>
+            ))}
+            {([ ["size", "Size"], ["brand", "Brand"], ["grade", "Grade"], ["colour", "Colour"], ["warranty", "Warranty / Guarantee"], ["manufacturer", "Manufacturer"] ] as const).map(([key, label]) => (
+              <label key={key} className="block text-sm font-medium text-gray-600">{label}
+                <input value={catalogFields[key]} onChange={(e) => setCatalogFields((prev) => ({ ...prev, [key]: e.target.value }))} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-normal text-gray-900 disabled:bg-gray-100" />
+              </label>
+            ))}
+            <label className="block text-sm font-medium text-gray-600">Quantity Unit
+              <select value={catalogFields.unit} onChange={(e) => setCatalogFields((prev) => ({ ...prev, unit: e.target.value }))} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-normal text-gray-900">
+                {["nos", "kg", "pack", "Ltr", "Box", "gram", "Ton"].map((unit) => <option key={unit} value={unit}>{unit}</option>)}
+              </select>
+            </label>
+            {Object.entries(product.attributes || {}).filter(([key]) => !keyPropertyNames.has(normalizePropertyKey(key))).map(([key, value]) => (
+              <label key={key} className="block text-sm font-medium text-gray-600 capitalize">{key.replace(/_/g, " ")}
+                <input value={String(value ?? "")} onChange={(e) => setProduct((prev) => prev ? { ...prev, attributes: { ...(prev.attributes || {}), [key]: e.target.value } } : prev)} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-normal text-gray-900 disabled:bg-gray-100" />
+              </label>
+            ))}
           </div>
-        )}
+        </div>
 
-        {/* Specifications (Read-only) */}
-        {product.specifications &&
-          Object.keys(product.specifications).length > 0 && (
-            <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                Specifications
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {Object.entries(product.specifications).map(([key, value]) => (
-                  <div
-                    key={key}
-                    className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0"
-                  >
-                    <span className="text-gray-500 capitalize">
-                      {key.replace(/_/g, " ")}
-                    </span>
-                    <span className="font-medium text-gray-900">
-                      {String(value)}
-                    </span>
-                  </div>
-                ))}
+        <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Specifications</h2>
+          <div className="space-y-3">
+            {specificationEntries.map((entry, index) => (
+              <div key={index} className="grid grid-cols-1 sm:grid-cols-[1fr_2fr_auto] gap-3 items-center">
+                <input aria-label="Specification name" value={entry.key} onChange={(e) => setSpecificationEntries((prev) => prev.map((item, i) => i === index ? { ...item, key: e.target.value } : item))} placeholder="Property" className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100" />
+                <input aria-label="Specification value" value={entry.value} onChange={(e) => setSpecificationEntries((prev) => prev.map((item, i) => i === index ? { ...item, value: e.target.value } : item))} placeholder="Value" className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100" />
+                <button type="button" onClick={() => setSpecificationEntries((prev) => prev.filter((_, i) => i !== index))} className="px-3 py-2 text-sm text-red-600 disabled:opacity-40">Remove</button>
               </div>
-              <p className="text-xs text-gray-400 mt-4">
-                Contact admin to modify product specifications
-              </p>
-            </div>
-          )}
+            ))}
+          </div>
+          <button type="button" onClick={() => setSpecificationEntries((prev) => [...prev, { key: "", value: "" }])} className="mt-4 rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 disabled:opacity-40">Add specification</button>
+        </div>
 
         {/* Action Footer */}
         <div className="flex items-center justify-end gap-4 pt-4 border-t border-gray-200">

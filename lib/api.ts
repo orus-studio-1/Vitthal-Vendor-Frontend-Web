@@ -100,6 +100,10 @@ export interface ProductDetails {
   updated_at?: string;
   images: string[];
   specifications: Record<string, any>;
+  pending_price?: number | null;
+  pending_modifications?: Record<string, any> | null;
+  modification_status?: string | null;
+  variants?: any[];
   attributes?: Record<string, any>;
   material?: string;
   grade?: string;
