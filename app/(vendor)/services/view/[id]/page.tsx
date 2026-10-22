@@ -60,6 +60,8 @@ type ServiceOffering = {
   created_at: string;
   service_id: string;
   service_name: string;
+  service_description?: string | null;
+  modification_status?: string | null;
   service_status: string;
   service_image: string;
   category_name: string;
@@ -578,6 +580,7 @@ export default function ServiceViewDetailPage() {
 
             {/* Service Details Layout */}
             <div className="bg-white border border-gray-200 rounded-xl shadow-sm">
+              {offering.modification_status === "pending" && <div className="border-b border-amber-200 bg-amber-50 px-6 py-3 text-sm text-amber-900">Your service edit is under admin approval. Approved details remain live until review.</div>}
               <div className="px-6 py-4 border-b border-gray-200">
                 <h3 className="text-base font-bold text-gray-900">Service Details</h3>
               </div>
@@ -586,8 +589,8 @@ export default function ServiceViewDetailPage() {
                   {/* Left Column: Description */}
                   <div>
                     <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Description</h4>
-                    <p className="text-gray-600 leading-relaxed bg-gray-50 p-4 rounded-lg border border-gray-150">
-                      We offer high-quality professional {offering.service_name} services, fully compliant with B2B industry standards. Standard scheduling, negotiation channels, and completion verification procedures apply.
+                    <p className="text-gray-600 leading-relaxed bg-gray-50 p-4 rounded-lg border border-gray-200 whitespace-pre-wrap">
+                      {offering.service_description || "No service description provided."}
                     </p>
                   </div>
 
