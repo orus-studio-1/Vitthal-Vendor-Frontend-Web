@@ -30,6 +30,9 @@ type ServiceOffering = {
   created_at: string;
   service_id: string;
   service_name: string;
+  service_description?: string | null;
+  can_edit_service_details?: boolean;
+  modification_status?: string | null;
   service_status: string;
   service_image: string;
   category_name: string;
@@ -47,6 +50,8 @@ export default function EditServicePage() {
   const [offering, setOffering] = useState<ServiceOffering | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [serviceName, setServiceName] = useState("");
+  const [serviceDescription, setServiceDescription] = useState("");
 
   // Form State
   const [price, setPrice] = useState("");
@@ -97,6 +102,8 @@ export default function EditServicePage() {
       }
 
       setOffering(current);
+      setServiceName(current.service_name || "");
+      setServiceDescription(current.service_description || "");
       setPrice(current.price);
       setPricingType(current.pricing_type);
       setMoq(String(current.moq));
@@ -127,6 +134,7 @@ export default function EditServicePage() {
         },
         credentials: "include",
         body: JSON.stringify({
+          ...(offering?.can_edit_service_details ? { serviceName, serviceDescription } : {}),
           price: parseFloat(price),
           pricingType,
           moq: parseInt(moq),
@@ -138,7 +146,7 @@ export default function EditServicePage() {
 
       const data = await response.json();
       if (response.ok) {
-        toast.success("Service updated successfully!");
+        toast.success(data.message || "Service changes submitted for admin approval.");
         router.push(`/services/view/${offeringId}`);
       } else {
         toast.error(data.message || "Failed to update service");
@@ -203,7 +211,7 @@ export default function EditServicePage() {
           </Link>
           <div>
             <h1 className="text-2xl font-semibold text-gray-900 tracking-tight">Edit Service</h1>
-            <p className="text-gray-500 mt-1">Update pricing, timeline, and terms</p>
+            <p className="text-gray-500 mt-1">Update service details, pricing, timeline, and terms</p>
           </div>
         </div>
         <Link
@@ -215,6 +223,11 @@ export default function EditServicePage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {offering.modification_status === "pending" && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            Your latest service edit is waiting for admin approval. The currently approved details remain live until it is reviewed.
+          </div>
+        )}
         {/* Service Details Preview Card */}
         <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Service Details</h2>
@@ -231,7 +244,11 @@ export default function EditServicePage() {
               </div>
             )}
             <div className="flex-1">
-              <h3 className="font-semibold text-gray-900 text-lg">{offering.service_name}</h3>
+              {offering.can_edit_service_details ? (
+                <label className="block text-sm font-medium text-gray-600">Service Name
+                  <input value={serviceName} onChange={(event) => setServiceName(event.target.value)} required className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-base font-semibold text-gray-900" />
+                </label>
+              ) : <h3 className="font-semibold text-gray-900 text-lg">{offering.service_name}</h3>}
               <p className="text-gray-500 text-sm mt-0.5">
                 {offering.category_name} • <span className="capitalize">{offering.pricing_type} Model</span>
               </p>
@@ -240,10 +257,17 @@ export default function EditServicePage() {
           </div>
 
           <div className="mt-4 pt-4 border-t border-gray-100">
-            <p className="text-sm text-gray-500 mb-1">Description</p>
-            <p className="text-gray-650 leading-relaxed text-sm bg-gray-50 p-4 rounded-lg border border-gray-150 italic">
-              We offer high-quality professional {offering.service_name} services, fully compliant with B2B industry standards. Standard scheduling, negotiation channels, and completion verification procedures apply.
-            </p>
+            {offering.can_edit_service_details ? (
+              <label className="block text-sm font-medium text-gray-600">Description and Specifications
+                <textarea value={serviceDescription} onChange={(event) => setServiceDescription(event.target.value)} rows={6} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-normal text-gray-900" placeholder="Update service description and technical specifications" />
+                <span className="mt-1 block text-xs font-normal text-gray-500">For custom services, the existing technical specifications are part of this description.</span>
+              </label>
+            ) : (
+              <>
+                <p className="text-sm text-gray-500 mb-1">Description</p>
+                <p className="text-gray-700 leading-relaxed text-sm bg-gray-50 p-4 rounded-lg border border-gray-200 whitespace-pre-wrap">{offering.service_description || "No service description provided."}</p>
+              </>
+            )}
           </div>
         </div>
 
@@ -432,7 +456,7 @@ export default function EditServicePage() {
           </Link>
           <button
             type="submit"
-            disabled={isSaving}
+            disabled={isSaving || offering.modification_status === "pending"}
             className="px-8 py-3 bg-gray-900 text-white rounded-md hover:bg-gray-800 disabled:bg-gray-500 transition-colors font-medium shadow-md text-base inline-flex items-center"
           >
             {isSaving ? (
@@ -441,7 +465,7 @@ export default function EditServicePage() {
               </>
             ) : (
               <>
-                <Save className="w-5 h-5 mr-2" /> Save Changes
+                <Save className="w-5 h-5 mr-2" /> {offering.modification_status === "pending" ? "Approval Pending" : "Submit for Approval"}
               </>
             )}
           </button>

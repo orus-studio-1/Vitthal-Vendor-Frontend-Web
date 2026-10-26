@@ -29,6 +29,7 @@ type ServiceOffering = {
   created_at: string;
   service_id: string;
   service_name: string;
+  modification_status?: string | null;
   service_status: string;
   service_image: string;
   category_name: string;
@@ -533,9 +534,10 @@ export default function ServicesPage() {
                             }
 
                             return (
-                              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${badgeStyle}`}>
-                                {badgeLabel}
-                              </span>
+                              <div className="flex flex-col items-start gap-1">
+                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${badgeStyle}`}>{badgeLabel}</span>
+                                {offering.modification_status === "pending" && <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800">Edit: under approval</span>}
+                              </div>
                             );
                           })()}
                         </td>
@@ -557,8 +559,9 @@ export default function ServicesPage() {
                             </Link>
                             <button
                               onClick={() => router.push(`/services/edit/${offering.id}`)}
-                              title="Edit Pricing"
-                              className="p-1.5 rounded-lg border border-gray-250 text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+                              title="Edit Service"
+                              disabled={offering.modification_status === "pending"}
+                              className="p-1.5 rounded-lg border border-gray-250 text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
                             >
                               <Edit className="h-4 w-4" />
                             </button>
