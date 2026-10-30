@@ -357,12 +357,10 @@ export default function AddServicePage() {
         setGlobalServices(json.data || []);
       }
 
-      const token = typeof window !== "undefined" ? localStorage.getItem("vendor_token") : null;
       const categoriesRes = await fetch(`${apiUrl}/api/vendors/getVendorCategories`, {
         credentials: "include",
         headers: {
           "x-request-from": "vendor",
-          ...(token && token !== "null" && token !== "undefined" && { Authorization: `Bearer ${token}` }),
         },
       });
       if (categoriesRes.ok) {

@@ -437,17 +437,10 @@ export default function ServiceQuotationDetailPage() {
   const fetchDetails = async () => {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9000";
-      const token =
-        typeof window !== "undefined"
-          ? localStorage.getItem("vendor_token")
-          : null;
       const res = await fetch(`${apiUrl}/api/services/quotations/${id}`, {
         credentials: "include",
         headers: {
           "x-request-from": "vendor",
-          ...(token &&
-            token !== "null" &&
-            token !== "undefined" && { Authorization: `Bearer ${token}` }),
         },
       });
 
@@ -648,10 +641,6 @@ export default function ServiceQuotationDetailPage() {
       }
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9000";
-      const token =
-        typeof window !== "undefined"
-          ? localStorage.getItem("vendor_token")
-          : null;
       const res = await fetch(
         `${apiUrl}/api/services/quotations/${id}/respond`,
         {
@@ -660,9 +649,6 @@ export default function ServiceQuotationDetailPage() {
           headers: {
             "Content-Type": "application/json",
             "x-request-from": "vendor",
-            ...(token &&
-              token !== "null" &&
-              token !== "undefined" && { Authorization: `Bearer ${token}` }),
           },
           body: JSON.stringify(payload),
         },

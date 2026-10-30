@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { useAuthStore } from "@/store/authStore";
+import { safeRedirect } from "@/lib/utils";
 import Image from "next/image";
 
 export default function LoginPage() {
@@ -50,6 +51,8 @@ export default function LoginPage() {
       if (res.ok) {
         toast.success(data.message || "Login successful");
 
+        // Only the Admin Backend (vendor chat, service offering edits) still reads this token.
+        // Client Backend calls rely on the httpOnly session cookies; don't add new readers.
         if (data.accessToken) {
           localStorage.setItem("vendor_token", data.accessToken);
         }
@@ -58,9 +61,10 @@ export default function LoginPage() {
           useAuthStore.getState().setUser(data.user);
         }
 
-        const redirect =
-          new URLSearchParams(window.location.search).get("redirect") ||
-          "/dashboard";
+        const redirect = safeRedirect(
+          new URLSearchParams(window.location.search).get("redirect"),
+          "/dashboard",
+        );
 
         router.push(redirect);
       } else {

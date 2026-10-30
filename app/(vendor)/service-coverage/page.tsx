@@ -13,11 +13,9 @@ type CoverageData = { category_ids?: string[]; subcategory_ids?: string[] };
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9000";
 
 function authHeaders(): Record<string, string> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("vendor_token") : null;
   return {
     "Content-Type": "application/json",
     "x-request-from": "vendor",
-    ...(token && token !== "null" && token !== "undefined" ? { Authorization: `Bearer ${token}` } : {}),
   };
 }
 

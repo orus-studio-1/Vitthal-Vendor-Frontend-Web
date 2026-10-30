@@ -84,12 +84,10 @@ export default function ServicesPage() {
       setLoading(true);
       setError(null);
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9000";
-      const token = typeof window !== "undefined" ? localStorage.getItem("vendor_token") : null;
       const res = await fetch(`${apiUrl}/api/services/vendor/offerings`, {
         credentials: "include",
         headers: {
           "x-request-from": "vendor",
-          ...(token && token !== "null" && token !== "undefined" && { Authorization: `Bearer ${token}` }),
         },
       });
 
@@ -130,12 +128,10 @@ export default function ServicesPage() {
   const fetchCategories = async () => {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9000";
-      const token = typeof window !== "undefined" ? localStorage.getItem("vendor_token") : null;
       const res = await fetch(`${apiUrl}/api/vendors/getVendorCategories`, {
         credentials: "include",
         headers: {
           "x-request-from": "vendor",
-          ...(token && token !== "null" && token !== "undefined" && { Authorization: `Bearer ${token}` }),
         },
       });
       if (res.ok) {
@@ -150,10 +146,8 @@ export default function ServicesPage() {
   const fetchServiceCoverage = async () => {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9000";
-      const token = typeof window !== "undefined" ? localStorage.getItem("vendor_token") : null;
       const headers = {
         "x-request-from": "vendor",
-        ...(token && token !== "null" && token !== "undefined" ? { Authorization: `Bearer ${token}` } : {}),
       };
       const [categoriesResponse, coverageResponse] = await Promise.all([
         fetch(`${apiUrl}/api/service-hub/categories`),
