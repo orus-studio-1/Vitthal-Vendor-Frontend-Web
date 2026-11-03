@@ -675,53 +675,23 @@ const OrderDetailPage = () => {
     );
   };
 
-  const downloadInvoice = () => {
+  const downloadOrderDocument = async (documentType: "tax-invoice" | "challan") => {
     if (!order) return;
-
-    const itemRows = order.items.map((it) => [
-      it.product_name,
-      it.quantity,
-      `INR ${Number(it.price).toLocaleString("en-IN")}`,
-      `INR ${(Number(it.price) * it.quantity).toLocaleString("en-IN")}`,
-    ]);
-
-    const fullAddress = [order.address_line, order.city, order.state, order.pincode]
-      .filter(Boolean)
-      .join(", ");
-
-    const sections = [
-      {
-        heading: "Tax Invoice Details",
-        rows: [
-          ["Invoice No.", `INV-${order.order_id.slice(0, 8).toUpperCase()}`],
-          ["Date of Issue", new Date().toLocaleDateString("en-IN")],
-          ["Order Date", order.created_at ? new Date(order.created_at).toLocaleString("en-IN") : "N/A"],
-          ["Billed To (Customer)", order.customer_name || "N/A"],
-          ["Contact Info", `${order.customer_phone || "N/A"} / ${order.customer_email || "N/A"}`],
-          ["Shipping / Billing Address", fullAddress || "N/A"],
-          ["Payment Status", (order.payment_status || "PAID").toUpperCase()],
-        ],
-      },
-      {
-        heading: "Line Items & Charges",
-        headers: ["Item Description", "Qty", "Rate (INR)", "Amount (INR)"],
-        rows: itemRows,
-      },
-      {
-        heading: "Payment Summary",
-        rows: [
-          ["Subtotal", `INR ${Number(order.total_amount).toLocaleString("en-IN")}`],
-          ["Taxes (Included)", "18% GST Applicable"],
-          ["Total Payable Amount", `INR ${Number(order.total_amount).toLocaleString("en-IN")}`],
-        ],
-      },
-    ];
-
-    downloadPdfReport(
-      `Tax Invoice - INV-${order.order_id.slice(0, 8).toUpperCase()}`,
-      sections,
-      `Invoice_INV-${order.order_id.slice(0, 8).toUpperCase()}.pdf`
-    );
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/orders/${order.order_id}/invoice?document=${documentType}`, {
+        credentials: "include",
+        headers: { "x-request-from": "vendor" },
+      });
+      if (!response.ok) throw new Error("Document download failed");
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${documentType}-${order.order_id.slice(0, 8)}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error(`Could not download ${documentType === "challan" ? "delivery challan" : "tax invoice"}`);
+    }
   };
 
   const getNextStatusOptions = () => {
@@ -821,13 +791,10 @@ const OrderDetailPage = () => {
               Export
             </button>
             {order.status.toLowerCase() !== "pending" && order.status.toLowerCase() !== "cancelled" && (
-              <button
-                onClick={downloadInvoice}
-                className="px-4 py-2.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl hover:bg-emerald-100 transition-all text-sm font-semibold shadow-sm flex items-center gap-2 cursor-pointer"
-              >
-                <Download className="w-4 h-4 text-emerald-600" />
-                Download Invoice
-              </button>
+              <>
+                <button onClick={() => downloadOrderDocument("challan")} className="px-4 py-2.5 bg-blue-50 border border-blue-200 text-blue-700 rounded-xl hover:bg-blue-100 transition-all text-sm font-semibold shadow-sm flex items-center gap-2 cursor-pointer"><Download className="w-4 h-4" />Download Challan</button>
+                <button onClick={() => downloadOrderDocument("tax-invoice")} className="px-4 py-2.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl hover:bg-emerald-100 transition-all text-sm font-semibold shadow-sm flex items-center gap-2 cursor-pointer"><Download className="w-4 h-4 text-emerald-600" />Download Tax Invoice</button>
+              </>
             )}
             {getNextStatusOptions().length > 0 && (
               <div className="flex items-center gap-2">
