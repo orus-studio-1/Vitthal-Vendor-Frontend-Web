@@ -294,7 +294,13 @@ export default function EditServicePage() {
             </div>
             <button
               type="button"
-              onClick={() => setIsActive(!isActive)}
+              onClick={() => {
+                if (offering.service_status !== "approved") {
+                  toast.error("This service can't be activated until the admin approves it. Once approved, you can activate or deactivate it.");
+                  return;
+                }
+                setIsActive(!isActive);
+              }}
               className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 ${
                 isActive ? "bg-emerald-600" : "bg-gray-300"
               }`}

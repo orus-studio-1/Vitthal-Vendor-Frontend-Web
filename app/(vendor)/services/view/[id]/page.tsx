@@ -38,6 +38,7 @@ import {
 } from "chart.js";
 import { toast } from "sonner";
 import { getAdminToken } from "@/lib/adminToken";
+import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { useAuthStore } from "@/store/authStore";
 
 ChartJS.register(
@@ -211,6 +212,18 @@ export default function ServiceViewDetailPage() {
 
   const handleToggleStatus = async () => {
     if (!offering) return;
+    if (offering.service_status !== "approved") {
+      toast.error(
+        offering.service_status === "rejected"
+          ? "This service was rejected by the admin, so it can't be activated."
+          : "This service can't be activated until the admin approves it. Once approved, you can activate or deactivate it."
+      );
+      return;
+    }
+    if (offering.modification_status === "pending") {
+      toast.error("A change to this service is already waiting for admin approval.");
+      return;
+    }
     try {
       const adminUrl = process.env.NEXT_PUBLIC_ADMIN_API_URL || "http://localhost:9001";
       const token = await getAdminToken();
@@ -225,11 +238,13 @@ export default function ServiceViewDetailPage() {
         body: JSON.stringify({ isActive: !offering.is_active }),
       });
 
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        toast.success(`Service successfully ${!offering.is_active ? "activated" : "deactivated"}`);
-        setOffering({ ...offering, is_active: !offering.is_active });
+        // The live status only changes once the admin approves.
+        toast.success(data.message || "Status change sent for admin approval.");
+        setOffering({ ...offering, modification_status: "pending" });
       } else {
-        toast.error("Failed to update status");
+        toast.error(data.message || "Failed to update status");
       }
     } catch (err) {
       console.error(err);
@@ -591,7 +606,7 @@ export default function ServiceViewDetailPage() {
                   <div>
                     <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Description</h4>
                     <p className="text-gray-600 leading-relaxed bg-gray-50 p-4 rounded-lg border border-gray-200 whitespace-pre-wrap">
-                      {offering.service_description || "No service description provided."}
+                      {offering.service_description ? <MarkdownRenderer content={offering.service_description} /> : "No service description provided."}
                     </p>
                   </div>
 
