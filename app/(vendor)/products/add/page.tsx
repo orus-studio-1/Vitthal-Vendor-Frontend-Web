@@ -550,9 +550,19 @@ export default function AddProductPage() {
       }
     };
 
+    fetchVendorCategories();
+  }, [apiBase]);
+
+  // Product types are specific to the chosen category
+  useEffect(() => {
+    if (!category) {
+      setProductTypes([]);
+      return;
+    }
+    let cancelled = false;
     const fetchProductTypes = async () => {
       try {
-        const res = await fetch(`${apiBase}/api/products/getProductTypes`, {
+        const res = await fetch(`${apiBase}/api/products/getProductTypes?category=${encodeURIComponent(category)}`, {
           credentials: "include",
           headers: {
             "Content-Type": "application/json",
@@ -560,17 +570,18 @@ export default function AddProductPage() {
           },
         });
         const data = await parseApiResponse(res);
-        if (res.ok && Array.isArray(data.data)) {
+        if (!cancelled && res.ok && Array.isArray(data.data)) {
           setProductTypes(data.data);
         }
       } catch (error) {
         console.error("Failed to load product types:", error);
       }
     };
-
-    fetchVendorCategories();
     fetchProductTypes();
-  }, [apiBase]);
+    return () => {
+      cancelled = true;
+    };
+  }, [apiBase, category]);
 
   // Fetch predefined subcategories when category changes
   useEffect(() => {

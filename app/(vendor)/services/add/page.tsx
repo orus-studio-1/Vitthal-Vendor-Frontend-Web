@@ -300,10 +300,16 @@ export default function AddServicePage() {
   const [uploadedVideo, setUploadedVideo] = useState<File | null>(null);
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
 
-  const [subcategories, setSubcategories] = useState<{ id: string; name: string }[]>([]);
+  // Service path: main service > sub-category > sub-sub-category
+  const [subcategories, setSubcategories] = useState<{ id: string; name: string; parent_id: string | null }[]>([]);
+  const [subcategorySearch, setSubcategorySearch] = useState("");
   const [customSubcategoryId, setCustomSubcategoryId] = useState("");
-  const [isCreatingCustomSubcategory, setIsCreatingCustomSubcategory] = useState(false);
   const [newSubcategoryName, setNewSubcategoryName] = useState("");
+  const [isProposingSubcategory, setIsProposingSubcategory] = useState(false);
+  const [customChildId, setCustomChildId] = useState("");
+  const [newChildName, setNewChildName] = useState("");
+  const [isProposingChild, setIsProposingChild] = useState(false);
+  const pathSectionRef = useRef<HTMLDivElement>(null);
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -336,17 +342,38 @@ export default function AddServicePage() {
       }
     }
     fetchSubcategories();
+    setSubcategorySearch("");
     setCustomSubcategoryId("");
-    setIsCreatingCustomSubcategory(false);
-    setNewSubcategoryName("");
+    setCustomChildId("");
   }, [customCategoryId]);
+
+  const topLevelSubcategories = subcategories.filter((sub) => !sub.parent_id);
+  const childSubcategories = subcategories.filter((sub) => sub.parent_id === customSubcategoryId);
+  const matchingSubcategories = topLevelSubcategories.filter((sub) =>
+    sub.name.toLowerCase().includes(subcategorySearch.trim().toLowerCase())
+  );
+  const selectedSubcategoryName =
+    newSubcategoryName.trim() || subcategories.find((sub) => sub.id === customSubcategoryId)?.name || "";
+  const selectedChildName =
+    newChildName.trim() || subcategories.find((sub) => sub.id === customChildId)?.name || "";
+  const selectedMainServiceLabel = categories.find((cat) => cat.id === customCategoryId)?.label || "";
+
+  const handleContinueWithPath = () => {
+    if (!customCategoryId || !selectedSubcategoryName) {
+      toast.error("Choose your service and a sub-category, or create a new sub-category.");
+      return;
+    }
+    setCustomName(selectedChildName || selectedSubcategoryName);
+    setIsCreatingCustomService(true);
+    setSelectedService(null);
+  };
 
   const fetchData = async () => {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9000";
       
       // Fetch Approved Global Services
-      const servicesRes = await fetch(`${apiUrl}/api/services`, {
+      const servicesRes = await fetch(`${apiUrl}/api/services?limit=50`, {
         credentials: "include",
         headers: {
           "x-request-from": "vendor",
@@ -357,7 +384,7 @@ export default function AddServicePage() {
         setGlobalServices(json.data || []);
       }
 
-      const categoriesRes = await fetch(`${apiUrl}/api/vendors/getVendorCategories`, {
+      const categoriesRes = await fetch(`${apiUrl}/api/vendors/getVendorCategories?type=service`, {
         credentials: "include",
         headers: {
           "x-request-from": "vendor",
@@ -385,13 +412,19 @@ export default function AddServicePage() {
   };
 
   const handleStartCustomService = () => {
-    setIsCreatingCustomService(true);
-    setCustomName(searchTerm);
+    // A new service always sits under a sub-category, so send the vendor to pick where it belongs.
+    setCustomSubcategoryId("");
+    setSubcategorySearch("");
+    setNewSubcategoryName(searchTerm);
+    setIsProposingSubcategory(true);
+    setCustomChildId("");
+    setNewChildName("");
+    setIsProposingChild(false);
     setCustomDescription("");
-    setCustomCategoryId("");
     setCustomServiceType("");
     setCustomSpecs([{ id: Math.random().toString(36).substring(2, 9), key: "", value: "" }]);
     setSelectedService(null);
+    pathSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
   const handleResetSelection = () => {
@@ -531,7 +564,9 @@ export default function AddServicePage() {
             categoryId: customCategoryId,
             specifications,
             subcategoryId: customSubcategoryId || undefined,
+            subSubcategoryId: customChildId || undefined,
             newSubcategoryName: newSubcategoryName.trim() || undefined,
+            newSubSubcategoryName: newChildName.trim() || undefined,
             price: parseFloat(price),
             pricingType,
             moq: parseInt(moq),
@@ -573,7 +608,7 @@ export default function AddServicePage() {
         });
 
         if (!mediaRes.ok) {
-          console.warn(`Failed to upload service image ${i + 1}`);
+          toast.error(`Service image ${i + 1} could not be uploaded.`);
         }
       }
 
@@ -592,7 +627,7 @@ export default function AddServicePage() {
         });
 
         if (!mediaRes.ok) {
-          console.warn("Failed to upload service video file");
+          toast.error("The service video could not be uploaded.");
         }
       }
 
@@ -639,7 +674,8 @@ export default function AddServicePage() {
 
   // Filter global services
   const filteredServices = globalServices.filter((s) =>
-    s.name.toLowerCase().includes(searchTerm.toLowerCase())
+    s.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+    categories.some((cat) => cat.id === s.category_id)
   );
 
   const toolbarButtonClass =
@@ -862,6 +898,135 @@ export default function AddServicePage() {
                   </div>
                 )}
 
+                {/* Service path */}
+                <div ref={pathSectionRef} className="border border-gray-200 rounded-2xl p-5 space-y-4">
+                  <div>
+                    <p className="font-bold text-gray-900">Or find where your service belongs</p>
+                    <p className="text-xs text-gray-500 mt-1">Pick one of your registered services, then its sub-category. If yours is missing, create it and it goes to the admin with this service.</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">Your Service *</label>
+                    <select
+                      value={customCategoryId}
+                      onChange={(e) => setCustomCategoryId(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select your service</option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>{cat.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {customCategoryId && (
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">Sub-category *</label>
+                      {isProposingSubcategory ? (
+                        <input
+                          type="text"
+                          aria-label="New sub-category name"
+                          value={newSubcategoryName}
+                          onChange={(e) => setNewSubcategoryName(e.target.value)}
+                          placeholder="New sub-category name"
+                          className="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      ) : customSubcategoryId ? (
+                        <p className="text-sm font-semibold text-gray-900">{selectedSubcategoryName}</p>
+                      ) : (
+                        <div className="space-y-2">
+                          <input
+                            type="text"
+                            aria-label="Search sub-categories"
+                            value={subcategorySearch}
+                            onChange={(e) => setSubcategorySearch(e.target.value)}
+                            placeholder={`Search sub-categories under ${selectedMainServiceLabel}...`}
+                            className="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-52 overflow-y-auto">
+                            {matchingSubcategories.map((sub) => (
+                              <button key={sub.id} type="button" onClick={() => setCustomSubcategoryId(sub.id)} className="w-full text-left px-3.5 py-2.5 text-sm hover:bg-gray-50">
+                                {sub.name}
+                              </button>
+                            ))}
+                            {matchingSubcategories.length === 0 && (
+                              <p className="px-3.5 py-3 text-xs text-gray-500">No sub-category found.</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCustomSubcategoryId("");
+                          setCustomChildId("");
+                          setNewChildName("");
+                          setIsProposingChild(false);
+                          if (isProposingSubcategory || customSubcategoryId) {
+                            setIsProposingSubcategory(false);
+                            setNewSubcategoryName("");
+                          } else {
+                            setIsProposingSubcategory(true);
+                            setNewSubcategoryName(subcategorySearch);
+                          }
+                        }}
+                        className="mt-2 text-xs font-bold text-blue-600 hover:underline"
+                      >
+                        {isProposingSubcategory || customSubcategoryId ? "Choose a different sub-category" : "+ Create a new sub-category"}
+                      </button>
+                    </div>
+                  )}
+
+                  {selectedSubcategoryName && (
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">Sub-sub-category (optional)</label>
+                      {isProposingChild ? (
+                        <input
+                          type="text"
+                          aria-label="New sub-sub-category name"
+                          value={newChildName}
+                          onChange={(e) => setNewChildName(e.target.value)}
+                          placeholder="New sub-sub-category name"
+                          className="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      ) : (
+                        <select
+                          value={customChildId}
+                          aria-label="Sub-sub-category"
+                          onChange={(e) => setCustomChildId(e.target.value)}
+                          className="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="">None</option>
+                          {childSubcategories.map((child) => (
+                            <option key={child.id} value={child.id}>{child.name}</option>
+                          ))}
+                        </select>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCustomChildId("");
+                          setNewChildName("");
+                          setIsProposingChild(!isProposingChild);
+                        }}
+                        className="mt-2 text-xs font-bold text-blue-600 hover:underline"
+                      >
+                        {isProposingChild ? "Choose from the list" : "+ Create a new sub-sub-category"}
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={handleContinueWithPath}
+                      className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold"
+                    >
+                      Continue
+                    </button>
+                  </div>
+                </div>
+
                 {/* Info Box */}
                 <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-4 flex gap-3 text-xs text-blue-800 leading-relaxed">
                   <Info className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
@@ -913,21 +1078,11 @@ export default function AddServicePage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">
-                      Category *
+                      Listed Under
                     </label>
-                    <select
-                      required
-                      value={customCategoryId}
-                      onChange={(e) => setCustomCategoryId(e.target.value)}
-                      className="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600 bg-white font-medium"
-                    >
-                      <option value="">Select Category</option>
-                      {categories.map((cat, idx) => (
-                        <option key={cat.id || cat.code || idx} value={cat.id || cat.code || cat.label}>
-                          {cat.label}
-                        </option>
-                      ))}
-                    </select>
+                    <p className="w-full border border-gray-200 bg-gray-50 rounded-lg px-3.5 py-2.5 text-sm text-gray-800">
+                      {[selectedMainServiceLabel, selectedSubcategoryName, selectedChildName].filter(Boolean).join(" > ")}
+                    </p>
                   </div>
 
                   <div>
@@ -943,59 +1098,6 @@ export default function AddServicePage() {
                     />
                   </div>
                 </div>
-
-                {/* Subcategory selection / creation */}
-                {customCategoryId && (
-                  <div className="bg-gray-50 p-4 rounded-xl border border-gray-200/60 space-y-4 animate-in fade-in">
-                    <div className="flex items-center justify-between">
-                      <label className="block text-xs font-bold text-gray-750 uppercase tracking-wide">
-                        Subcategory
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsCreatingCustomSubcategory(!isCreatingCustomSubcategory);
-                          setCustomSubcategoryId("");
-                          setNewSubcategoryName("");
-                        }}
-                        className="text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline bg-transparent border-none cursor-pointer"
-                      >
-                        {isCreatingCustomSubcategory ? "Select Existing Subcategory" : "Create New Subcategory"}
-                      </button>
-                    </div>
-
-                    {isCreatingCustomSubcategory ? (
-                      <div>
-                        <input
-                          type="text"
-                          required
-                          value={newSubcategoryName}
-                          onChange={(e) => setNewSubcategoryName(e.target.value)}
-                          className="w-full border border-gray-300 bg-white rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600 font-medium text-gray-800"
-                          placeholder="Enter new subcategory name (e.g. TV Repair)..."
-                        />
-                        <p className="text-[11px] text-gray-400 mt-1">
-                          This subcategory will be created dynamically under the selected parent category.
-                        </p>
-                      </div>
-                    ) : (
-                      <div>
-                        <select
-                          value={customSubcategoryId}
-                          onChange={(e) => setCustomSubcategoryId(e.target.value)}
-                          className="w-full border border-gray-300 bg-white rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600 font-medium text-gray-800"
-                        >
-                          <option value="">None (No Subcategory)</option>
-                          {subcategories.map((sub) => (
-                            <option key={sub.id} value={sub.id}>
-                              {sub.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-                  </div>
-                )}
 
                 {/* Notion Style Rich Service Description Editor */}
                 <div>
@@ -1124,7 +1226,7 @@ export default function AddServicePage() {
                 type="button"
                 onClick={() => {
                   if (isCreatingCustomService && (!customName.trim() || !customCategoryId)) {
-                    toast.error("Please enter service name and category");
+                    toast.error("Please enter the service name.");
                     return;
                   }
                   setStep(3);

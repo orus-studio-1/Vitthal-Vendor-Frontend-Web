@@ -18,6 +18,7 @@ import {
   Eye,
 } from "lucide-react";
 import { toast } from "sonner";
+import { getAdminToken } from "@/lib/adminToken";
 import { useAuthStore } from "@/store/authStore";
 
 type ServiceOffering = {
@@ -200,7 +201,7 @@ export default function ServicesPage() {
 
     try {
       const adminUrl = process.env.NEXT_PUBLIC_ADMIN_API_URL || "http://localhost:9001";
-      const token = typeof window !== "undefined" ? localStorage.getItem("vendor_token") : null;
+      const token = await getAdminToken();
       const res = await fetch(`${adminUrl}/api/services/vendor/offerings/${offeringId}`, {
         method: "DELETE",
         credentials: "include",

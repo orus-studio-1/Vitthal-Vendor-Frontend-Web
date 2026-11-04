@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { getAdminToken } from "@/lib/adminToken";
 import { useAuthStore } from "@/store/authStore";
 import { vendorChatApi, VendorChatMessage, VendorChatResponse } from "@/lib/api";
 import { toast } from "sonner";
@@ -33,8 +34,10 @@ export default function VendorChatPage() {
 
     // Setup native WebSocket
     const wsUrl = ADMIN_API_BASE_URL.replace("http://", "ws://").replace("https://", "wss://");
-    const rawToken = typeof window !== 'undefined' ? localStorage.getItem('vendor_token') : null;
-    const token = rawToken && rawToken !== "null" && rawToken !== "undefined" ? rawToken : "";
+    let cancelled = false;
+    const connect = async () => {
+    const token = (await getAdminToken()) || "";
+    if (cancelled) return;
     const ws = new WebSocket(`${wsUrl}?token=${token}`);
     socketRef.current = ws;
 
@@ -61,9 +64,12 @@ export default function VendorChatPage() {
     ws.onclose = () => {
       setWsConnected(false);
     };
+    };
+    void connect();
 
     return () => {
-      ws.close();
+      cancelled = true;
+      socketRef.current?.close();
     };
   }, []);
 

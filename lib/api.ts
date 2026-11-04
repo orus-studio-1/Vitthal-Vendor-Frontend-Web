@@ -1,3 +1,4 @@
+import { getAdminToken } from "./adminToken";
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9000';
 const QUOTATION_API_BASE_URL = process.env.NEXT_PUBLIC_ADMIN_API_URL || 'http://localhost:9001';
 
@@ -510,7 +511,7 @@ export interface VendorChatResponse {
 
 export const vendorChatApi = {
   getMessages: async (page = 1, limit = 50): Promise<ApiResponse<VendorChatResponse>> => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('vendor_token') : null;
+    const token = await getAdminToken();
     const response = await fetch(`${QUOTATION_API_BASE_URL}/api/vendors/chat?page=${page}&limit=${limit}`, {
       method: 'GET',
       headers: {
@@ -526,7 +527,7 @@ export const vendorChatApi = {
   },
 
   sendMessage: async (body: string): Promise<ApiResponse<VendorChatMessage>> => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('vendor_token') : null;
+    const token = await getAdminToken();
     const response = await fetch(`${QUOTATION_API_BASE_URL}/api/vendors/chat`, {
       method: 'POST',
       headers: {

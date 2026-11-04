@@ -37,6 +37,7 @@ import {
   Filler,
 } from "chart.js";
 import { toast } from "sonner";
+import { getAdminToken } from "@/lib/adminToken";
 import { useAuthStore } from "@/store/authStore";
 
 ChartJS.register(
@@ -125,7 +126,7 @@ export default function ServiceViewDetailPage() {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9000";
 
       // 1. Fetch offerings to find our matching one
-      const token = typeof window !== "undefined" ? localStorage.getItem("vendor_token") : null;
+      const token = await getAdminToken();
       const offeringsRes = await fetch(`${adminUrl}/api/services/vendor/offerings`, {
         credentials: "include",
         headers: {
@@ -212,7 +213,7 @@ export default function ServiceViewDetailPage() {
     if (!offering) return;
     try {
       const adminUrl = process.env.NEXT_PUBLIC_ADMIN_API_URL || "http://localhost:9001";
-      const token = typeof window !== "undefined" ? localStorage.getItem("vendor_token") : null;
+      const token = await getAdminToken();
       const res = await fetch(`${adminUrl}/api/services/vendor/offerings/${offering.id}`, {
         method: "PUT",
         credentials: "include",
