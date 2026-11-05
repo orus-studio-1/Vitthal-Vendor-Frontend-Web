@@ -1271,11 +1271,11 @@ export default function ServiceQuotationDetailPage() {
                   <XCircle className="text-zinc-400 shrink-0" />
                   <div>
                     <p className="text-sm font-bold">
-                      Request Claimed by Another Vendor
+                      Request accepted by another vendor
                     </p>
                     <p className="text-xs text-zinc-500 mt-0.5">
-                      Another nearby vendor has accepted this service request.
-                      This request is now closed.
+                      This service request has been accepted by another vendor and is now closed.
+                      Thank you for your interest.
                     </p>
                   </div>
                 </div>

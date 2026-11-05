@@ -200,6 +200,10 @@ export default function NotificationsPage() {
 
     if (n.reference_type === "service") {
       router.push(`/services`);
+    } else if (n.reference_type === "order" && n.reference_id) {
+      router.push(`/orders/${n.reference_id}`);
+    } else if (n.reference_type === "service_booking") {
+      router.push(`/bookings`);
     } else if (isServiceNotif && n.reference_id) {
       router.push(`/service-quotations/${n.reference_id}`);
     } else if (n.reference_id && (isProductQuotation || n.reference_type === "quotation" || n.type?.includes("quotation"))) {

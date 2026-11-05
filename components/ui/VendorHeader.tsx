@@ -281,6 +281,10 @@ export function VendorHeader() {
 
                                 if (n.reference_type === "service") {
                                   router.push(`/services`);
+                                } else if (n.reference_type === "order" && n.reference_id) {
+                                  router.push(`/orders/${n.reference_id}`);
+                                } else if (n.reference_type === "service_booking") {
+                                  router.push(`/bookings`);
                                 } else if (n.reference_id && isServiceNotif) {
                                   router.push(`/service-quotations/${n.reference_id}`);
                                 } else if (n.reference_id && (isProductQuotation || n.type?.includes("quotation"))) {
