@@ -19,7 +19,9 @@ import {
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { getAdminToken } from "@/lib/adminToken";
 import { useAuthStore } from "@/store/authStore";
+import { ServiceMediaManager } from "@/components/ServiceMediaManager";
 
 type ServiceOffering = {
   id: string;
@@ -75,7 +77,7 @@ export default function EditServicePage() {
     try {
       setLoading(true);
       const adminUrl = process.env.NEXT_PUBLIC_ADMIN_API_URL || "http://localhost:9001";
-      const token = typeof window !== "undefined" ? localStorage.getItem("vendor_token") : null;
+      const token = await getAdminToken();
       const response = await fetch(`${adminUrl}/api/services/vendor/offerings`, {
         credentials: "include",
         headers: {
@@ -124,7 +126,7 @@ export default function EditServicePage() {
 
     try {
       const adminUrl = process.env.NEXT_PUBLIC_ADMIN_API_URL || "http://localhost:9001";
-      const token = typeof window !== "undefined" ? localStorage.getItem("vendor_token") : null;
+      const token = await getAdminToken();
       const response = await fetch(`${adminUrl}/api/services/vendor/offerings/${offeringId}`, {
         method: "PUT",
         headers: {
@@ -292,7 +294,13 @@ export default function EditServicePage() {
             </div>
             <button
               type="button"
-              onClick={() => setIsActive(!isActive)}
+              onClick={() => {
+                if (offering.service_status !== "approved") {
+                  toast.error("This service can't be activated until the admin approves it. Once approved, you can activate or deactivate it.");
+                  return;
+                }
+                setIsActive(!isActive);
+              }}
               className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 ${
                 isActive ? "bg-emerald-600" : "bg-gray-300"
               }`}
@@ -471,6 +479,8 @@ export default function EditServicePage() {
           </button>
         </div>
       </form>
+
+      {offering.service_id && <ServiceMediaManager offeringId={offeringId} serviceId={offering.service_id} />}
     </div>
   );
 }

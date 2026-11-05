@@ -109,9 +109,78 @@ export default function EditProductPage() {
   const [catalogFields, setCatalogFields] = useState({ size: "", brand: "", grade: "", colour: "", warranty: "", manufacturer: "", unit: "nos" });
   const [specificationEntries, setSpecificationEntries] = useState<Array<{ key: string; value: string }>>([]);
 
+  const emptyVariantRow = () => ({ id: Math.random().toString(36).slice(2), key: "", value: "" });
+  const [variantRows, setVariantRows] = useState<{ id: string; key: string; value: string }[]>([]);
+  const [newVariantRows, setNewVariantRows] = useState([emptyVariantRow()]);
+  const [newVariantPrice, setNewVariantPrice] = useState("");
+  const [newVariantMoq, setNewVariantMoq] = useState("1");
+  const [newVariantStock, setNewVariantStock] = useState("");
+  const [isAddingVariant, setIsAddingVariant] = useState(false);
+
+  const rowsToProperties = (rows: { key: string; value: string }[]) =>
+    Object.fromEntries(rows.filter((row) => row.key.trim()).map((row) => [row.key.trim(), row.value.trim()]));
+
+  const handleAddVariant = async () => {
+    const properties = rowsToProperties(newVariantRows);
+    if (!Object.keys(properties).length) {
+      toast.error("Add at least one property, for example Size: Large.");
+      return;
+    }
+    if (!(Number(newVariantPrice) > 0) || !(Number(newVariantMoq) >= 1) || newVariantStock === "" || Number(newVariantStock) < 0) {
+      toast.error("Enter a valid price, MOQ and stock for the new variant.");
+      return;
+    }
+    setIsAddingVariant(true);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9000";
+      const headers = { "Content-Type": "application/json", "x-request-from": "vendor" };
+      const variantRes = await fetch(`${apiUrl}/api/products/addProductVariant`, {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({ productId, properties }),
+      });
+      const variantData = await variantRes.json();
+      if (!variantRes.ok) {
+        toast.error(variantData.message || "Failed to add variant");
+        return;
+      }
+      const listingRes = await fetch(`${apiUrl}/api/products/addVendorProduct`, {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({
+          productId,
+          productVariantId: variantData.result.id,
+          price: Number(newVariantPrice),
+          moq: Number(newVariantMoq),
+          stockQuantity: Number(newVariantStock),
+          gstPercentage: Number(gstPercentage),
+        }),
+      });
+      const listingData = await listingRes.json();
+      if (!listingRes.ok) {
+        toast.error(listingData.message || "The variant was created, but its price could not be saved.");
+        return;
+      }
+      toast.success("Variant sent for admin approval.");
+      setNewVariantRows([emptyVariantRow()]);
+      setNewVariantPrice("");
+      setNewVariantMoq("1");
+      setNewVariantStock("");
+      await fetchProduct();
+    } catch (error) {
+      console.error("Error adding variant:", error);
+      toast.error("Failed to add variant");
+    } finally {
+      setIsAddingVariant(false);
+    }
+  };
+
   const applyVariantState = (variantsList: VendorProductVariant[], variantId: string) => {
     const v = variantsList.find((x) => x.product_variant_id === variantId);
     if (v) {
+      setVariantRows(Object.entries((v as any).properties || {}).map(([key, value]) => ({ id: key, key, value: String(value ?? "") })));
       setPrice(v.price.toString());
       setMoq(v.moq.toString());
       setStockQuantity(v.stock_quantity.toString());
@@ -214,7 +283,8 @@ export default function EditProductPage() {
             quotationEnabled,
             quotationMinQty: null,
             gstPercentage: Number(gstPercentage),
-            productVariantId: selectedVariantId || undefined
+            productVariantId: selectedVariantId || undefined,
+            variantProperties: variantRows.length ? rowsToProperties(variantRows) : undefined
           }),
         },
       );
@@ -240,10 +310,10 @@ export default function EditProductPage() {
             body: formData,
           });
           if (!imgRes.ok) {
-            console.warn("Failed to upload variant specific images during edit.");
+            toast.error("Your changes were saved, but the images could not be uploaded.");
           }
         }
-        toast.success("Product updated successfully!");
+        toast.success(data.message || "Product updated successfully!");
         router.push(`/products/view/${productId}`);
       } else {
         toast.error(data.message || "Failed to update product");
@@ -604,6 +674,48 @@ export default function EditProductPage() {
                 </p>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Variant properties and new variants */}
+        <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm space-y-6">
+          {variantRows.length > 0 && (
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 mb-1">Selected Variant Properties</h2>
+              <p className="text-gray-500 mb-3">Changes go to the admin along with the rest of this form.</p>
+              <div className="space-y-2">
+                {variantRows.map((row) => (
+                  <div key={row.id} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+                    <input aria-label="Property name" value={row.key} onChange={(e) => setVariantRows((rows) => rows.map((r) => r.id === row.id ? { ...r, key: e.target.value } : r))} className="border border-gray-300 rounded-lg px-3 py-2" />
+                    <input aria-label="Property value" value={row.value} onChange={(e) => setVariantRows((rows) => rows.map((r) => r.id === row.id ? { ...r, value: e.target.value } : r))} className="border border-gray-300 rounded-lg px-3 py-2" />
+                    <button type="button" onClick={() => setVariantRows((rows) => rows.filter((r) => r.id !== row.id))} className="px-3 text-red-600 hover:bg-red-50 rounded-lg">Remove</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Add New Variant</h2>
+            <p className="text-gray-500 mb-3">A new variant goes live after admin approval.</p>
+            <div className="space-y-2">
+              {newVariantRows.map((row) => (
+                <div key={row.id} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+                  <input aria-label="New property name" placeholder="Property (e.g. Size)" value={row.key} onChange={(e) => setNewVariantRows((rows) => rows.map((r) => r.id === row.id ? { ...r, key: e.target.value } : r))} className="border border-gray-300 rounded-lg px-3 py-2" />
+                  <input aria-label="New property value" placeholder="Value (e.g. Large)" value={row.value} onChange={(e) => setNewVariantRows((rows) => rows.map((r) => r.id === row.id ? { ...r, value: e.target.value } : r))} className="border border-gray-300 rounded-lg px-3 py-2" />
+                  <button type="button" onClick={() => setNewVariantRows((rows) => rows.length > 1 ? rows.filter((r) => r.id !== row.id) : rows)} className="px-3 text-red-600 hover:bg-red-50 rounded-lg">Remove</button>
+                </div>
+              ))}
+            </div>
+            <button type="button" onClick={() => setNewVariantRows((rows) => [...rows, emptyVariantRow()])} className="mt-2 text-blue-600 font-medium hover:underline">+ Add another property</button>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
+              <input aria-label="New variant price" type="number" min="0" placeholder="Price (₹) *" value={newVariantPrice} onChange={(e) => setNewVariantPrice(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2" />
+              <input aria-label="New variant MOQ" type="number" min="1" placeholder="MOQ *" value={newVariantMoq} onChange={(e) => setNewVariantMoq(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2" />
+              <input aria-label="New variant stock" type="number" min="0" placeholder="Stock *" value={newVariantStock} onChange={(e) => setNewVariantStock(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2" />
+            </div>
+            <button type="button" onClick={handleAddVariant} disabled={isAddingVariant} className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg font-medium">
+              {isAddingVariant ? "Sending..." : "Send Variant for Approval"}
+            </button>
           </div>
         </div>
 

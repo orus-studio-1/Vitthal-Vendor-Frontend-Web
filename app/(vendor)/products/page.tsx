@@ -41,6 +41,8 @@ type VendorProduct = {
   created_date: string;
   approval_status?: string;
   approval_notes?: string | null;
+  has_pending_modification?: boolean;
+  has_pending_deletion?: boolean;
   variants: VendorProductVariant[];
 };
 
@@ -57,6 +59,7 @@ const ProductsPage = () => {
   }, [user, router]);
 
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteReason, setDeleteReason] = useState("");
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -153,6 +156,10 @@ const ProductsPage = () => {
 
   const confirmDelete = async () => {
     if (!selectedProductId) return;
+    if (!deleteReason.trim()) {
+      alert("Please give a reason for deleting this product.");
+      return;
+    }
     setIsDeleting(true);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9000";
@@ -169,11 +176,21 @@ const ProductsPage = () => {
             "Content-Type": "application/json",
             "x-request-from": "vendor",
           },
+          body: JSON.stringify({ reason: deleteReason.trim() }),
         },
       );
 
       const data = await response.json();
-      if (response.ok) {
+      if (response.ok && data.deletion_pending) {
+        // The listing stays live until an admin decides.
+        await fetchVendorProducts();
+        setDeleteModalOpen(false);
+        setDeleteReason("");
+        setSelectedProductId(null);
+        setSelectedVariantId(null);
+        alert(data.message);
+      } else if (response.ok) {
+        setDeleteReason("");
         if (selectedVariantId) {
           // Remove only that variant from the product's variants list
           setProducts(products.map(p => {
@@ -398,14 +415,22 @@ const ProductsPage = () => {
                           <div className="flex flex-col items-start gap-1">
                             <span
                               className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
-                                product.approval_status === "approved"
+                                product.has_pending_deletion
+                                  ? "bg-red-50 text-red-700 border-red-200"
+                                  : product.approval_status === "approved" && product.has_pending_modification
+                                  ? "bg-amber-50 text-amber-700 border-amber-200"
+                                  : product.approval_status === "approved"
                                   ? "bg-blue-50 text-blue-700 border-blue-200"
                                   : product.approval_status === "rejected"
                                     ? "bg-red-50 text-red-700 border-red-200"
                                     : "bg-amber-50 text-amber-700 border-amber-200"
                               }`}
                             >
-                              Product: {product.approval_status || "pending"}
+                              {product.has_pending_deletion
+                                ? "Deletion Pending"
+                                : product.approval_status === "approved" && product.has_pending_modification
+                                ? "Modification Pending"
+                                : `Product: ${product.approval_status || "pending"}`}
                             </span>
                             <span className="text-[11px] text-gray-500 font-medium">
                               {activeVariantsCount} / {product.variants?.length || 0} active listings
@@ -434,7 +459,8 @@ const ProductsPage = () => {
                                 setSelectedVariantId(null);
                                 setDeleteModalOpen(true);
                               }}
-                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all"
+                              disabled={product.has_pending_deletion}
+                              className="disabled:opacity-40 p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all"
                               title="Delete catalog product mapping"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -575,10 +601,17 @@ const ProductsPage = () => {
               <h3 className="text-lg font-medium text-gray-900 mb-2">
                 Remove Product
               </h3>
-              <p className="text-sm text-gray-500 mb-6">
-                Are you sure you want to stop selling this product? This action
-                cannot be undone.
+              <p className="text-sm text-gray-500 mb-4">
+                Your request goes to the admin. The product stays live until it is approved.
               </p>
+              <textarea
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                rows={3}
+                aria-label="Reason for deleting this product"
+                placeholder="Reason for deleting this product *"
+                className="w-full mb-4 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
               <div className="flex items-center gap-3 w-full">
                 <button
                   onClick={() => setDeleteModalOpen(false)}
@@ -591,7 +624,7 @@ const ProductsPage = () => {
                   disabled={isDeleting}
                   className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-medium text-sm shadow-sm disabled:opacity-50"
                 >
-                  {isDeleting ? "Removing..." : "Delete"}
+                  {isDeleting ? "Sending..." : "Request Deletion"}
                 </button>
               </div>
             </div>
