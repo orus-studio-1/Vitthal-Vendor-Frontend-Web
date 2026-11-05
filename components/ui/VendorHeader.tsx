@@ -279,7 +279,9 @@ export function VendorHeader() {
                                   n.reference_type === "service_booking" ||
                                   (!isProductQuotation && (n.type?.includes("service") || n.title?.toLowerCase().includes("service") || n.body?.toLowerCase().includes("service")));
 
-                                if (n.reference_id && isServiceNotif) {
+                                if (n.reference_type === "service") {
+                                  router.push(`/services`);
+                                } else if (n.reference_id && isServiceNotif) {
                                   router.push(`/service-quotations/${n.reference_id}`);
                                 } else if (n.reference_id && (isProductQuotation || n.type?.includes("quotation"))) {
                                   router.push(`/quotations/${n.reference_id}`);
