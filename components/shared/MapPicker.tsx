@@ -19,25 +19,11 @@ const MAP_STYLES: Record<string, MapStyleConfig> = {
     subdomains: ["a", "b", "c"],
     maxZoom: 19,
   },
-  cartoLight: {
-    name: "Light",
-    url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-    attribution: "&copy; CartoDB",
-    subdomains: "abcd",
-    maxZoom: 19,
-  },
   satellite: {
     name: "Satellite",
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     attribution: "&copy; Esri",
     subdomains: ["a", "b", "c"],
-    maxZoom: 19,
-  },
-  cartoDark: {
-    name: "Dark",
-    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-    attribution: "&copy; CartoDB",
-    subdomains: "abcd",
     maxZoom: 19,
   },
 };
@@ -194,7 +180,7 @@ export default function MapPicker({
 
     const map = L.map(container, {
       zoomControl: true,
-      attributionControl: false,
+      attributionControl: true,
     }).setView([defaultLat, defaultLng], 14);
 
     const style = MAP_STYLES[mapStyle] || MAP_STYLES.standard;
