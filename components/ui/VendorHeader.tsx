@@ -268,6 +268,10 @@ export function VendorHeader() {
                               onClick={() => {
                                 if (!n.is_read) markRead(n.id);
                                 setNotifDropdown(false);
+                                if (n.reference_type === "vendor") {
+                                  router.push("/products?requestCategories=history");
+                                  return;
+                                }
                                 const isProductQuotation =
                                   n.reference_type === "quotation" ||
                                   (!n.reference_type && n.type === "quotation_request_received" && !n.title?.toLowerCase().includes("service"));

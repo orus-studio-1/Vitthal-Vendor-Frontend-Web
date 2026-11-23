@@ -1639,6 +1639,12 @@ export default function AddProductPage() {
                           <Plus className="w-4 h-4 mr-2" />
                           Create "{searchQuery}" as new product
                         </button>
+                        <p className="mt-5 text-xs text-gray-500">
+                          Search only shows products from your categories.{" "}
+                          <Link href="/products?requestCategories=new" className="font-semibold text-blue-600 hover:text-blue-800">
+                            Request access to more categories
+                          </Link>
+                        </p>
                       </div>
                     )}
                   </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { Suspense, useState, useEffect } from "react";
 import {
   Search,
   Plus,
@@ -14,8 +14,9 @@ import {
   ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
+import CategoryAccessPanel from "@/components/products/CategoryAccessPanel";
 
 type VendorProductVariant = {
   vendor_product_id: string;
@@ -45,6 +46,15 @@ type VendorProduct = {
   has_pending_deletion?: boolean;
   variants: VendorProductVariant[];
 };
+
+/** Opens the category request dialog for links like /products?requestCategories=history. */
+function CategoryRequestParam({ onOpen }: { onOpen: (tab: "new" | "history") => void }) {
+  const value = useSearchParams().get("requestCategories");
+  useEffect(() => {
+    if (value) onOpen(value === "history" ? "history" : "new");
+  }, [value, onOpen]);
+  return null;
+}
 
 const ProductsPage = () => {
   const router = useRouter();
@@ -79,6 +89,9 @@ const ProductsPage = () => {
   const [productType, setProductType] = useState("");
   const [status, setStatus] = useState("");
   const [vendorCategories, setVendorCategories] = useState<{ code: string; label: string }[]>([]);
+  // Links such as /products?requestCategories=1 (from Add Product or a notification) open the request dialog.
+  const [categoryRequest, setCategoryRequest] = useState<{ tab: "new" | "history"; at: number } | null>(null);
+  const openCategoryRequest = React.useCallback((tab: "new" | "history") => setCategoryRequest({ tab, at: Date.now() }), []);
 
   useEffect(() => {
     const fetchVendorCategories = async () => {
@@ -242,6 +255,11 @@ const ProductsPage = () => {
           </Link>
         </div>
       </div>
+
+      <Suspense fallback={null}>
+        <CategoryRequestParam onOpen={openCategoryRequest} />
+      </Suspense>
+      <CategoryAccessPanel openRequest={categoryRequest} />
 
       {/* Search and Filter Bar */}
       <div className="sticky top-24 z-40 bg-white border border-gray-200 rounded-lg p-4 mb-6 shadow-sm">
